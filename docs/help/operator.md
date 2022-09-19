@@ -690,3 +690,48 @@ spec:
 ```
 
 Note: you are configuring an array of [envVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#envvar-v1-core) which is a very powerfull concept. Proceed with care, taking due respect to any environment the operator may set and depend on. For full documentation see the [Kubernetes Documentation](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
+
+## Configuring Logging for Brokers
+
+By default the operator deploys a broker with a default logging configuration that comes with the [Artemis container image]
+(https://github.com/artemiscloud/activemq-artemis-broker-kubernetes-image). Broker logs its messages to console only.
+
+Users can change the broker logging configuration by providing their own in a configmap or secret. The name of the configmap
+or secret must have the suffix **-logging-config**. There must be one entry in the configmap or secret. The key of the entry
+must be **logging.properties** and the value must of the full content of the logging configuration. (The broker is using slf4j with
+log4j2 binding so the content should be log4j2's configuration in Java's properties file format).
+
+Then you need to give the name of the configmap or secret in the broker custom resource. For example
+
+`for configmap`
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: broker
+  namespace: activemq-artemis-operator
+spec:
+spec:
+  deploymentPlan:
+    size: 1
+    image: placeholder
+    extraMounts:
+      configMaps:
+      - "my-logging-config"
+```
+`for secret`
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: broker
+  namespace: activemq-artemis-operator
+spec:
+spec:
+  deploymentPlan:
+    size: 1
+    image: placeholder
+    extraMounts:
+      secrets:
+      - "my-logging-config"
+```

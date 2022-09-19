@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -210,7 +211,8 @@ func validate(customResource *brokerv1beta1.ActiveMQArtemis, client rtclient.Cli
 
 func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) (*metav1.Condition, error) {
 	for _, cm := range customResource.Spec.DeploymentPlan.ExtraMounts.ConfigMaps {
-		found, err := validateExtraMount(cm, customResource.Namespace, &corev1.ConfigMap{}, client, scheme)
+		configMap := corev1.ConfigMap{}
+		found, err := validateExtraMount(cm, customResource.Namespace, &configMap, client, scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -222,9 +224,21 @@ func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client r
 				Message: fmt.Sprintf("Missing required configMap %v", cm),
 			}, nil
 		}
+		//validate logging
+		if strings.HasSuffix(cm, loggingConfigSuffix) {
+			if _, ok := configMap.Data["logging.properties"]; !ok {
+				return &metav1.Condition{
+					Type:    common.ValidConditionType,
+					Status:  metav1.ConditionFalse,
+					Reason:  common.ValidConditionFailedReason,
+					Message: fmt.Sprintf("Logging configmap %v must have key logging.properties", cm),
+				}, nil
+			}
+		}
 	}
 	for _, s := range customResource.Spec.DeploymentPlan.ExtraMounts.Secrets {
-		found, err := validateExtraMount(s, customResource.Namespace, &corev1.Secret{}, client, scheme)
+		secret := corev1.Secret{}
+		found, err := validateExtraMount(s, customResource.Namespace, &secret, client, scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -235,6 +249,17 @@ func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client r
 				Reason:  common.ValidConditionMissingResourcesReason,
 				Message: fmt.Sprintf("Missing required secret %v", s),
 			}, nil
+		}
+		//validate logging
+		if strings.HasSuffix(s, loggingConfigSuffix) {
+			if _, ok := secret.Data["logging.properties"]; !ok {
+				return &metav1.Condition{
+					Type:    common.ValidConditionType,
+					Status:  metav1.ConditionFalse,
+					Reason:  common.ValidConditionFailedReason,
+					Message: fmt.Sprintf("Logging secret %v must have key logging.properties", s),
+				}, nil
+			}
 		}
 	}
 	return nil, nil

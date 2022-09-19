@@ -334,7 +334,7 @@ func TestNewPodTemplateSpecForCR_IncludesDebugArgs(t *testing.T) {
 		},
 	}
 
-	newSpec, err := reconciler.NewPodTemplateSpecForCR(cr, Namers{}, &v1.PodTemplateSpec{})
+	newSpec, err := reconciler.NewPodTemplateSpecForCR(cr, Namers{}, &v1.PodTemplateSpec{}, k8sClient)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, newSpec)
@@ -371,7 +371,7 @@ func TestNewPodTemplateSpecForCR_AppendsDebugArgs(t *testing.T) {
 		},
 	}
 
-	newSpec, err := reconciler.NewPodTemplateSpecForCR(cr, Namers{}, &v1.PodTemplateSpec{})
+	newSpec, err := reconciler.NewPodTemplateSpecForCR(cr, Namers{}, &v1.PodTemplateSpec{}, k8sClient)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, newSpec)

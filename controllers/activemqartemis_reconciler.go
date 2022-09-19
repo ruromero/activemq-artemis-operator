@@ -67,6 +67,7 @@ const (
 	defaultLivenessProbeInitialDelay = 5
 	TCPLivenessPort                  = 8161
 	jaasConfigSuffix                 = "-jaas-config"
+	loggingConfigSuffix              = "-logging-config"
 )
 
 var defaultMessageMigration bool = true
@@ -206,7 +207,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) ProcessStatefulSet(customResour
 	}
 
 	log.Info("Reconciling desired statefulset", "name", ssNamespacedName, "current", currentStatefulSet)
-	currentStatefulSet, err = reconciler.NewStatefulSetForCR(customResource, namer, currentStatefulSet)
+	currentStatefulSet, err = reconciler.NewStatefulSetForCR(customResource, namer, currentStatefulSet, client)
 	if err != nil {
 		reqLogger.Error(err, "Error creating new stafulset")
 		return nil, err
@@ -1556,7 +1557,7 @@ func MakeContainerPorts(cr *brokerv1beta1.ActiveMQArtemis) []corev1.ContainerPor
 	return containerPorts
 }
 
-func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, current *corev1.PodTemplateSpec) (*corev1.PodTemplateSpec, error) {
+func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, current *corev1.PodTemplateSpec, client rtclient.Client) (*corev1.PodTemplateSpec, error) {
 
 	reqLogger := ctrl.Log.WithName(customResource.Name)
 
@@ -1591,11 +1592,14 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 		}
 	}
 	// validation success
-	meta.SetStatusCondition(&customResource.Status.Conditions, metav1.Condition{
-		Type:   common.ValidConditionType,
-		Status: metav1.ConditionTrue,
-		Reason: common.ValidConditionSuccessReason,
-	})
+	prevCondition := meta.FindStatusCondition(customResource.Status.Conditions, common.ValidConditionType)
+	if prevCondition == nil {
+		meta.SetStatusCondition(&customResource.Status.Conditions, metav1.Condition{
+			Type:   common.ValidConditionType,
+			Status: metav1.ConditionTrue,
+			Reason: common.ValidConditionSuccessReason,
+		})
+	}
 
 	pts := pods.MakePodTemplateSpec(current, namespacedName, labels)
 	podSpec := &pts.Spec
@@ -1689,6 +1693,14 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 		environments.CreateOrAppend(podSpec.Containers, &debugArgs)
 	}
 
+	if loggingConfigPath, found := getLoggingConfigExtraMountPath(customResource); found {
+		loggerOpts := corev1.EnvVar{
+			Name:  "JAVA_ARGS_APPEND",
+			Value: fmt.Sprintf("-Dlog4j2.configurationFile=%v", loggingConfigPath),
+		}
+		environments.CreateOrAppend(podSpec.Containers, &loggerOpts)
+	}
+
 	//add empty-dir volume and volumeMounts to main container
 	volumeForCfg := volumes.MakeVolumeForCfg(cfgVolumeName)
 	podSpec.Volumes = append(podSpec.Volumes, volumeForCfg)
@@ -1748,7 +1760,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 			yacfgProfileVersion + "/default_with_user_address_settings.yaml.jinja2  --tune " +
 			outputDir + "/broker.yaml --extra-properties '" + jsonSpecials + "' --output " + outputDir
 
-		clog.Info("==debug==, initCmd: " + initCmd)
+		clog.V(1).Info("initCmd: " + initCmd)
 		initCmds = append(initCmds, initCmd)
 
 		//populate args of init container
@@ -1883,20 +1895,27 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 }
 
 func getJaasConfigExtraMountPath(customResource *brokerv1beta1.ActiveMQArtemis) (string, bool) {
-	if t, name, found := getJaasConfigExtraMount(customResource); found {
+	if t, name, found := getConfigExtraMount(customResource, jaasConfigSuffix); found {
 		return fmt.Sprintf("/amq/extra/%v/%v/login.config", t, name), true
 	}
 	return "", false
 }
 
-func getJaasConfigExtraMount(customResource *brokerv1beta1.ActiveMQArtemis) (string, string, bool) {
+func getLoggingConfigExtraMountPath(customResource *brokerv1beta1.ActiveMQArtemis) (string, bool) {
+	if t, name, found := getConfigExtraMount(customResource, loggingConfigSuffix); found {
+		return fmt.Sprintf("/amq/extra/%v/%v/logging.properties", t, name), true
+	}
+	return "", false
+}
+
+func getConfigExtraMount(customResource *brokerv1beta1.ActiveMQArtemis, suffix string) (string, string, bool) {
 	for _, cm := range customResource.Spec.DeploymentPlan.ExtraMounts.ConfigMaps {
-		if strings.HasSuffix(cm, jaasConfigSuffix) {
+		if strings.HasSuffix(cm, suffix) {
 			return "configmaps", cm, true
 		}
 	}
 	for _, s := range customResource.Spec.DeploymentPlan.ExtraMounts.Secrets {
-		if strings.HasSuffix(s, jaasConfigSuffix) {
+		if strings.HasSuffix(s, suffix) {
 			return "secrets", s, true
 		}
 	}
@@ -2301,7 +2320,7 @@ func createExtraConfigmapsAndSecrets(brokerContainer *corev1.Container, configMa
 	return extraVolumes, extraVolumeMounts
 }
 
-func (reconciler *ActiveMQArtemisReconcilerImpl) NewStatefulSetForCR(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, currentStateFullSet *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+func (reconciler *ActiveMQArtemisReconcilerImpl) NewStatefulSetForCR(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, currentStateFullSet *appsv1.StatefulSet, client rtclient.Client) (*appsv1.StatefulSet, error) {
 
 	reqLogger := ctrl.Log.WithName(customResource.Name)
 
@@ -2311,7 +2330,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewStatefulSetForCR(customResou
 	}
 	currentStateFullSet = ss.MakeStatefulSet(currentStateFullSet, namer.SsNameBuilder.Name(), namer.SvcHeadlessNameBuilder.Name(), namespacedName, customResource.Annotations, namer.LabelBuilder.Labels(), customResource.Spec.DeploymentPlan.Size)
 
-	podTemplateSpec, err := reconciler.NewPodTemplateSpecForCR(customResource, namer, &currentStateFullSet.Spec.Template)
+	podTemplateSpec, err := reconciler.NewPodTemplateSpecForCR(customResource, namer, &currentStateFullSet.Spec.Template, client)
 	if err != nil {
 		reqLogger.Error(err, "Error creating new pod template")
 		return nil, err

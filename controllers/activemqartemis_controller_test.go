@@ -34,6 +34,7 @@ import (
 	brokerv2alpha4 "github.com/artemiscloud/activemq-artemis-operator/api/v2alpha4"
 	"github.com/artemiscloud/activemq-artemis-operator/api/v2alpha5"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/client/clientset/versioned/typed/broker/v1beta1"
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/configmaps"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/environments"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/secrets"
 	ss "github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
@@ -3864,6 +3865,255 @@ var _ = Describe("artemis controller", func() {
 
 	})
 
+	Context("LoggerProperties", Label("LoggerProperties-test"), func() {
+		It("logging configmap validation", func() {
+
+			By("By creatinging a new config map with wrong key")
+			ctx := context.Background()
+
+			loggingConfigMapName := "my-logging-config"
+
+			loggingData := make(map[string]string)
+			// it requires the key to be logging.properties
+			loggingData["logging-configuration"] = "someproperty=somevalue"
+			configMap := configmaps.MakeConfigMap(defaultNamespace, loggingConfigMapName, loggingData)
+			Eventually(func() bool {
+				err := k8sClient.Create(ctx, configMap, &client.CreateOptions{})
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+
+			By("By creating a new crd")
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{loggingConfigMapName}
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			Eventually(func() bool { return getPersistedVersionedCrd(crd.ObjectMeta.Name, defaultNamespace, createdCrd) }, timeout, interval).Should(BeTrue())
+			Expect(createdCrd.Name).Should(Equal(crd.ObjectMeta.Name))
+
+			Eventually(func(g Gomega) {
+				g.Expect(getPersistedVersionedCrd(crd.Name, defaultNamespace, createdCrd)).To(BeTrue())
+				validCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, common.ValidConditionType)
+				g.Expect(validCondition).NotTo(BeNil())
+				g.Expect(validCondition.Status).To(Equal(metav1.ConditionFalse))
+				g.Expect(validCondition.Reason).To(Equal(common.ValidConditionFailedReason))
+				g.Expect(validCondition.Message).To(Equal(fmt.Sprintf("Logging configmap %v must have key logging.properties", configMap.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			By("deleting the logging configmap")
+			Expect(k8sClient.Delete(ctx, configMap)).Should(Succeed())
+
+			Expect(k8sClient.Delete(ctx, createdCrd)).Should(Succeed())
+
+			By("check it has gone")
+			Eventually(func() bool {
+				return checkCrdDeleted(loggingConfigMapName, crd.Namespace, configMap)
+			}, timeout, interval).Should(BeTrue())
+			Eventually(func() bool {
+				return checkCrdDeleted(crd.ObjectMeta.Name, defaultNamespace, createdCrd)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("logging secret validation", func() {
+
+			By("By creatinging a new secret with wrong key")
+			ctx := context.Background()
+
+			loggingSecretName := "my-secret-logging-config"
+			loggingData := make(map[string]string)
+			// it requires the key to be logging.properties
+			loggingData["logging-configuration"] = "someproperty=somevalue"
+			loggingSecret := secrets.NewSecret(types.NamespacedName{Name: loggingSecretName, Namespace: defaultNamespace}, loggingSecretName, loggingData, nil)
+			Eventually(func() bool {
+				err := k8sClient.Create(ctx, loggingSecret, &client.CreateOptions{})
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+
+			By("By creating a new crd")
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.ExtraMounts.Secrets = []string{loggingSecretName}
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			Eventually(func() bool { return getPersistedVersionedCrd(crd.ObjectMeta.Name, defaultNamespace, createdCrd) }, timeout, interval).Should(BeTrue())
+			Expect(createdCrd.Name).Should(Equal(crd.ObjectMeta.Name))
+
+			Eventually(func(g Gomega) {
+				g.Expect(getPersistedVersionedCrd(crd.Name, defaultNamespace, createdCrd)).To(BeTrue())
+				validCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, common.ValidConditionType)
+				g.Expect(validCondition).NotTo(BeNil())
+				g.Expect(validCondition.Status).To(Equal(metav1.ConditionFalse))
+				g.Expect(validCondition.Reason).To(Equal(common.ValidConditionFailedReason))
+				g.Expect(validCondition.Message).To(Equal(fmt.Sprintf("Logging secret %v must have key logging.properties", loggingSecret.Name)))
+			}, timeout, interval).Should(Succeed())
+
+			By("deleting the logging configmap")
+			Expect(k8sClient.Delete(ctx, loggingSecret)).Should(Succeed())
+
+			Expect(k8sClient.Delete(ctx, createdCrd)).Should(Succeed())
+
+			By("check it has gone")
+			Eventually(func() bool {
+				return checkCrdDeleted(loggingSecretName, crd.Namespace, loggingSecret)
+			}, timeout, interval).Should(BeTrue())
+			Eventually(func() bool {
+				return checkCrdDeleted(crd.ObjectMeta.Name, defaultNamespace, createdCrd)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("Expect vol mount for logging configmap deployed", func() {
+
+			By("By creatinging a new config map with logging props")
+			ctx := context.Background()
+
+			loggingConfigMapName := "my-logging-config"
+
+			loggingData := make(map[string]string)
+			loggingData["logging.properties"] = "someproperty=somevalue"
+			configMap := configmaps.MakeConfigMap(defaultNamespace, loggingConfigMapName, loggingData)
+			Eventually(func() bool {
+				err := k8sClient.Create(ctx, configMap, &client.CreateOptions{})
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+
+			By("By creating a new crd")
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{loggingConfigMapName}
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			Eventually(func() bool { return getPersistedVersionedCrd(crd.ObjectMeta.Name, defaultNamespace, createdCrd) }, timeout, interval).Should(BeTrue())
+			Expect(createdCrd.Name).Should(Equal(crd.ObjectMeta.Name))
+
+			//retrieve ss
+			key := types.NamespacedName{Name: namer.CrToSS(createdCrd.Name), Namespace: defaultNamespace}
+			createdSs := &appsv1.StatefulSet{}
+			Eventually(func(g Gomega) {
+
+				g.Expect(k8sClient.Get(ctx, key, createdSs)).To(Succeed())
+
+				brokerContainer := createdSs.Spec.Template.Spec.Containers[0]
+				loggingPropName := "JAVA_ARGS_APPEND"
+				loggingPropValue := ""
+				expectedLoggingPropValue := "-Dlog4j2.configurationFile=/amq/extra/configmaps/my-logging-config/logging.properties"
+				for _, env := range brokerContainer.Env {
+					if env.Name == loggingPropName {
+						loggingPropValue = env.Value
+					}
+				}
+				g.Expect(strings.HasSuffix(loggingPropValue, expectedLoggingPropValue)).To(BeTrue())
+
+				mountPathFound := false
+				for _, mount := range brokerContainer.VolumeMounts {
+					if mount.MountPath == "/amq/extra/configmaps/my-logging-config" {
+						mountPathFound = true
+						break
+					}
+				}
+				g.Expect(mountPathFound).To(BeTrue())
+
+				volumeFound := false
+				for _, vol := range createdSs.Spec.Template.Spec.Volumes {
+					if vol.Name == "configmap-my-logging-config" {
+						volumeFound = true
+						break
+					}
+				}
+				g.Expect(volumeFound).To(BeTrue())
+
+			}, timeout, interval).Should(Succeed())
+
+			By("cleanup")
+			Expect(k8sClient.Delete(ctx, configMap)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, createdCrd)).Should(Succeed())
+
+			By("check it has gone")
+			Eventually(func() bool {
+				return checkCrdDeleted(loggingConfigMapName, crd.Namespace, configMap)
+			}, timeout, interval).Should(BeTrue())
+			Eventually(func() bool {
+				return checkCrdDeleted(crd.ObjectMeta.Name, defaultNamespace, createdCrd)
+			}, timeout, interval).Should(BeTrue())
+
+		})
+
+		It("Expect vol mount for logging secret deployed", func() {
+
+			By("By creatinging a new secret with logging props")
+			ctx := context.Background()
+
+			loggingSecretName := "my-secret-logging-config"
+
+			loggingData := make(map[string]string)
+			loggingData["logging.properties"] = "someproperty=somevalue"
+			secret := secrets.NewSecret(types.NamespacedName{Name: loggingSecretName, Namespace: defaultNamespace}, loggingSecretName, loggingData, nil)
+			Eventually(func() bool {
+				err := k8sClient.Create(ctx, secret, &client.CreateOptions{})
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+
+			By("By creating a new crd")
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.ExtraMounts.Secrets = []string{loggingSecretName}
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			Eventually(func() bool { return getPersistedVersionedCrd(crd.ObjectMeta.Name, defaultNamespace, createdCrd) }, timeout, interval).Should(BeTrue())
+			Expect(createdCrd.Name).Should(Equal(crd.ObjectMeta.Name))
+
+			//retrieve ss
+			key := types.NamespacedName{Name: namer.CrToSS(createdCrd.Name), Namespace: defaultNamespace}
+			createdSs := &appsv1.StatefulSet{}
+			Eventually(func(g Gomega) {
+
+				g.Expect(k8sClient.Get(ctx, key, createdSs)).To(Succeed())
+
+				brokerContainer := createdSs.Spec.Template.Spec.Containers[0]
+				loggingPropName := "JAVA_ARGS_APPEND"
+				loggingPropValue := ""
+				expectedLoggingPropValue := "-Dlog4j2.configurationFile=/amq/extra/secrets/my-secret-logging-config/logging.properties"
+				for _, env := range brokerContainer.Env {
+					if env.Name == loggingPropName {
+						loggingPropValue = env.Value
+					}
+				}
+				g.Expect(strings.HasSuffix(loggingPropValue, expectedLoggingPropValue)).To(BeTrue())
+
+				mountPathFound := false
+				for _, mount := range brokerContainer.VolumeMounts {
+					if mount.MountPath == "/amq/extra/secrets/my-secret-logging-config" {
+						mountPathFound = true
+						break
+					}
+				}
+				g.Expect(mountPathFound).To(BeTrue())
+
+				volumeFound := false
+				for _, vol := range createdSs.Spec.Template.Spec.Volumes {
+					if vol.Name == "secret-my-secret-logging-config" {
+						volumeFound = true
+						break
+					}
+				}
+				g.Expect(volumeFound).To(BeTrue())
+
+			}, timeout, interval).Should(Succeed())
+
+			By("cleanup")
+			Expect(k8sClient.Delete(ctx, secret)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, createdCrd)).Should(Succeed())
+
+			By("check it has gone")
+			Eventually(func() bool {
+				return checkCrdDeleted(loggingSecretName, crd.Namespace, secret)
+			}, timeout, interval).Should(BeTrue())
+			Eventually(func() bool {
+				return checkCrdDeleted(crd.ObjectMeta.Name, defaultNamespace, createdCrd)
+			}, timeout, interval).Should(BeTrue())
+
+		})
+	})
+
 	Context("With address settings via updated cr", func() {
 		It("Expect ok deploy", func() {
 			By("By creating a crd without address spec")
@@ -5716,7 +5966,7 @@ var _ = Describe("artemis controller", func() {
 			//{Name: "ARTEMIS_LOGGING_CONF", Value: "file:/amq/extra/configmaps/" + configMap.Name + "/" + customLogFilePropertiesFileName},
 
 			// this works!
-			{Name: "DEBUG_ARGS", Value: "-Dlogging.configuration=file:/amq/extra/configmaps/" + configMap.Name + "/" + customLogFilePropertiesFileName},
+			{Name: "JAVA_ARGS_APPEND", Value: "-Dlogging.configuration=file:/amq/extra/configmaps/" + configMap.Name + "/" + customLogFilePropertiesFileName},
 		}
 
 		By("Deploying the configMap " + configMap.ObjectMeta.Name)
