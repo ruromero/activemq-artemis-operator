@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/RHsyseng/operator-utils/pkg/logs"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/draincontroller"
 	corev1 "k8s.io/api/core/v1"
@@ -33,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var slog = ctrl.Log.WithName("controller_v1beta1activemqartemisscaledown")
+var slog = logs.GetLogger("controller_v1beta1activemqartemisscaledown")
 
 var StopCh chan struct{}
 
@@ -62,7 +63,8 @@ type ActiveMQArtemisScaledownReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *ActiveMQArtemisScaledownReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
-	reqLogger := ctrl.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name, "Reconciling", "ActiveMQArtemisScaledown")
+	reqLogger := logs.GetLogger("ActiveMQArtemisScaledown").
+		With("Request.Namespace", request.Namespace, "Request.Name", request.Name, "Reconciling", "ActiveMQArtemisScaledown")
 
 	// Fetch the ActiveMQArtemisScaledown instance
 	instance := &brokerv1beta1.ActiveMQArtemisScaledown{}

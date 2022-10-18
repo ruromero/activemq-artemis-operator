@@ -20,6 +20,7 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/RHsyseng/operator-utils/pkg/logs"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/environments"
@@ -37,8 +38,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-var elog = ctrl.Log.WithName("controller_v1alpha1activemqartemissecurity")
 
 // ActiveMQArtemisSecurityReconciler reconciles a ActiveMQArtemisSecurity object
 type ActiveMQArtemisSecurityReconciler struct {
@@ -62,7 +61,8 @@ type ActiveMQArtemisSecurityReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *ActiveMQArtemisSecurityReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 
-	reqLogger := ctrl.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name, "Reconciling", "ActiveMQArtemisSecurity")
+	reqLogger := logs.GetLogger("ActiveMQArtemisSecurity").
+		With("Request.Namespace", request.Namespace, "Request.Name", request.Name, "Reconciling", "ActiveMQArtemisSecurity")
 
 	instance := &brokerv1beta1.ActiveMQArtemisSecurity{}
 
@@ -96,7 +96,7 @@ func (r *ActiveMQArtemisSecurityReconciler) Reconcile(ctx context.Context, reque
 		if existingHandler := lsrcrs.RetrieveLastSuccessfulReconciledCR(request.NamespacedName, "security", r.Client, getLabels(instance)); existingHandler != nil {
 			//compare resource version
 			if existingHandler.Checksum == instance.ResourceVersion {
-				reqLogger.V(1).Info("The incoming security CR is identical to stored CR, no reconcile")
+				reqLogger.Info("The incoming security CR is identical to stored CR, no reconcile")
 				toReconcile = false
 			}
 		}
@@ -136,28 +136,28 @@ func getLabels(cr *brokerv1beta1.ActiveMQArtemisSecurity) map[string]string {
 }
 
 func (r *ActiveMQArtemisSecurityConfigHandler) IsApplicableFor(brokerNamespacedName types.NamespacedName) bool {
-	reqLogger := ctrl.Log.WithValues("IsApplicableFor", brokerNamespacedName)
+	reqLogger := logs.GetLogger("ActiveMQArtemisSecurity").With("IsApplicableFor", brokerNamespacedName)
 
 	applyTo := r.SecurityCR.Spec.ApplyToCrNames
-	reqLogger.V(1).Info("applyTo", "len", len(applyTo), "sec", r.SecurityCR.Spec)
+	reqLogger.Info("applyTo", "len", len(applyTo), "sec", r.SecurityCR.Spec)
 
 	//currently security doesnt apply to other namespaces than its own
 	if r.NamespacedName.Namespace != brokerNamespacedName.Namespace {
-		reqLogger.V(1).Info("this security cr is not applicable for broker because it's not in my namespace")
+		reqLogger.Info("this security cr is not applicable for broker because it's not in my namespace")
 		return false
 	}
 	if len(applyTo) == 0 {
-		reqLogger.V(1).Info("this security cr is applicable for broker because no applyTo is configured")
+		reqLogger.Info("this security cr is applicable for broker because no applyTo is configured")
 		return true
 	}
 	for _, crName := range applyTo {
-		reqLogger.V(1).Info("Going through applyTo", "crName", crName)
+		reqLogger.Info("Going through applyTo", "crName", crName)
 		if crName == "*" || crName == "" || crName == brokerNamespacedName.Name {
-			reqLogger.V(1).Info("this security cr is applicable for broker as it's either match-all or match name")
+			reqLogger.Info("this security cr is applicable for broker as it's either match-all or match name")
 			return true
 		}
 	}
-	reqLogger.V(1).Info("all applyToCrNames checked, no match. Not applicable")
+	reqLogger.Info("all applyToCrNames checked, no match. Not applicable")
 	return false
 }
 
@@ -268,25 +268,25 @@ func (r *ActiveMQArtemisSecurityConfigHandler) Config(initContainers []corev1.Co
 	configCmds = append(configCmds, "/opt/amq-broker/script/cfg/config-security.sh")
 	envVarName := "SECURITY_CFG_YAML"
 	envVar := corev1.EnvVar{
-		envVarName,
-		filePath,
-		nil,
+		Name:      envVarName,
+		Value:     filePath,
+		ValueFrom: nil,
 	}
 	environments.Create(initContainers, &envVar)
 
 	envVarName = "YACFG_PROFILE_VERSION"
 	envVar = corev1.EnvVar{
-		envVarName,
-		yacfgProfileVersion,
-		nil,
+		Name:      envVarName,
+		Value:     yacfgProfileVersion,
+		ValueFrom: nil,
 	}
 	environments.Create(initContainers, &envVar)
 
 	envVarName = "YACFG_PROFILE_NAME"
 	envVar = corev1.EnvVar{
-		envVarName,
-		yacfgProfileName,
-		nil,
+		Name:      envVarName,
+		Value:     yacfgProfileName,
+		ValueFrom: nil,
 	}
 	environments.Create(initContainers, &envVar)
 

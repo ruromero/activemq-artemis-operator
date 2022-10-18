@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/RHsyseng/operator-utils/pkg/logs"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 
@@ -39,7 +40,7 @@ import (
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/selectors"
 )
 
-var clog = ctrl.Log.WithName("controller_v1beta1activemqartemis")
+var clog = logs.GetLogger("controller_v1beta1activemqartemis")
 
 var namespaceToConfigHandler = make(map[types.NamespacedName]common.ActiveMQArtemisConfigHandler)
 
@@ -83,12 +84,12 @@ func (r *ActiveMQArtemisReconciler) RemoveBrokerConfigHandler(namespacedName typ
 
 func (r *ActiveMQArtemisReconciler) AddBrokerConfigHandler(namespacedName types.NamespacedName, handler common.ActiveMQArtemisConfigHandler, toReconcile bool) error {
 	if _, ok := namespaceToConfigHandler[namespacedName]; ok {
-		clog.V(1).Info("There is an old config handler, it'll be replaced")
+		clog.Info("There is an old config handler, it'll be replaced")
 	}
 	namespaceToConfigHandler[namespacedName] = handler
-	clog.V(1).Info("A new config handler has been added", "handler", handler)
+	clog.Info("A new config handler has been added", "handler", handler)
 	if toReconcile {
-		clog.V(1).Info("Updating broker security")
+		clog.Info("Updating broker security")
 		return r.UpdatePodForSecurity(namespacedName, handler)
 	}
 	return nil
@@ -126,7 +127,7 @@ type ActiveMQArtemisReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *ActiveMQArtemisReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
-	reqLogger := ctrl.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name, "Reconciling", "ActiveMQArtemis")
+	reqLogger := logs.GetLogger("ActiveMQArtemis").With("Request.Namespace", request.Namespace, "Request.Name", request.Name, "Reconciling")
 
 	customResource := &brokerv1beta1.ActiveMQArtemis{}
 
@@ -246,14 +247,13 @@ func (r *ActiveMQArtemisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func UpdateCRStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, namespacedName types.NamespacedName) error {
-
 	common.SetReadyCondition(&cr.Status.Conditions)
 
 	current := &brokerv1beta1.ActiveMQArtemis{}
 
 	err := client.Get(context.TODO(), namespacedName, current)
 	if err != nil {
-		clog.Error(err, "unable to retrieve current resource", "ActiveMQArtemis", namespacedName)
+		clog.Error(err, "unable to retrieve current resource", "namespaced name", namespacedName)
 		return err
 	}
 

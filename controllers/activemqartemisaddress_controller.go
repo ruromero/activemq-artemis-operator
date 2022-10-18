@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 
+	"github.com/RHsyseng/operator-utils/pkg/logs"
 	mgmt "github.com/artemiscloud/activemq-artemis-management"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
@@ -103,7 +104,7 @@ func (r *ActiveMQArtemisAddressReconciler) Reconcile(ctx context.Context, reques
 		if existingCr := lsrcrs.RetrieveLastSuccessfulReconciledCR(request.NamespacedName, "address", r.Client, getAddressLabels(instance)); existingCr != nil {
 			//compare resource version
 			if existingCr.Checksum == instance.ResourceVersion {
-				reqLogger.V(1).Info("The incoming address CR is identical to stored CR, don't do reconcile")
+				reqLogger.Info("The incoming address CR is identical to stored CR, don't do reconcile")
 				return ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}, nil
 			}
 		}
@@ -181,7 +182,7 @@ func (r *ActiveMQArtemisAddressReconciler) SetupWithManager(mgr ctrl.Manager, ct
 // This method deals with creating queues and addresses.
 func createQueue(instance *AddressDeployment, request ctrl.Request, client client.Client, scheme *runtime.Scheme) error {
 
-	reqLogger := ctrl.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := logs.GetLogger("ActiveMQArtemisAddress").With("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Creating ActiveMQArtemisAddress")
 
 	var err error = nil
@@ -194,14 +195,14 @@ func createQueue(instance *AddressDeployment, request ctrl.Request, client clien
 			}
 			err = createAddressResource(a, &instance.AddressResource)
 			if err != nil {
-				reqLogger.V(1).Info("Failed to create address resource", "failed broker", a)
+				reqLogger.Info("Failed to create address resource", "failed broker", a)
 				continue
 			}
 		}
 	}
 
 	if err == nil {
-		reqLogger.V(1).Info("Successfully created resources on all brokers", "size", len(artemisArray))
+		reqLogger.Info("Successfully created resources on all brokers", "size", len(artemisArray))
 	}
 
 	return err
@@ -241,8 +242,8 @@ func createAddressResource(a *jc.JkInfo, addressRes *brokerv1beta1.ActiveMQArtem
 			if nil != err {
 				if mgmt.GetCreationError(response) == mgmt.QUEUE_ALREADY_EXISTS {
 					//TODO: we may add an update API to management module like the queueConfig case
-					glog.V(1).Error(err, "some error occurred", "response", response, "broker", a.IP)
-					glog.V(1).Info("Queue already exists, ignore and return success", "broker", a.IP)
+					glog.Error(err, "some error occurred", "response", response, "broker", a.IP)
+					glog.Info("Queue already exists, ignore and return success", "broker", a.IP)
 					err = nil
 				} else {
 					glog.Error(err, "Creating ActiveMQArtemisAddress error for "+*addressRes.Spec.QueueName, "broker", a.IP)
@@ -308,7 +309,7 @@ func (ar *AddressRetry) safeDelete() {
 // This method deals with deleting queues and addresses.
 func deleteQueue(instance *AddressDeployment, request ctrl.Request, client client.Client, scheme *runtime.Scheme) error {
 
-	reqLogger := ctrl.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := logs.GetLogger("ActiveMQArtemisAddress").With("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
 	addressName := instance.AddressResource.Spec.AddressName
 
@@ -355,7 +356,7 @@ func deleteQueue(instance *AddressDeployment, request ctrl.Request, client clien
 }
 
 func getPodBrokers(instance *AddressDeployment, request ctrl.Request, client client.Client, scheme *runtime.Scheme) []*jc.JkInfo {
-	reqLogger := ctrl.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := logs.GetLogger("ActiveMQArtemisAddress").With("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Getting Pod Brokers", "instance", instance)
 	targetCrNamespacedNames := createTargetCrNamespacedNames(request.Namespace, instance.AddressResource.Spec.ApplyToCrNames)
 	reqLogger.Info("target Cr names", "result", targetCrNamespacedNames)
