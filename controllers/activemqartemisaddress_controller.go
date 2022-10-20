@@ -18,21 +18,17 @@ package controllers
 
 import (
 	"context"
-	"reflect"
-	"strconv"
 
-	"github.com/RHsyseng/operator-utils/pkg/resource/read"
 	mgmt "github.com/artemiscloud/activemq-artemis-management"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
-	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources"
-	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/secrets"
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
 	ss "github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/channels"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
+	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/lsrcrs"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/selectors"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,7 +36,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	rtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -212,7 +207,7 @@ func createQueue(instance *AddressDeployment, request ctrl.Request, client clien
 	return err
 }
 
-func createAddressResource(a *JkInfo, addressRes *brokerv1beta1.ActiveMQArtemisAddress) error {
+func createAddressResource(a *jc.JkInfo, addressRes *brokerv1beta1.ActiveMQArtemisAddress) error {
 	//Now checking if create queue or address
 	if addressRes.Spec.QueueName == nil || *addressRes.Spec.QueueName == "" {
 		//create address
@@ -359,217 +354,14 @@ func deleteQueue(instance *AddressDeployment, request ctrl.Request, client clien
 	return err
 }
 
-type JkInfo struct {
-	Artemis *mgmt.Artemis
-	IP      string
-}
-
-func getPodBrokers(instance *AddressDeployment, request ctrl.Request, client client.Client, scheme *runtime.Scheme) []*JkInfo {
-
+func getPodBrokers(instance *AddressDeployment, request ctrl.Request, client client.Client, scheme *runtime.Scheme) []*jc.JkInfo {
 	reqLogger := ctrl.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Getting Pod Brokers", "instance", instance)
-
-	var artemisArray []*JkInfo = nil
-	var jolokiaSecretName string = request.Name + "-jolokia-secret"
-
 	targetCrNamespacedNames := createTargetCrNamespacedNames(request.Namespace, instance.AddressResource.Spec.ApplyToCrNames)
-
 	reqLogger.Info("target Cr names", "result", targetCrNamespacedNames)
+	ssInfos := ss.GetDeployedStatefulSetNames(client, targetCrNamespacedNames)
 
-	// can probabally list the required ss directly
-	ssInfos := GetDeployedStatefuleSetNames(client, targetCrNamespacedNames)
-
-	reqLogger.Info("got target ssNames from broker controller", "ssInfos", ssInfos)
-
-	for n, info := range ssInfos {
-		reqLogger.Info("Now retrieve ss", "order", n, "ssName", info.NamespacedName)
-		statefulset, err := ss.RetrieveStatefulSet(info.NamespacedName.Name, info.NamespacedName, info.Labels, client)
-		if nil != err {
-			reqLogger.Error(err, "error retriving ss")
-			reqLogger.Info("Statefulset: " + info.NamespacedName.Name + " not found")
-		} else {
-			reqLogger.Info("Statefulset: " + info.NamespacedName.Name + " found")
-			pod := &corev1.Pod{}
-			podNamespacedName := types.NamespacedName{
-				Name:      statefulset.Name + "-0",
-				Namespace: request.Namespace,
-			}
-
-			// For each of the replicas
-			var i int = 0
-			var replicas int = int(*statefulset.Spec.Replicas)
-			reqLogger.Info("finding pods in ss", "replicas", replicas)
-			for i = 0; i < replicas; i++ {
-				s := statefulset.Name + "-" + strconv.Itoa(i)
-				podNamespacedName.Name = s
-				reqLogger.Info("Trying finding pod " + s)
-				if err = client.Get(context.TODO(), podNamespacedName, pod); err != nil {
-					if errors.IsNotFound(err) {
-						reqLogger.Error(err, "Pod IsNotFound", "Namespace", request.Namespace, "Name", request.Name)
-					} else {
-						reqLogger.Error(err, "Pod lookup error", "Namespace", request.Namespace, "Name", request.Name)
-					}
-				} else {
-					reqLogger.Info("Pod found", "Namespace", request.Namespace, "Name", request.Name)
-					containers := pod.Spec.Containers //get env from this
-
-					jolokiaUser, jolokiaPassword, jolokiaProtocol := resolveJolokiaRequestParams(request.Namespace, &instance.AddressResource, client, scheme, jolokiaSecretName, &containers, podNamespacedName, statefulset, info.Labels)
-
-					reqLogger.Info("New Jolokia with ", "User: ", jolokiaUser, "Protocol: ", jolokiaProtocol, "broker ip", pod.Status.PodIP)
-					artemis := mgmt.GetArtemis(pod.Status.PodIP, "8161", "amq-broker", jolokiaUser, jolokiaPassword, jolokiaProtocol)
-					jkInfo := JkInfo{
-						Artemis: artemis,
-						IP:      pod.Status.PodIP,
-					}
-					artemisArray = append(artemisArray, &jkInfo)
-				}
-			}
-		}
-	}
-
-	reqLogger.Info("Finally we gathered some mgmt arry", "size", len(artemisArray))
-	return artemisArray
-}
-
-//get the statefulset names
-func GetDeployedStatefuleSetNames(client client.Client, targetCrNames []types.NamespacedName) []StatefulSetInfo {
-
-	var result []StatefulSetInfo = nil
-
-	var resourceMap map[reflect.Type][]rtclient.Object
-
-	// may need to lock down list result with labels
-	resourceMap, _ = read.New(client).ListAll(
-		&appsv1.StatefulSetList{},
-	)
-
-	var match bool = true
-	filtered := len(targetCrNames) > 0
-	for _, ssObject := range resourceMap[reflect.TypeOf(appsv1.StatefulSet{})] {
-
-		if filtered {
-			match = false
-			// track if a match
-			for _, filter := range targetCrNames {
-				if filter.Namespace == ssObject.GetNamespace() && filter.Name == namer.SSToCr(ssObject.GetName()) {
-					match = true
-					break
-				}
-			}
-		}
-		if match {
-			info := StatefulSetInfo{
-				NamespacedName: types.NamespacedName{Namespace: ssObject.GetNamespace(), Name: ssObject.GetName()},
-				Labels:         ssObject.GetLabels(),
-			}
-			result = append(result, info)
-		}
-	}
-	return result
-}
-
-func resolveJolokiaRequestParams(namespace string,
-	addressRes *brokerv1beta1.ActiveMQArtemisAddress,
-	client client.Client,
-	scheme *runtime.Scheme,
-	jolokiaSecretName string,
-	containers *[]corev1.Container,
-	podNamespacedName types.NamespacedName,
-	statefulset *appsv1.StatefulSet,
-	labels map[string]string) (string, string, string) {
-
-	var jolokiaUser string
-	var jolokiaPassword string
-	var jolokiaProtocol string
-
-	userDefined := false
-	if addressRes.Spec.User != nil {
-		userDefined = true
-		jolokiaUser = *addressRes.Spec.User
-	} else {
-		jolokiaUserFromSecret := secrets.GetValueFromSecret(namespace, false, false, jolokiaSecretName, "jolokiaUser", labels, client, scheme, addressRes)
-		if jolokiaUserFromSecret != nil {
-			userDefined = true
-			jolokiaUser = *jolokiaUserFromSecret
-		}
-	}
-	if userDefined {
-		if addressRes.Spec.Password != nil {
-			jolokiaPassword = *addressRes.Spec.Password
-		} else {
-			jolokiaPasswordFromSecret := secrets.GetValueFromSecret(namespace, false, false, jolokiaSecretName, "jolokiaPassword", labels, client, scheme, addressRes)
-			if jolokiaPasswordFromSecret != nil {
-				jolokiaPassword = *jolokiaPasswordFromSecret
-			}
-		}
-	}
-	if len(*containers) == 1 {
-		envVars := (*containers)[0].Env
-		for _, oneVar := range envVars {
-			if !userDefined && "AMQ_USER" == oneVar.Name {
-				jolokiaUser = getEnvVarValue(&oneVar, &podNamespacedName, statefulset, client, labels)
-			}
-			if !userDefined && "AMQ_PASSWORD" == oneVar.Name {
-				jolokiaPassword = getEnvVarValue(&oneVar, &podNamespacedName, statefulset, client, labels)
-			}
-			if "AMQ_CONSOLE_ARGS" == oneVar.Name {
-				jolokiaProtocol = getEnvVarValue(&oneVar, &podNamespacedName, statefulset, client, labels)
-			}
-			if jolokiaUser != "" && jolokiaPassword != "" && jolokiaProtocol != "" {
-				break
-			}
-		}
-	}
-
-	if jolokiaProtocol == "" {
-		jolokiaProtocol = "http"
-	} else {
-		jolokiaProtocol = "https"
-	}
-
-	return jolokiaUser, jolokiaPassword, jolokiaProtocol
-}
-
-func getEnvVarValue(envVar *corev1.EnvVar, namespace *types.NamespacedName, statefulset *appsv1.StatefulSet, client client.Client, labels map[string]string) string {
-	var result string
-	if envVar.Value == "" {
-		result = getEnvVarValueFromSecret(envVar.Name, envVar.ValueFrom, namespace, statefulset, client, labels)
-	} else {
-		result = envVar.Value
-	}
-	return result
-}
-
-func getEnvVarValueFromSecret(envName string, varSource *corev1.EnvVarSource, namespace *types.NamespacedName, statefulset *appsv1.StatefulSet, client client.Client, labels map[string]string) string {
-
-	reqLogger := ctrl.Log.WithValues("Namespace", namespace.Name, "StatefulSet", statefulset.Name)
-
-	var result string = ""
-
-	secretName := varSource.SecretKeyRef.LocalObjectReference.Name
-	secretKey := varSource.SecretKeyRef.Key
-
-	namespacedName := types.NamespacedName{
-		Name:      secretName,
-		Namespace: statefulset.Namespace,
-	}
-	// Attempt to retrieve the secret
-	stringDataMap := map[string]string{
-		envName: "",
-	}
-	theSecret := secrets.NewSecret(namespacedName, secretName, stringDataMap, labels)
-	var err error = nil
-	if err = resources.Retrieve(namespacedName, client, theSecret); err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Secret IsNotFound.", "Secret Name", secretName, "Key", secretKey)
-		}
-	} else {
-		elem, ok := theSecret.Data[envName]
-		if ok {
-			result = string(elem)
-		}
-	}
-	return result
+	return jc.GetBrokers(request.NamespacedName, ssInfos, client)
 }
 
 func createTargetCrNamespacedNames(namespace string, targetCrNames []string) []types.NamespacedName {
@@ -598,7 +390,7 @@ func GetStatefulSetNameForPod(client client.Client, pod *types.NamespacedName) (
 		if len(addressDeployment.SsTargetNameBuilders) == 0 {
 			glog.Info("this cr doesn't have target specified, it will be applied to all")
 			//deploy to all sts, need get from broker controller
-			ssInfos := GetDeployedStatefuleSetNames(client, nil)
+			ssInfos := statefulsets.GetDeployedStatefulSetNames(client, nil)
 			if len(ssInfos) == 0 {
 				glog.Info("No statefulset found")
 				continue

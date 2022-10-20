@@ -412,4 +412,12 @@ const (
 	DeployedConditionNotReadyReason  = "PodsNotReady"
 	DeployedConditionZeroSizeReason  = "ZeroSizeDeployment"
 	DeployedConditionZeroSizeMessage = "Pods not scheduled. Deployment size is 0"
+
+	ConfigAppliedConditionType                             = "BrokerPropertiesApplied"
+	ConfigAppliedConditionSynchedReason                    = "Applied"
+	ConfigAppliedConditionUnknownReason                    = "UnableToRetrieveStatus"
+	ConfigAppliedConditionOutOfSyncReason                  = "OutOfSync"
+	ConfigAppliedConditionOutOfSyncMessage                 = "Waiting for the Broker to ackowledge the changes"
+	ConfigAppliedConditionNoJolokiaClientsAvailableReason  = "NoJolokiaClientsAvailable"
+	ConfigAppliedConditionNoJolokiaClientsAvailableMessage = "Waiting for Jolokia Clients to become available"
 )

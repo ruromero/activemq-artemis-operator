@@ -129,6 +129,31 @@ var _ = Describe("Common Conditions", func() {
 			Expect(ready.Reason).To(Equal(NotReadyConditionReason))
 			Expect(ready.Message).To(Equal(NotReadyConditionMessage))
 		})
+		It("ignores condition in Unknown state", func() {
+			conditions := []metav1.Condition{
+				{
+					Type:    "FooCondition",
+					Status:  metav1.ConditionUnknown,
+					Reason:  "Unknown condition",
+					Message: "Test",
+				},
+				{
+					Type:   "BarCondition",
+					Status: metav1.ConditionTrue,
+					Reason: "BarIsOK",
+				},
+				{
+					Type:   "BazCondition",
+					Status: metav1.ConditionTrue,
+					Reason: "BazIsOK",
+				},
+			}
+
+			SetReadyCondition(&conditions)
+
+			Expect(meta.IsStatusConditionTrue(conditions, ReadyConditionType)).To(BeTrue())
+			Expect(conditions).To(HaveLen(4))
+		})
 	})
 
 	Describe("IsConditionPresentAndEquals", func() {

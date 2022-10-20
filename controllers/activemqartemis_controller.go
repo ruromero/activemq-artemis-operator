@@ -22,11 +22,10 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	rtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -57,7 +56,7 @@ func (r *ActiveMQArtemisReconciler) UpdatePodForSecurity(securityHandlerNamespac
 
 	existingCrs := &brokerv1beta1.ActiveMQArtemisList{}
 	var err error
-	opts := &client.ListOptions{}
+	opts := &rtclient.ListOptions{}
 	if err = r.Client.List(context.TODO(), existingCrs, opts); err == nil {
 		var candidate types.NamespacedName
 		for index, artemis := range existingCrs.Items {
@@ -97,7 +96,7 @@ func (r *ActiveMQArtemisReconciler) AddBrokerConfigHandler(namespacedName types.
 
 // ActiveMQArtemisReconciler reconciles a ActiveMQArtemis object
 type ActiveMQArtemisReconciler struct {
-	client.Client
+	rtclient.Client
 	Scheme *runtime.Scheme
 	events chan event.GenericEvent
 }
@@ -129,36 +128,49 @@ type ActiveMQArtemisReconciler struct {
 func (r *ActiveMQArtemisReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	reqLogger := ctrl.Log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name, "Reconciling", "ActiveMQArtemis")
 
-	var err error = nil
-
 	customResource := &brokerv1beta1.ActiveMQArtemis{}
 
 	// Fetch the ActiveMQArtemis instance
 	// When first creating this will have err == nil
 	// When deleting after creation this will have err NotFound
 	// When deleting before creation reconcile won't be called
-	if err = r.Get(context.TODO(), request.NamespacedName, customResource); err == nil {
+	err := r.Get(context.TODO(), request.NamespacedName, customResource)
 
-		namer := MakeNamers(customResource)
-		reconciler := ActiveMQArtemisReconcilerImpl{}
-
-		reconciler.Process(customResource, *namer, r.Client, r.Scheme)
-
-		UpdatePodStatus(customResource, r.Client, request.NamespacedName)
-
-		err = UpdateCRStatus(customResource, r.Client, request.NamespacedName)
-
-	} else if errors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		reqLogger.Info("ActiveMQArtemis Controller Reconcile encountered a IsNotFound, for request NamespacedName " + request.NamespacedName.String())
-		err = nil
+		return ctrl.Result{}, err
 	}
 
-	if err == nil {
-		return ctrl.Result{}, err
-	} else {
-		reqLogger.Error(err, "ActiveMQArtemis Controller Reconcile, requeuing request", "Request Namespace", request.Namespace, "Request Name", request.Name)
+	namer := MakeNamers(customResource)
+	reconciler := ActiveMQArtemisReconcilerImpl{}
+
+	reconciler.Process(customResource, *namer, r.Client, r.Scheme)
+
+	err = UpdatePodStatus(customResource, r.Client, request.NamespacedName)
+	if err != nil {
+		reqLogger.Error(err, "unable to update pod status", "Request Namespace", request.Namespace, "Request Name", request.Name)
 		return ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}, err
 	}
+
+	result, err := UpdateBrokerPropertiesStatus(customResource, r.Client, r.Scheme)
+	if err != nil {
+		reqLogger.Error(err, "unable to update broker properties status", "Request Namespace", request.Namespace, "Request Name", request.Name)
+		return result, err
+	}
+
+	err = UpdateCRStatus(customResource, r.Client, request.NamespacedName)
+
+	if err != nil {
+		reqLogger.Error(err, "unable to update ActiveMQArtemis status", "Request Namespace", request.Namespace, "Request Name", request.Name)
+		return ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}, err
+	}
+
+	if result.IsZero() {
+		reqLogger.Info("resource successfully reconciled")
+	} else {
+		reqLogger.Info("requeue resource")
+	}
+	return result, err
 }
 
 type Namers struct {
@@ -206,13 +218,8 @@ func GetDefaultLabels(cr *brokerv1beta1.ActiveMQArtemis) map[string]string {
 	return defaultLabelData.Labels()
 }
 
-type StatefulSetInfo struct {
-	NamespacedName types.NamespacedName
-	Labels         map[string]string
-}
-
 //only test uses this
-func NewReconcileActiveMQArtemis(c client.Client, s *runtime.Scheme) ActiveMQArtemisReconciler {
+func NewReconcileActiveMQArtemis(c rtclient.Client, s *runtime.Scheme) ActiveMQArtemisReconciler {
 	return ActiveMQArtemisReconciler{
 		Client: c,
 		Scheme: s,

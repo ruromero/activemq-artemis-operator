@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	ss "github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 
-	mgmt "github.com/artemiscloud/activemq-artemis-management"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 
-	//clientv2alpha3 "github.com/artemiscloud/activemq-artemis-operator/pkg/client/clientset/versioned/typed/broker/v2alpha3"
+	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -122,7 +122,7 @@ func (c *AddressObserver) checkCRsForNewPod(newPod *corev1.Pod, labels map[strin
 		//get the target namespaces
 		targetCrNamespacedNames := createTargetCrNamespacedNames(newPod.Namespace, a.Spec.ApplyToCrNames)
 		//e.g. ex-aao-ss
-		podSSName, statefulset := c.getSSNameForPod(newPod)
+		podSSName, _ := c.getSSNameForPod(newPod)
 		if podSSName == nil {
 			olog.Info("Can't find pod's statefulset name", "pod", newPod.Name)
 			continue
@@ -155,18 +155,13 @@ func (c *AddressObserver) checkCRsForNewPod(newPod *corev1.Pod, labels map[strin
 				Name:      newPod.Name,
 				Namespace: newPod.Namespace,
 			}
-			var jolokiaSecretName string = podCrName + "-jolokia-secret"
-			olog.Info("Recreating address resources on new Pod", "Name", newPod.Name, "secret name", jolokiaSecretName)
-			jolokiaUser, jolokiaPassword, jolokiaProtocol := resolveJolokiaRequestParams(newPod.Namespace,
-				&a, c.opclient, c.opscheme, jolokiaSecretName, &newPod.Spec.Containers, podNamespacedName, statefulset, labels)
 
-			olog.Info("New Jolokia with ", "User: ", jolokiaUser, "Protocol: ", jolokiaProtocol)
-			artemis := mgmt.GetArtemis(newPod.Status.PodIP, "8161", "amq-broker", jolokiaUser, jolokiaPassword, jolokiaProtocol)
-			jk := JkInfo{
-				Artemis: artemis,
-				IP:      newPod.Status.PodIP,
+			ssInfos := ss.GetDeployedStatefulSetNames(c.opclient, []types.NamespacedName{podNamespacedName})
+			jks := jc.GetBrokers(podNamespacedName, ssInfos, c.opclient)
+
+			for _, jk := range jks {
+				createAddressResource(jk, &a)
 			}
-			createAddressResource(&jk, &a)
 		}
 	}
 }

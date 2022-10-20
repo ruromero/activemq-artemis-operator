@@ -2498,7 +2498,7 @@ var _ = Describe("artemis controller", func() {
 				g.Expect(k8sClient.Update(ctx, createdCrd)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			hexShaModified := HexShaHashOfMap(createdCrd.Spec.BrokerProperties)
+			hexShaModified := hexShaHashOfMap(createdCrd.Spec.BrokerProperties)
 
 			By("finding the updated config map")
 			Eventually(func(g Gomega) {
@@ -2511,6 +2511,15 @@ var _ = Describe("artemis controller", func() {
 				// verify update
 				g.Expect(createdConfigMap.ResourceVersion).ShouldNot(Equal(cmResourceVersion))
 
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				crdRef := types.NamespacedName{
+					Namespace: crd.Namespace,
+					Name:      crd.Name,
+				}
+				g.Expect(k8sClient.Get(ctx, crdRef, createdCrd)).Should(Succeed())
+				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			// cleanup
@@ -2543,7 +2552,7 @@ var _ = Describe("artemis controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			By("inserting immutable config map with OwnerReference to mimic deploy upgrade")
-			hexShaOriginal := HexShaHashOfMap(crd.Spec.BrokerProperties)
+			hexShaOriginal := hexShaHashOfMap(crd.Spec.BrokerProperties)
 			immutableConfigMapKey := types.NamespacedName{Name: crd.ObjectMeta.Name + "-props-" + hexShaOriginal, Namespace: crd.ObjectMeta.Namespace}
 
 			immutableConfigMap := &corev1.ConfigMap{
@@ -2809,6 +2818,14 @@ var _ = Describe("artemis controller", func() {
 					Message: brokerv1beta1.DeployedConditionZeroSizeMessage,
 				})).Should(BeTrue())
 				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+
+				g.Expect(common.IsConditionPresentAndEqual(createdCrd.Status.Conditions, metav1.Condition{
+					Type:    brokerv1beta1.ConfigAppliedConditionType,
+					Status:  metav1.ConditionFalse,
+					Reason:  brokerv1beta1.ConfigAppliedConditionNoJolokiaClientsAvailableReason,
+					Message: brokerv1beta1.ConfigAppliedConditionNoJolokiaClientsAvailableMessage,
+				})).Should(BeTrue())
+				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("adding an address via update")
@@ -3034,13 +3051,13 @@ var _ = Describe("artemis controller", func() {
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
 				createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
 
 				By("verifying started")
-				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
 				Eventually(func(g Gomega) {
-
 					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
 					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
 					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
 					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
 
@@ -3068,6 +3085,7 @@ var _ = Describe("artemis controller", func() {
 					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
 					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
 					g.Expect(createdCrd.Generation).Should(BeNumerically("==", 2))
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
 					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
 					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
 
@@ -3083,6 +3101,9 @@ var _ = Describe("artemis controller", func() {
 						fmt.Printf("\na1 - cat:\n" + stdOutContent)
 					}
 					g.Expect(stdOutContent).Should(ContainSubstring(acceptorName))
+					ConfigAppliedCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
+					g.Expect(ConfigAppliedCondition).NotTo(BeNil())
+					g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionSynchedReason))
 				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
 			}

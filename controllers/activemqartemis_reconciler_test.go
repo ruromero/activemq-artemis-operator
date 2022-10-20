@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/RHsyseng/operator-utils/pkg/resource/compare"
+	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
+	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -15,8 +17,8 @@ import (
 
 func TestHexShaHashOfMap(t *testing.T) {
 
-	nilOne := HexShaHashOfMap(nil)
-	nilTwo := HexShaHashOfMap(nil)
+	nilOne := hexShaHashOfMap(nil)
+	nilTwo := hexShaHashOfMap(nil)
 
 	if nilOne != nilTwo {
 		t.Errorf("HexShaHashOfMap(nil) = %v, want %v", nilOne, nilTwo)
@@ -24,12 +26,12 @@ func TestHexShaHashOfMap(t *testing.T) {
 
 	props := []string{"a=a", "b=b"}
 
-	propsOriginal := HexShaHashOfMap(props)
+	propsOriginal := hexShaHashOfMap(props)
 
 	// modify
 	props = append(props, "c=c")
 
-	propsModified := HexShaHashOfMap(props)
+	propsModified := hexShaHashOfMap(props)
 
 	if propsOriginal == propsModified {
 		t.Errorf("HexShaHashOfMap(props mod) = %v, want %v", propsOriginal, propsModified)
@@ -38,15 +40,15 @@ func TestHexShaHashOfMap(t *testing.T) {
 	// revert, drop the last entry b/c they are ordered
 	props = append(props[:2])
 
-	if propsOriginal != HexShaHashOfMap(props) {
-		t.Errorf("HexShaHashOfMap(props) with revert = %v, want %v", propsOriginal, HexShaHashOfMap(props))
+	if propsOriginal != hexShaHashOfMap(props) {
+		t.Errorf("HexShaHashOfMap(props) with revert = %v, want %v", propsOriginal, hexShaHashOfMap(props))
 	}
 
 	// modify further, drop first entry
 	props = append(props[:1])
 
-	if propsOriginal == HexShaHashOfMap(props) {
-		t.Errorf("HexShaHashOfMap(props) with just a = %v, want %v", propsOriginal, HexShaHashOfMap(props))
+	if propsOriginal == hexShaHashOfMap(props) {
+		t.Errorf("HexShaHashOfMap(props) with just a = %v, want %v", propsOriginal, hexShaHashOfMap(props))
 	}
 
 }
@@ -223,4 +225,33 @@ func TestGetSingleStatefulSetStatus(t *testing.T) {
 		t.Errorf("not good!, expect ss name in starting" + statusRunning.Stopped[0])
 	}
 
+}
+
+func TestGetConfigAppliedConfigMapName(t *testing.T) {
+	cr := brokerv1beta1.ActiveMQArtemis{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "test-ns",
+			Name:      "test",
+		},
+	}
+	name := getConfigAppliedConfigMapName(&cr)
+	assert.Equal(t, "test-ns", name.Namespace)
+	assert.Equal(t, "test-props", name.Name)
+}
+
+func TestExtractSha(t *testing.T) {
+	json := `{"properties": {"a_status.properties": {"cr:alder32": "123456"}}}`
+	sha, err := extractSha(json)
+	assert.Equal(t, "123456", sha)
+	assert.NoError(t, err)
+
+	json = `{"properties": {"a_status.properties": {}}}`
+	sha, err = extractSha(json)
+	assert.Empty(t, sha)
+	assert.NoError(t, err)
+
+	json = `you shall fail`
+	sha, err = extractSha(json)
+	assert.Empty(t, sha)
+	assert.Error(t, err)
 }
