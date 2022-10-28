@@ -31,7 +31,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 	brokerv2alpha4 "github.com/artemiscloud/activemq-artemis-operator/api/v2alpha4"
 	"github.com/artemiscloud/activemq-artemis-operator/api/v2alpha5"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/environments"
@@ -794,7 +793,7 @@ var _ = Describe("artemis controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 			key = types.NamespacedName{Name: toCreate.Name, Namespace: toCreate.Namespace}
-			createdCrd := &v1beta1.ActiveMQArtemis{}
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, key, createdCrd)).Should(Succeed())
 				g.Expect(len(createdCrd.Status.PodStatus.Stopped)).Should(BeEquivalentTo(1))
@@ -959,6 +958,26 @@ var _ = Describe("artemis controller", func() {
 					TimeoutSeconds:      5,
 				}
 
+				// an eariler operator would not set an owner ref on services and we can clash
+				// on create when trying to create a service with the same name..
+				// verify that we find and fix the owner ref before reconcile
+				var dudPort = int32(22)
+				serviceKey := types.NamespacedName{Name: crd.Name + "-wconsj-0-svc", Namespace: defaultNamespace}
+				existingSrviceWithOutOwnerRef := corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{Name: serviceKey.Name, Namespace: serviceKey.Namespace},
+					Spec: corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Port: dudPort}},
+					},
+				}
+
+				Expect(k8sClient.Create(ctx, &existingSrviceWithOutOwnerRef)).Should(Succeed())
+				retrievedService := corev1.Service{}
+				// ensure it is present before the artemis cr
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, serviceKey, &retrievedService)).Should(Succeed())
+					g.Expect(retrievedService.ResourceVersion).Should(Not(BeEmpty()))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
 				crd.Spec.Console.Expose = true
 				crd.Spec.Console.SSLEnabled = true
 				crd.Spec.Console.SSLSecret = "my-secret"
@@ -1078,10 +1097,22 @@ var _ = Describe("artemis controller", func() {
 					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 				}
 
+				By("verify service still exists and is updated")
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, serviceKey, &retrievedService)).Should(Succeed())
+					g.Expect(len(retrievedService.GetOwnerReferences())).Should(BeEquivalentTo(1))
+					g.Expect(retrievedService.Spec.Ports[0].Port).Should(Not(BeEquivalentTo(dudPort)))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
 				Expect(k8sClient.Delete(ctx, &crd)).Should(Succeed())
 				if isOpenshift {
 					Expect(k8sClient.Delete(ctx, &consoleSecret)).Should(Succeed())
 				}
+
+				By("verify service gets owned and deleted")
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, serviceKey, &retrievedService)).Should(Not(Succeed()))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 			}
 		})
 	})
