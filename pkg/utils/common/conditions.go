@@ -23,6 +23,11 @@ const (
 	ReadyConditionReason     = "ResourceReady"
 	NotReadyConditionReason  = "WaitingForAllConditions"
 	NotReadyConditionMessage = "Some conditions are not met"
+
+	ValidConditionType                   = "Validation"
+	ValidConditionSuccessReason          = "ValidationSucceded"
+	ValidConditionMissingResourcesReason = "MissingDependentResources"
+	ValidConditionFailedReason           = "UnableToPerformValidation"
 )
 
 func SetReadyCondition(conditions *[]metav1.Condition) {

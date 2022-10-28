@@ -18,11 +18,14 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -149,15 +152,23 @@ func (r *ActiveMQArtemisReconciler) Reconcile(ctx context.Context, request ctrl.
 	namer := MakeNamers(customResource)
 	reconciler := ActiveMQArtemisReconcilerImpl{}
 
-	reconciler.Process(customResource, *namer, r.Client, r.Scheme)
+	result := ctrl.Result{}
 
-	err = UpdatePodStatus(customResource, r.Client, request.NamespacedName)
-	if err != nil {
-		reqLogger.Error(err, "unable to update pod status", "Request Namespace", request.Namespace, "Request Name", request.Name)
-		return ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}, err
+	if hasValidationErrors, err := validate(customResource, r.Client, r.Scheme); !hasValidationErrors && err == nil {
+		requeue := reconciler.Process(customResource, *namer, r.Client, r.Scheme)
+
+		err = UpdatePodStatus(customResource, r.Client, request.NamespacedName)
+		if err != nil {
+			reqLogger.Error(err, "unable to update pod status", "Request Namespace", request.Namespace, "Request Name", request.Name)
+			return ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}, err
+		}
+
+		result = UpdateBrokerPropertiesStatus(customResource, r.Client, r.Scheme)
+		if requeue {
+			result = ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}
+		}
 	}
 
-	result := UpdateBrokerPropertiesStatus(customResource, r.Client, r.Scheme)
 	err = UpdateCRStatus(customResource, r.Client, request.NamespacedName)
 
 	if err != nil {
@@ -176,6 +187,69 @@ func (r *ActiveMQArtemisReconciler) Reconcile(ctx context.Context, request ctrl.
 		reqLogger.Info("requeue resource")
 	}
 	return result, err
+}
+
+func validate(customResource *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) (bool, error) {
+	// Do additional validation here
+	validationCondition := metav1.Condition{
+		Type:   common.ValidConditionType,
+		Status: metav1.ConditionTrue,
+		Reason: common.ValidConditionSuccessReason,
+	}
+	condition, err := validateExtraMounts(customResource, client, scheme)
+	if err != nil {
+		return false, err
+	}
+	if condition != nil {
+		validationCondition = *condition
+	}
+
+	meta.SetStatusCondition(&customResource.Status.Conditions, validationCondition)
+	return false, nil
+}
+
+func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) (*metav1.Condition, error) {
+	for _, cm := range customResource.Spec.DeploymentPlan.ExtraMounts.ConfigMaps {
+		found, err := validateExtraMount(cm, customResource.Namespace, &corev1.ConfigMap{}, client, scheme)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			return &metav1.Condition{
+				Type:    common.ValidConditionType,
+				Status:  metav1.ConditionFalse,
+				Reason:  common.ValidConditionMissingResourcesReason,
+				Message: fmt.Sprintf("Missing required configMap %v", cm),
+			}, nil
+		}
+	}
+	for _, s := range customResource.Spec.DeploymentPlan.ExtraMounts.Secrets {
+		found, err := validateExtraMount(s, customResource.Namespace, &corev1.Secret{}, client, scheme)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			return &metav1.Condition{
+				Type:    common.ValidConditionType,
+				Status:  metav1.ConditionFalse,
+				Reason:  common.ValidConditionMissingResourcesReason,
+				Message: fmt.Sprintf("Missing required secret %v", s),
+			}, nil
+		}
+	}
+	return nil, nil
+}
+
+func validateExtraMount(name, namespace string, obj rtclient.Object, client rtclient.Client, scheme *runtime.Scheme) (bool, error) {
+	err := client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, obj)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
 }
 
 type Namers struct {

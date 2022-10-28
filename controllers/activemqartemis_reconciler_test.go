@@ -255,3 +255,129 @@ func TestExtractSha(t *testing.T) {
 	assert.Empty(t, sha)
 	assert.Error(t, err)
 }
+
+func TestGetJaasConfigExtraMountPath(t *testing.T) {
+	cr := &brokerv1beta1.ActiveMQArtemis{
+		Spec: brokerv1beta1.ActiveMQArtemisSpec{
+			DeploymentPlan: brokerv1beta1.DeploymentPlanType{
+				ExtraMounts: brokerv1beta1.ExtraMountsType{
+					ConfigMaps: []string{
+						"test-config-jaas-config",
+						"some-cm",
+					},
+					Secrets: []string{
+						"other",
+					},
+				},
+			},
+		},
+	}
+	path, found := getJaasConfigExtraMountPath(cr)
+	assert.Equal(t, path, "/amq/extra/configmaps/test-config-jaas-config/login.config")
+	assert.True(t, found)
+
+	cr = &brokerv1beta1.ActiveMQArtemis{
+		Spec: brokerv1beta1.ActiveMQArtemisSpec{
+			DeploymentPlan: brokerv1beta1.DeploymentPlanType{
+				ExtraMounts: brokerv1beta1.ExtraMountsType{
+					ConfigMaps: []string{
+						"test-config",
+						"some-cm",
+					},
+					Secrets: []string{
+						"test-config-jaas-config",
+						"other-secret",
+					},
+				},
+			},
+		},
+	}
+	path, found = getJaasConfigExtraMountPath(cr)
+	assert.Equal(t, path, "/amq/extra/secrets/test-config-jaas-config/login.config")
+	assert.True(t, found)
+}
+
+func TestGetJaasConfigExtraMountPathNotPresent(t *testing.T) {
+	cr := &brokerv1beta1.ActiveMQArtemis{
+		Spec: brokerv1beta1.ActiveMQArtemisSpec{
+			DeploymentPlan: brokerv1beta1.DeploymentPlanType{
+				ExtraMounts: brokerv1beta1.ExtraMountsType{
+					ConfigMaps: []string{
+						"test-config",
+					},
+				},
+			},
+		},
+	}
+	path, found := getJaasConfigExtraMountPath(cr)
+	assert.Empty(t, path)
+	assert.False(t, found)
+}
+
+func TestNewPodTemplateSpecForCR_IncludesDebugArgs(t *testing.T) {
+	// client := fake.NewClientBuilder().Build()
+	reconciler := &ActiveMQArtemisReconcilerImpl{}
+
+	cr := &brokerv1beta1.ActiveMQArtemis{
+		Spec: brokerv1beta1.ActiveMQArtemisSpec{
+			DeploymentPlan: brokerv1beta1.DeploymentPlanType{
+				ExtraMounts: brokerv1beta1.ExtraMountsType{
+					ConfigMaps: []string{
+						"test-config-jaas-config",
+						"some-cm",
+					},
+					Secrets: []string{
+						"other",
+					},
+				},
+			},
+		},
+	}
+
+	newSpec, err := reconciler.NewPodTemplateSpecForCR(cr, Namers{}, &v1.PodTemplateSpec{})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, newSpec)
+	expectedEnv := v1.EnvVar{
+		Name:  "DEBUG_ARGS",
+		Value: "-Djava.security.auth.login.config=/amq/extra/configmaps/test-config-jaas-config/login.config",
+	}
+	assert.Contains(t, newSpec.Spec.Containers[0].Env, expectedEnv)
+}
+
+func TestNewPodTemplateSpecForCR_AppendsDebugArgs(t *testing.T) {
+	// client := fake.NewClientBuilder().Build()
+	reconciler := &ActiveMQArtemisReconcilerImpl{}
+
+	cr := &brokerv1beta1.ActiveMQArtemis{
+		Spec: brokerv1beta1.ActiveMQArtemisSpec{
+			Env: []v1.EnvVar{
+				{
+					Name:  "DEBUG_ARGS",
+					Value: "-Dtest.arg=foo",
+				},
+			},
+			DeploymentPlan: brokerv1beta1.DeploymentPlanType{
+				ExtraMounts: brokerv1beta1.ExtraMountsType{
+					ConfigMaps: []string{
+						"test-config-jaas-config",
+						"some-cm",
+					},
+					Secrets: []string{
+						"other",
+					},
+				},
+			},
+		},
+	}
+
+	newSpec, err := reconciler.NewPodTemplateSpecForCR(cr, Namers{}, &v1.PodTemplateSpec{})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, newSpec)
+	expectedEnv := v1.EnvVar{
+		Name:  "DEBUG_ARGS",
+		Value: "-Dtest.arg=foo -Djava.security.auth.login.config=/amq/extra/configmaps/test-config-jaas-config/login.config",
+	}
+	assert.Contains(t, newSpec.Spec.Containers[0].Env, expectedEnv)
+}

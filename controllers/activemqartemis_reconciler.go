@@ -66,6 +66,7 @@ const (
 	ImageNamePrefix                  = "RELATED_IMAGE_ActiveMQ_Artemis_Broker_"
 	defaultLivenessProbeInitialDelay = 5
 	TCPLivenessPort                  = 8161
+	jaasConfigSuffix                 = "-jaas-config"
 )
 
 var defaultMessageMigration bool = true
@@ -1546,7 +1547,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 			if key == selectors.LabelAppKey || key == selectors.LabelResourceKey {
 
 				meta.SetStatusCondition(&customResource.Status.Conditions, metav1.Condition{
-					Type:    brokerv1beta1.ValidConditionType,
+					Type:    common.ValidConditionType,
 					Status:  metav1.ConditionFalse,
 					Reason:  brokerv1beta1.ValidConditionFailedReservedLabelReason,
 					Message: fmt.Sprintf("'%s' is a reserved label, it is not allowed in Spec.DeploymentPlan.Labels", key),
@@ -1559,9 +1560,9 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 	}
 	// validation success
 	meta.SetStatusCondition(&customResource.Status.Conditions, metav1.Condition{
-		Type:   brokerv1beta1.ValidConditionType,
+		Type:   common.ValidConditionType,
 		Status: metav1.ConditionTrue,
-		Reason: brokerv1beta1.ValidConditionSuccessReason,
+		Reason: common.ValidConditionSuccessReason,
 	})
 
 	pts := pods.MakePodTemplateSpec(current, namespacedName, labels)
@@ -1646,6 +1647,15 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 		Value: brokerConfigRoot,
 	}
 	environments.Create(podSpec.Containers, &envBrokerCustomInstanceDir)
+
+	// JAAS Config
+	if jaasConfigPath, found := getJaasConfigExtraMountPath(customResource); found {
+		debugArgs := corev1.EnvVar{
+			Name:  "DEBUG_ARGS",
+			Value: fmt.Sprintf("-Djava.security.auth.login.config=%v", jaasConfigPath),
+		}
+		environments.CreateOrAppend(podSpec.Containers, &debugArgs)
+	}
 
 	//add empty-dir volume and volumeMounts to main container
 	volumeForCfg := volumes.MakeVolumeForCfg(cfgVolumeName)
@@ -1838,6 +1848,27 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 	pts.Spec = *podSpec
 
 	return pts, nil
+}
+
+func getJaasConfigExtraMountPath(customResource *brokerv1beta1.ActiveMQArtemis) (string, bool) {
+	if t, name, found := getJaasConfigExtraMount(customResource); found {
+		return fmt.Sprintf("/amq/extra/%v/%v/login.config", t, name), true
+	}
+	return "", false
+}
+
+func getJaasConfigExtraMount(customResource *brokerv1beta1.ActiveMQArtemis) (string, string, bool) {
+	for _, cm := range customResource.Spec.DeploymentPlan.ExtraMounts.ConfigMaps {
+		if strings.HasSuffix(cm, jaasConfigSuffix) {
+			return "configmaps", cm, true
+		}
+	}
+	for _, s := range customResource.Spec.DeploymentPlan.ExtraMounts.Secrets {
+		if strings.HasSuffix(s, jaasConfigSuffix) {
+			return "secrets", s, true
+		}
+	}
+	return "", "", false
 }
 
 func configureLivenessProbe(container *corev1.Container, probeFromCR *corev1.Probe) *corev1.Probe {
@@ -2308,13 +2339,13 @@ func UpdatePodStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, 
 func getValidCondition(cr *brokerv1beta1.ActiveMQArtemis) metav1.Condition {
 	// add valid true if none exists
 	for _, c := range cr.Status.Conditions {
-		if c.Type == brokerv1beta1.ValidConditionType {
+		if c.Type == common.ValidConditionType {
 			return c
 		}
 	}
 	return metav1.Condition{
-		Type:   brokerv1beta1.ValidConditionType,
-		Reason: brokerv1beta1.ValidConditionSuccessReason,
+		Type:   common.ValidConditionType,
+		Reason: common.ValidConditionSuccessReason,
 		Status: metav1.ConditionTrue,
 	}
 }

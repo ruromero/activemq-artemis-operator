@@ -423,7 +423,6 @@ var _ = Describe("artemis controller", func() {
 
 			hasMatch, matchErr = MatchCapturedLog("ERROR")
 			Expect(matchErr).To(BeNil())
-			fmt.Printf("logBuffer: %v\n", logBuffer)
 			Expect(hasMatch).To(BeFalse())
 
 			// cleanup
@@ -1828,7 +1827,7 @@ var _ = Describe("artemis controller", func() {
 					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
 					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
 					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
-					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ValidConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ValidConditionType)).Should(BeTrue())
 				}, timeout*2, interval).Should(Succeed())
 
 				By("applying taints to node")
@@ -2603,7 +2602,7 @@ var _ = Describe("artemis controller", func() {
 					Message: brokerv1beta1.DeployedConditionZeroSizeMessage,
 				})).Should(BeTrue())
 				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ValidConditionType)).Should(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ValidConditionType)).Should(BeTrue())
 
 			}, timeout, interval).Should(Succeed())
 
@@ -3191,7 +3190,7 @@ var _ = Describe("artemis controller", func() {
 				g.Expect(deployedCrd.Name).Should(Equal(validCrd.ObjectMeta.Name))
 				g.Expect(len(deployedCrd.Status.PodStatus.Stopped)).Should(Equal(1))
 				g.Expect(deployedCrd.Status.PodStatus.Stopped[0]).Should(Equal(namer.CrToSS(validCrd.Name)))
-				g.Expect(meta.IsStatusConditionTrue(deployedCrd.Status.Conditions, brokerv1beta1.ValidConditionType)).Should(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(deployedCrd.Status.Conditions, common.ValidConditionType)).Should(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
 			By("checking deployed resources of valid CR")
@@ -3217,9 +3216,9 @@ var _ = Describe("artemis controller", func() {
 			By("verify status valid false")
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, deployedCrdKey, &deployedCrd)).Should(Succeed())
-				g.Expect(meta.IsStatusConditionFalse(deployedCrd.Status.Conditions, brokerv1beta1.ValidConditionType)).Should(BeTrue())
-				g.Expect(meta.FindStatusCondition(deployedCrd.Status.Conditions, brokerv1beta1.ValidConditionType).Reason).Should(Equal(brokerv1beta1.ValidConditionFailedReservedLabelReason))
-				g.Expect(meta.FindStatusCondition(deployedCrd.Status.Conditions, brokerv1beta1.ValidConditionType).Message).Should(ContainSubstring("application"))
+				g.Expect(meta.IsStatusConditionFalse(deployedCrd.Status.Conditions, common.ValidConditionType)).Should(BeTrue())
+				g.Expect(meta.FindStatusCondition(deployedCrd.Status.Conditions, common.ValidConditionType).Reason).Should(Equal(brokerv1beta1.ValidConditionFailedReservedLabelReason))
+				g.Expect(meta.FindStatusCondition(deployedCrd.Status.Conditions, common.ValidConditionType).Message).Should(ContainSubstring("application"))
 				g.Expect(meta.IsStatusConditionFalse(deployedCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
 			}, timeout, interval).Should(Succeed())
 
@@ -3240,8 +3239,8 @@ var _ = Describe("artemis controller", func() {
 				g.Expect(len(deployedCrd.Status.PodStatus.Stopped)).Should(Equal(1))
 				g.Expect(deployedCrd.Status.PodStatus.Stopped[0]).Should(Equal(namer.CrToSS(invalidCrd.Name)))
 				By("verify status valid true")
-				g.Expect(meta.IsStatusConditionTrue(deployedCrd.Status.Conditions, brokerv1beta1.ValidConditionType)).Should(BeTrue())
-				g.Expect(meta.FindStatusCondition(deployedCrd.Status.Conditions, brokerv1beta1.ValidConditionType).Reason).Should(Equal(brokerv1beta1.ValidConditionSuccessReason))
+				g.Expect(meta.IsStatusConditionTrue(deployedCrd.Status.Conditions, common.ValidConditionType)).Should(BeTrue())
+				g.Expect(meta.FindStatusCondition(deployedCrd.Status.Conditions, common.ValidConditionType).Reason).Should(Equal(common.ValidConditionSuccessReason))
 			}, timeout, interval).Should(Succeed())
 
 			By("checking deployed resources of updated invalid CR")
