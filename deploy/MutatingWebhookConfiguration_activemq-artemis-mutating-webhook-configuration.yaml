@@ -1,8 +1,12 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
+<<<<<<< HEAD
   annotations:
     cert-manager.io/inject-ca-from: activemq-artemis-operator/activemq-artemis-serving-cert
+=======
+  creationTimestamp: null
+>>>>>>> cb4a59f3 (Adding webhook for converting v2alpha5 and v1beta1)
   name: activemq-artemis-mutating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
