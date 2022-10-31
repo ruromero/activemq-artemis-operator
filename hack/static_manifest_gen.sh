@@ -58,6 +58,8 @@ function writeFile() {
         sed -i -e 's/kind: Role/kind: ClusterRole/' \
           -e 's/kind: RoleBinding/kind: ClusterRoleBinding/' \
           "$destdir/cluster_role_binding.yaml"
+        echo '  namespace: activemq-artemis-operator' >> \
+          "$destdir/cluster_role_binding.yaml"
       elif [[ ${resource_name} =~ (leader-election) ]]; then
         createFile "$destdir/election_role_binding.yaml"
       else

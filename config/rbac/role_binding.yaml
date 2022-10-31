@@ -5,7 +5,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: activemq-artemis-operator
+  name: operator-role
 subjects:
 - kind: ServiceAccount
   name: controller-manager
