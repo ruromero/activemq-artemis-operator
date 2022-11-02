@@ -67,7 +67,7 @@ jobs:
         run: >
           export IMAGE_TAG=${GITHUB_REF#refs/tags/v} &&
           docker login --username=${{ secrets.QUAY_USERNAME }} --password=${{ secrets.QUAY_PASSWORD }} quay.io &&
-          docker tag $IMAGE_NAME:latest quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME-bundle:$IMAGE_TAG &&
+          docker tag $IMAGE_NAME-build:latest quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME-bundle:$IMAGE_TAG &&
           docker push quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME-bundle:$IMAGE_TAG &&
-          docker tag $IMAGE_NAME:latest quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME-bundle:latest &&
+          docker tag $IMAGE_NAME-build:latest quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME-bundle:latest &&
           docker push quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME-bundle:latest
