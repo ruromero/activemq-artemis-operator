@@ -1,10 +1,8 @@
 apiVersion: broker.amq.io/v1beta1
 kind: ActiveMQArtemisAddress
 metadata:
-  name: ex-aaoaddress
+  name: artemis-address-topic
 spec:
-  addressName: myAddress0
-  queueName: myQueue0
-  routingType: anycast
+  addressName: emptyAddress
+  routingType: multicast
   removeFromBrokerOnDelete: true
-

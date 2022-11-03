@@ -1,15 +1,11 @@
 apiVersion: broker.amq.io/v1beta1
 kind: ActiveMQArtemis
 metadata:
-  name: ex-aao
+  name: artemis-broker-tls
 spec:
   deploymentPlan:
-    size: 1
+    size: 2
     image: placeholder
     persistenceEnabled: true
+    # messageMigration requires 2+ brokers
     messageMigration: true
-  acceptors:
-  - name: amqp
-    protocols: amqp
-    port: 5672
-    sslEnabled: true

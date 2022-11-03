@@ -1,13 +1,13 @@
 apiVersion: broker.amq.io/v1beta1
 kind: ActiveMQArtemis
 metadata:
-  name: ex-aao
+  name: artemis-broker
 spec:
   deploymentPlan:
     size: 1
     image: placeholder
   addressSettings:
-    applyRule: merge_all
+    applyRule: merge_all # merge_replace| replace_all | See documentation for details
     addressSetting:
     - match: '#'
       deadLetterAddress: DLQ
@@ -17,6 +17,3 @@ spec:
       maxSizeBytes: '10m'
     - match: 'jms'
       deadLetterAddress: jmsdlq
-
-
-

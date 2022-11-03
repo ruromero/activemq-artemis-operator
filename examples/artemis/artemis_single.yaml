@@ -1,9 +1,8 @@
 apiVersion: broker.amq.io/v1beta1
 kind: ActiveMQArtemis
 metadata:
-  name: ex-aao
+  name: artemis-broker
 spec:
   deploymentPlan:
     size: 1
     image: placeholder
-    journalType: aio

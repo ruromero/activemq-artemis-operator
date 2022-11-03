@@ -1,7 +1,7 @@
 apiVersion: broker.amq.io/v1beta1
 kind: ActiveMQArtemis
 metadata:
-  name: ex-aao
+  name: artemis-broker-resources
 spec:
   deploymentPlan:
     size: 1
@@ -13,4 +13,3 @@ spec:
       requests:
         cpu: "250m"
         memory: "512Mi"
-
