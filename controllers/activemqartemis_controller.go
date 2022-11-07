@@ -163,6 +163,7 @@ func (r *ActiveMQArtemisReconciler) Reconcile(ctx context.Context, request ctrl.
 	if err != nil {
 		if apierrors.IsConflict(err) {
 			reqLogger.V(1).Info("unable to update ActiveMQArtemis status", "Request Namespace", request.Namespace, "Request Name", request.Name, "error", err)
+			err = nil // we don't want the controller event loop reporting this as an error
 		} else {
 			reqLogger.Error(err, "unable to update ActiveMQArtemis status", "Request Namespace", request.Namespace, "Request Name", request.Name)
 		}
