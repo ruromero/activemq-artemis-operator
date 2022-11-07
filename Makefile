@@ -14,6 +14,7 @@ OPERATOR_NAMESPACE := activemq-artemis-operator
 CATALOG_NAMESPACE := $(OPERATOR_NAMESPACE)
 BUNDLE_PACKAGE := $(OPERATOR_NAMESPACE)
 BUNDLE_ANNOTATION_PACKAGE := $(BUNDLE_PACKAGE)
+CATALOG_NAMESPACE := $(OPERATOR_NAMESPACE)
 GO_MODULE := github.com/artemiscloud/activemq-artemis-operator
 OS := $(shell go env GOOS)
 ARCH := $(shell go env GOARCH)
