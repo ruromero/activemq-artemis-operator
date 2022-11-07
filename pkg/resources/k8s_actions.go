@@ -116,7 +116,11 @@ func UpdateStatus(client client.Client, clientObject client.Object) error {
 
 	var err error = nil
 	if err = client.Status().Update(context.TODO(), clientObject); err != nil {
-		reqLogger.Error(err, "Failed to update status on "+objectTypeString)
+		if errors.IsConflict(err) {
+			reqLogger.V(1).Info("Failed to update status on "+objectTypeString, "error", err)
+		} else {
+			reqLogger.Error(err, "Failed to update status on "+objectTypeString)
+		}
 	}
 	return err
 }

@@ -161,7 +161,11 @@ func (r *ActiveMQArtemisReconciler) Reconcile(ctx context.Context, request ctrl.
 	err = UpdateCRStatus(customResource, r.Client, request.NamespacedName)
 
 	if err != nil {
-		reqLogger.Error(err, "unable to update ActiveMQArtemis status", "Request Namespace", request.Namespace, "Request Name", request.Name)
+		if apierrors.IsConflict(err) {
+			reqLogger.V(1).Info("unable to update ActiveMQArtemis status", "Request Namespace", request.Namespace, "Request Name", request.Name, "error", err)
+		} else {
+			reqLogger.Error(err, "unable to update ActiveMQArtemis status", "Request Namespace", request.Namespace, "Request Name", request.Name)
+		}
 		return ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}, err
 	}
 
