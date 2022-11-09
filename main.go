@@ -69,7 +69,7 @@ var (
 
 var (
 	//hard coded because the sdk version pkg is moved in internal package
-	sdkVersion = "1.15.0"
+	sdkVersion = "1.28.0"
 	scheme     = runtime.NewScheme()
 	log        logr.Logger
 )

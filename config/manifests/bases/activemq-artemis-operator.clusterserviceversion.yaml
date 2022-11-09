@@ -60,7 +60,7 @@ spec:
         path: queueConfiguration.autoDeleteMessageCount
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:number
-      - description: ' If the queue is configuration managed'
+      - description: If the queue is configuration managed
         displayName: Configuration Managed
         path: queueConfiguration.configurationManaged
         x-descriptors:
@@ -814,7 +814,7 @@ spec:
         path: connectors[0].sniHost
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: ' Whether or not to enable SSL on this port'
+      - description: Whether or not to enable SSL on this port
         displayName: SSL Enabled
         path: connectors[0].sslEnabled
         x-descriptors:

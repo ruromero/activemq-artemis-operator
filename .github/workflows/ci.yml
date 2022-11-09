@@ -19,7 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: '1.17.3'
+          go-version: '1.19.8'
 
       - name: Checkout the repo
         uses: actions/checkout@v2
@@ -28,7 +28,7 @@ jobs:
         run: >
           export ARCH=$(case $(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n $(uname -m) ;; esac) &&
           export OS=$(uname | awk '{print tolower($0)}') &&
-          curl -LO https://github.com/operator-framework/operator-sdk/releases/download/v1.15.0/operator-sdk_${OS}_${ARCH} &&
+          curl -LO https://github.com/operator-framework/operator-sdk/releases/download/v1.28.0/operator-sdk_${OS}_${ARCH} &&
           chmod +x operator-sdk_${OS}_${ARCH} && sudo mv operator-sdk_${OS}_${ARCH} /usr/local/bin/operator-sdk
 
       - name: Check generate files

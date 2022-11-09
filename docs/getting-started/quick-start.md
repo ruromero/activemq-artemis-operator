@@ -15,7 +15,7 @@ toc: true
 
 ## Overview
 
-At the moment these instructions have been tested against Kubernetes 1.20,
+At the moment these instructions have been tested against Kubernetes 1.25 and above,
 other kubernetes or OpenShift environments may require minor adjustment.
 
 One important note about operators in general is that to get the operator
@@ -25,7 +25,7 @@ resource.
 
 ## General environment requirements
 
-Currently the operator is tested against kubernetes v1.20.
+Currently the operator is tested against kubernetes v1.25 and above.
 You can install a [Minikube](https://minikube.sigs.k8s.io/docs/) or a [CodeReady Containers(CRC)](https://developers.redhat.com/products/codeready-containers/overview) to deploy the operator.
 
 ## Getting the code and build the image

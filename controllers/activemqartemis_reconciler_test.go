@@ -74,7 +74,6 @@ func TestMapComparatorForStatefulSet(t *testing.T) {
 			Annotations:                nil,
 			OwnerReferences:            []metav1.OwnerReference{},
 			Finalizers:                 []string{},
-			ClusterName:                "",
 			ManagedFields:              []metav1.ManagedFieldsEntry{},
 		},
 		Spec:   appsv1.StatefulSetSpec{},
@@ -98,7 +97,6 @@ func TestMapComparatorForStatefulSet(t *testing.T) {
 			Annotations:                nil,
 			OwnerReferences:            []metav1.OwnerReference{},
 			Finalizers:                 []string{},
-			ClusterName:                "",
 			ManagedFields:              []metav1.ManagedFieldsEntry{},
 		},
 		Spec: appsv1.StatefulSetSpec{
@@ -132,7 +130,6 @@ func TestMapComparatorForStatefulSet(t *testing.T) {
 			Annotations:                nil,
 			OwnerReferences:            []metav1.OwnerReference{},
 			Finalizers:                 []string{},
-			ClusterName:                "",
 			ManagedFields:              []metav1.ManagedFieldsEntry{},
 		},
 		Spec:   appsv1.StatefulSetSpec{},
