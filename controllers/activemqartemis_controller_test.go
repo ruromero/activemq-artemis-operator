@@ -1028,6 +1028,75 @@ var _ = Describe("artemis controller", func() {
 	})
 
 	Context("Console config test", func() {
+		It("checking console target service port name for metrics", Label("console-expose-metrics"), func() {
+			By("Deploying a broker with console exposed")
+			brokerCr, createdBrokerCr := DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
+				candidate.Spec.DeploymentPlan.Size = 2
+				candidate.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
+					InitialDelaySeconds: 1,
+					PeriodSeconds:       1,
+					TimeoutSeconds:      5,
+				}
+				candidate.Spec.Console.Expose = true
+				candidate.Spec.DeploymentPlan.JolokiaAgentEnabled = true
+			})
+
+			ssKey := types.NamespacedName{
+				Name:      namer.CrToSS(brokerCr.Name),
+				Namespace: defaultNamespace,
+			}
+
+			By("checking statefulset has service port exposed")
+			currentSS := &appsv1.StatefulSet{}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, ssKey, currentSS)).Should(Succeed())
+				g.Expect(len(currentSS.Spec.Template.Spec.Containers[0].Ports)).To(Equal(2))
+				jolokiaPortFound, consolePortFound := false, false
+				for _, cport := range currentSS.Spec.Template.Spec.Containers[0].Ports {
+					if cport.Name == "jolokia" && cport.ContainerPort == int32(8778) && cport.Protocol == corev1.ProtocolTCP {
+						jolokiaPortFound = true
+					}
+					if cport.Name == "wconsj" && cport.ContainerPort == int32(8161) && cport.Protocol == corev1.ProtocolTCP {
+						consolePortFound = true
+					}
+				}
+				g.Expect(jolokiaPortFound).To(BeTrue())
+				g.Expect(consolePortFound).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			By("checking services have service ports for metrics exposed")
+
+			for i := 0; i < 2; i++ {
+				svcName := brokerCr.Name + "-wconsj-" + strconv.Itoa(i) + "-svc"
+				port0Name := "wconsj-" + strconv.Itoa(i)
+				port1Name := "wconsj"
+				portNumber := int32(8162)
+				portNumber2 := int32(8161)
+				serviceKey := types.NamespacedName{Name: svcName, Namespace: defaultNamespace}
+				Eventually(func(g Gomega) {
+					retrievedService := corev1.Service{}
+					g.Expect(k8sClient.Get(ctx, serviceKey, &retrievedService)).Should(Succeed())
+					g.Expect(len(retrievedService.Spec.Ports)).To(Equal(2))
+					port0Found, port1Found := false, false
+					for _, p := range retrievedService.Spec.Ports {
+						if p.Name == port0Name && p.Port == portNumber && p.Protocol == corev1.ProtocolTCP && p.TargetPort == intstr.FromInt(int(portNumber)) {
+							port0Found = true
+						}
+						if p.Name == port1Name && p.Port == portNumber2 && p.Protocol == corev1.ProtocolTCP && p.TargetPort == intstr.FromInt(int(portNumber)) {
+							port1Found = true
+						}
+					}
+					g.Expect(port0Found).To(BeTrue())
+					g.Expect(port1Found).To(BeTrue())
+				}, timeout, interval).Should(Succeed())
+			}
+
+			Expect(k8sClient.Delete(ctx, createdBrokerCr)).Should(Succeed())
+			Eventually(func() bool {
+				return checkCrdDeleted(brokerCr.Name, defaultNamespace, createdBrokerCr)
+			}, timeout, interval).Should(BeTrue())
+		})
+
 		It("Exposing secured console", Label("console-expose-ssl"), func() {
 			//we need to use existing cluster to differentiate testing
 			//between openshift and k8s, also need it to check pod status

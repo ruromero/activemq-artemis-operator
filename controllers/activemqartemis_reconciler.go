@@ -820,6 +820,9 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(custom
 		Name:      customResource.Name,
 		Namespace: customResource.Namespace,
 	}
+	commonPortName := "wconsj"
+	secondPort := int32(8161)
+	portNumber := int32(8162)
 	for ; i < customResource.Spec.DeploymentPlan.Size; i++ {
 		ordinalString = strconv.Itoa(int(i))
 		var serviceRoutelabels = make(map[string]string)
@@ -828,12 +831,17 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(custom
 		}
 		serviceRoutelabels["statefulset.kubernetes.io/pod-name"] = namer.SsNameBuilder.Name() + "-" + ordinalString
 
-		portNumber := int32(8161)
-		targetPortName := "wconsj" + "-" + ordinalString
+		targetPortName := commonPortName + "-" + ordinalString
 		targetServiceName := customResource.Name + "-" + targetPortName + "-svc"
 
 		serviceDefinition := svc.NewServiceDefinitionForCR(client, namespacedName, targetPortName, portNumber, serviceRoutelabels, namer.LabelBuilder.Labels())
 
+		serviceDefinition.Spec.Ports = append(serviceDefinition.Spec.Ports, corev1.ServicePort{
+			Name:       commonPortName,
+			Port:       secondPort,
+			Protocol:   "TCP",
+			TargetPort: intstr.FromInt(int(portNumber)),
+		})
 		if console.Expose {
 			reconciler.checkExistingService(customResource, serviceDefinition, client)
 			reconciler.trackDesired(serviceDefinition)
@@ -1566,13 +1574,18 @@ func MakeContainerPorts(cr *brokerv1beta1.ActiveMQArtemis) []corev1.ContainerPor
 	containerPorts := []corev1.ContainerPort{}
 	if cr.Spec.DeploymentPlan.JolokiaAgentEnabled {
 		jolokiaContainerPort := corev1.ContainerPort{
-
 			Name:          "jolokia",
 			ContainerPort: 8778,
 			Protocol:      "TCP",
 		}
 		containerPorts = append(containerPorts, jolokiaContainerPort)
 	}
+	consoleContainerPort := corev1.ContainerPort{
+		Name:          "wconsj",
+		ContainerPort: 8161,
+		Protocol:      "TCP",
+	}
+	containerPorts = append(containerPorts, consoleContainerPort)
 
 	return containerPorts
 }
