@@ -2066,8 +2066,13 @@ var _ = Describe("artemis controller", func() {
 
 			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
 			crdKey := types.NamespacedName{Namespace: crd.Namespace, Name: crd.Name}
+
+			By("using typed client to retain kind info")
+			restConfig.NegotiatedSerializer = serializer.NewCodecFactory(scheme.Scheme)
+			typedClient, err := v1beta1.NewForConfig(restConfig)
+			Expect(err).Should(BeNil())
 			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, crdKey, createdCrd)).Should(Succeed())
+				createdCrd, err = typedClient.ActiveMQArtemises(crdKey.Namespace).Get(crdKey.Name, metav1.GetOptions{})
 				g.Expect(createdCrd.ResourceVersion).ShouldNot(BeEmpty())
 			}, timeout, interval).Should(Succeed())
 
@@ -2094,6 +2099,8 @@ var _ = Describe("artemis controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, internalConsoleSecretKey, createdInternalSecret)).Should(Succeed())
 				g.Expect(len(createdInternalSecret.OwnerReferences)).Should(BeEquivalentTo(1))
+				g.Expect(*createdInternalSecret.GetOwnerReferences()[0].Controller).Should(BeTrue())
+				g.Expect(createdInternalSecret.GetOwnerReferences()[0].BlockOwnerDeletion).Should(BeNil())
 				g.Expect(createdInternalSecret.ResourceVersion).ShouldNot(BeNil())
 				resourceVer = createdInternalSecret.ResourceVersion
 			}, timeout, interval).Should(Succeed())
@@ -2137,6 +2144,8 @@ var _ = Describe("artemis controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, internalConsoleSecretKey, createdInternalSecret)).Should(Succeed())
 				g.Expect(len(createdInternalSecret.OwnerReferences)).Should(BeEquivalentTo(1))
+				g.Expect(*createdInternalSecret.GetOwnerReferences()[0].Controller).Should(BeTrue())
+				g.Expect(createdInternalSecret.GetOwnerReferences()[0].BlockOwnerDeletion).Should(BeNil())
 				g.Expect(createdInternalSecret.ResourceVersion).ShouldNot(BeEquivalentTo(resourceVer))
 			}, timeout, interval).Should(Succeed())
 
@@ -4390,6 +4399,8 @@ var _ = Describe("artemis controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, serviceKey, &retrievedService)).Should(Succeed())
 				g.Expect(len(retrievedService.GetOwnerReferences())).Should(BeEquivalentTo(1))
+				g.Expect(*retrievedService.GetOwnerReferences()[0].Controller).Should(BeTrue())
+				g.Expect(retrievedService.GetOwnerReferences()[0].BlockOwnerDeletion).Should(BeNil())
 				g.Expect(retrievedService.Spec.Ports[0].Port).Should(Not(BeEquivalentTo(dudPort)))
 			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
@@ -4444,6 +4455,8 @@ var _ = Describe("artemis controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, serviceKey, &retrievedService)).Should(Succeed())
 				g.Expect(len(retrievedService.GetOwnerReferences())).Should(BeEquivalentTo(1))
+				g.Expect(*retrievedService.GetOwnerReferences()[0].Controller).Should(BeTrue())
+				g.Expect(retrievedService.GetOwnerReferences()[0].BlockOwnerDeletion).Should(BeNil())
 				g.Expect(retrievedService.Spec.Ports[0].Port).Should(Not(BeEquivalentTo(dudPort)))
 			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
@@ -5299,6 +5312,52 @@ var _ = Describe("artemis controller", func() {
 		Eventually(func() bool {
 			return checkCrdDeleted(secCrd.Name, defaultNamespace, createdSecCrd)
 		}, timeout, interval).Should(BeTrue())
+	})
+
+	It("cascade delete foreground test", func() {
+
+		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+
+			By("Creating a simple broker")
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
+				InitialDelaySeconds: 1,
+				PeriodSeconds:       2,
+			}
+
+			By("deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+			By("checking Owner ref on stateful set")
+			createdSs := &appsv1.StatefulSet{}
+			ssKey := types.NamespacedName{Name: namer.CrToSS(createdCrd.Name), Namespace: defaultNamespace}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, ssKey, createdSs)).Should(Succeed())
+				g.Expect(*createdSs.GetOwnerReferences()[0].Controller).Should(BeTrue())
+				g.Expect(createdSs.GetOwnerReferences()[0].BlockOwnerDeletion).Should(BeNil())
+			}, timeout, interval).Should(Succeed())
+
+			By("cascade deleting CR")
+			cascade_foreground_policy := metav1.DeletePropagationForeground
+			Expect(k8sClient.Delete(ctx, createdCrd, &client.DeleteOptions{PropagationPolicy: &cascade_foreground_policy})).Should(Succeed())
+
+			By("verifying deletion completed")
+			Eventually(func(g Gomega) {
+				err := k8sClient.Get(ctx, brokerKey, createdCrd)
+				g.Expect(err).ShouldNot(BeNil())
+				g.Expect(errors.IsNotFound(err)).Should(BeTrue())
+			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+		}
 	})
 
 	It("managementRBACEnabled is false", func() {

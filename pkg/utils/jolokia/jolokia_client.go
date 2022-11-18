@@ -108,13 +108,13 @@ func resolveJolokiaRequestParams(namespace string,
 	var jolokiaProtocol string
 
 	userDefined := false
-	jolokiaUserFromSecret := secrets.GetValueFromSecret(namespace, false, false, jolokiaSecretName, "jolokiaUser", labels, client, scheme, nil)
+	jolokiaUserFromSecret := secrets.GetValueFromSecret(namespace, jolokiaSecretName, "jolokiaUser", labels, client, scheme, nil)
 	if jolokiaUserFromSecret != nil {
 		userDefined = true
 		jolokiaUser = *jolokiaUserFromSecret
 	}
 	if userDefined {
-		jolokiaPasswordFromSecret := secrets.GetValueFromSecret(namespace, false, false, jolokiaSecretName, "jolokiaPassword", labels, client, scheme, nil)
+		jolokiaPasswordFromSecret := secrets.GetValueFromSecret(namespace, jolokiaSecretName, "jolokiaPassword", labels, client, scheme, nil)
 		if jolokiaPasswordFromSecret != nil {
 			jolokiaPassword = *jolokiaPasswordFromSecret
 		}

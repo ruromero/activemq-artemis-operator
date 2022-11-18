@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var log = ctrl.Log.WithName("package k8s_actions")
@@ -24,14 +23,9 @@ func Create(owner v1.Object, client client.Client, scheme *runtime.Scheme, clien
 	objectTypeString := reflect.TypeOf(clientObject.(runtime.Object)).String()
 	reqLogger.Info("Creating new " + objectTypeString)
 
-	// Set ActiveMQArtemis instance as the owner and controller
-	var err error = nil
-	if err = controllerutil.SetControllerReference(owner, clientObject.(v1.Object), scheme); err != nil {
-		// Add error detail for use later
-		reqLogger.V(1).Info("Failed to set controller reference for new " + objectTypeString)
-	}
-	reqLogger.V(1).Info("Set controller reference for new " + objectTypeString)
+	SetOwnerAndController(owner, clientObject)
 
+	var err error
 	if err = client.Create(context.TODO(), clientObject); err != nil {
 		// Add error detail for use later
 		reqLogger.Error(err, "Failed to create new "+objectTypeString)
@@ -40,6 +34,22 @@ func Create(owner v1.Object, client client.Client, scheme *runtime.Scheme, clien
 	}
 
 	return err
+}
+
+func SetOwnerAndController(owner v1.Object, clientObject client.Object) {
+	reqLogger := log.WithValues("ActiveMQArtemis Name", clientObject.GetName(), "Namespace", clientObject.GetNamespace())
+
+	gvk := owner.(runtime.Object).GetObjectKind().GroupVersionKind()
+	isController := true
+	ref := v1.OwnerReference{
+		APIVersion: gvk.GroupVersion().String(),
+		Kind:       gvk.Kind,
+		UID:        owner.GetUID(),
+		Name:       owner.GetName(),
+		Controller: &isController, // ControllerManager.Owns watches match on Controller=true
+	}
+	clientObject.SetOwnerReferences([]v1.OwnerReference{ref})
+	reqLogger.V(1).Info("set owner-controller reference", "target", clientObject.GetObjectKind().GroupVersionKind().String(), "owner", ref)
 }
 
 func RetrieveWithRetry(namespacedName types.NamespacedName, theClient client.Client, clientObject client.Object, retry bool) error {

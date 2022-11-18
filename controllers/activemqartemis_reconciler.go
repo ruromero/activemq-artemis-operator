@@ -1309,13 +1309,8 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) adoptExistingSecretWithNoOwnerR
 }
 
 func (reconciler *ActiveMQArtemisReconcilerImpl) updateOwnerReferencesAndMatchVersion(cr *brokerv1beta1.ActiveMQArtemis, existing rtclient.Object, candidate rtclient.Object) {
-	gvk := cr.GroupVersionKind()
-	existing.SetOwnerReferences([]metav1.OwnerReference{{
-		APIVersion: gvk.GroupVersion().String(),
-		Kind:       gvk.Kind,
-		Name:       cr.GetName(),
-		UID:        cr.GetUID()}})
 
+	resources.SetOwnerAndController(cr, existing)
 	candidate.SetOwnerReferences(existing.GetOwnerReferences())
 	// we need to have 'candidate' match for update
 	candidate.SetResourceVersion(existing.GetResourceVersion())
