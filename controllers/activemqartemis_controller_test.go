@@ -1591,6 +1591,51 @@ var _ = Describe("artemis controller", func() {
 
 			Expect(k8sClient.Delete(ctx, &crd)).Should(Succeed())
 		})
+
+		It("verify mimimal updates via unequal", func() {
+
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+
+				crd := generateArtemisSpec(defaultNamespace)
+				crd.Spec.DeploymentPlan.Size = 1
+
+				crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
+					InitialDelaySeconds: 1,
+					PeriodSeconds:       1,
+					TimeoutSeconds:      5,
+					// default values are server-side applied - the ones that we set that are > 0 get tracked as owned by us
+					// omitted values have default nil,false,0
+					// SuccessThreshod defaults to 1 and is applied on write, our 0 default is ignored
+
+					// on reconcile, we must only reapply what is provided here
+				}
+
+				By("start to capture test log")
+				StartCapturingLog()
+				defer StopCapturingLog()
+
+				By("Deploying Cr with Probe and defaults " + crd.ObjectMeta.Name)
+				Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				deployedCrd := &brokerv1beta1.ActiveMQArtemis{}
+
+				By("verifying started")
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, brokerKey, deployedCrd)).Should(Succeed())
+					g.Expect(len(deployedCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+					g.Expect(meta.IsStatusConditionTrue(deployedCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(deployedCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				unequalEntries := FindAllFromCapturedLog("Unequal")
+				fmt.Printf("unequal %v\n", unequalEntries)
+				Expect(len(unequalEntries)).Should(BeNumerically("==", 0))
+
+				Expect(k8sClient.Delete(ctx, deployedCrd)).Should(Succeed())
+			}
+		})
+
 	})
 
 	Context("SS delete recreate Test", func() {

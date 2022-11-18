@@ -115,25 +115,25 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) Process(customResource *brokerv
 	// what follows should transform the resources using the crd
 	// if the transformation results in some change, process resources will respect that
 	// comparisons should not be necessary, leave that to process resources
-	currentStatefulSet, err := reconciler.ProcessStatefulSet(customResource, namer, client, log)
+	desiredStatefulSet, err := reconciler.ProcessStatefulSet(customResource, namer, client, log)
 	if err != nil {
 		log.Error(err, "Error processing stafulset")
 		return false
 	}
 
-	reconciler.ProcessDeploymentPlan(customResource, namer, client, scheme, currentStatefulSet)
+	reconciler.ProcessDeploymentPlan(customResource, namer, client, scheme, desiredStatefulSet)
 
-	reconciler.ProcessCredentials(customResource, namer, client, scheme, currentStatefulSet)
+	reconciler.ProcessCredentials(customResource, namer, client, scheme, desiredStatefulSet)
 
-	reconciler.ProcessAcceptorsAndConnectors(customResource, namer, client, scheme, currentStatefulSet)
+	reconciler.ProcessAcceptorsAndConnectors(customResource, namer, client, scheme, desiredStatefulSet)
 
-	reconciler.ProcessConsole(customResource, namer, client, scheme, currentStatefulSet)
+	reconciler.ProcessConsole(customResource, namer, client, scheme, desiredStatefulSet)
 
 	// mods to env var values sourced from secrets are not detected by process resources
 	// track updates in trigger env var that has a total checksum
-	trackSecretCheckSumInEnvVar(reconciler.requestedResources, currentStatefulSet.Spec.Template.Spec.Containers)
+	trackSecretCheckSumInEnvVar(reconciler.requestedResources, desiredStatefulSet.Spec.Template.Spec.Containers)
 
-	reconciler.trackDesired(currentStatefulSet)
+	reconciler.trackDesired(desiredStatefulSet)
 
 	// this should apply any deltas/updates
 	reconciler.ProcessResources(customResource, client, scheme)
@@ -1903,7 +1903,7 @@ func getJaasConfigExtraMount(customResource *brokerv1beta1.ActiveMQArtemis) (str
 	return "", "", false
 }
 
-func configureLivenessProbe(container *corev1.Container, probeFromCR *corev1.Probe) *corev1.Probe {
+func configureLivenessProbe(container *corev1.Container, probeFromCr *corev1.Probe) *corev1.Probe {
 	var livenessProbe *corev1.Probe = container.LivenessProbe
 	clog.V(1).Info("Configuring Liveness Probe", "existing", livenessProbe)
 
@@ -1911,32 +1911,25 @@ func configureLivenessProbe(container *corev1.Container, probeFromCR *corev1.Pro
 		livenessProbe = &corev1.Probe{}
 	}
 
-	if probeFromCR != nil {
-		//copy the probe
-		clog.V(1).Info("Liveness Probe provided by user, must provide all optional values")
-		livenessProbe.InitialDelaySeconds = probeFromCR.InitialDelaySeconds
-		livenessProbe.TimeoutSeconds = probeFromCR.TimeoutSeconds
-		livenessProbe.PeriodSeconds = probeFromCR.PeriodSeconds
-		livenessProbe.TerminationGracePeriodSeconds = probeFromCR.TerminationGracePeriodSeconds
-		livenessProbe.SuccessThreshold = probeFromCR.SuccessThreshold
-		livenessProbe.FailureThreshold = probeFromCR.FailureThreshold
+	if probeFromCr != nil {
+		applyNonDefaultedValues(livenessProbe, probeFromCr)
 
 		// not complete in this case!
-		if probeFromCR.Exec == nil && probeFromCR.HTTPGet == nil && probeFromCR.TCPSocket == nil {
+		if probeFromCr.Exec == nil && probeFromCr.HTTPGet == nil && probeFromCr.TCPSocket == nil {
 			clog.V(1).Info("Adding default TCP check")
 			livenessProbe.ProbeHandler = corev1.ProbeHandler{
 				TCPSocket: &corev1.TCPSocketAction{
 					Port: intstr.FromInt(TCPLivenessPort),
 				},
 			}
-		} else if probeFromCR.TCPSocket != nil {
+		} else if probeFromCr.TCPSocket != nil {
 			clog.V(1).Info("Using user specified TCPSocket")
 			livenessProbe.ProbeHandler = corev1.ProbeHandler{
-				TCPSocket: probeFromCR.TCPSocket,
+				TCPSocket: probeFromCr.TCPSocket,
 			}
 		} else {
-			clog.V(1).Info("Using user provided Liveness Probe Exec " + probeFromCR.Exec.String())
-			livenessProbe.Exec = probeFromCR.Exec
+			clog.V(1).Info("Using user provided Liveness Probe Exec " + probeFromCr.Exec.String())
+			livenessProbe.Exec = probeFromCr.Exec
 		}
 	} else {
 		clog.V(1).Info("Creating Default Liveness Probe")
@@ -1953,22 +1946,18 @@ func configureLivenessProbe(container *corev1.Container, probeFromCR *corev1.Pro
 	return livenessProbe
 }
 
-func configureReadinessProbe(container *corev1.Container, probe *corev1.Probe) *corev1.Probe {
+func configureReadinessProbe(container *corev1.Container, probeFromCr *corev1.Probe) *corev1.Probe {
 
 	var readinessProbe *corev1.Probe = container.ReadinessProbe
+	clog.V(1).Info("Configuring Readyness Probe", "existing", readinessProbe)
+
 	if readinessProbe == nil {
 		readinessProbe = &corev1.Probe{}
 	}
 
-	if probe != nil {
-		//copy the probe
-		readinessProbe.InitialDelaySeconds = probe.InitialDelaySeconds
-		readinessProbe.TimeoutSeconds = probe.TimeoutSeconds
-		readinessProbe.PeriodSeconds = probe.PeriodSeconds
-		readinessProbe.TerminationGracePeriodSeconds = probe.TerminationGracePeriodSeconds
-		readinessProbe.SuccessThreshold = probe.SuccessThreshold
-		readinessProbe.FailureThreshold = probe.FailureThreshold
-		if probe.Exec == nil && probe.HTTPGet == nil && probe.TCPSocket == nil {
+	if probeFromCr != nil {
+		applyNonDefaultedValues(readinessProbe, probeFromCr)
+		if probeFromCr.Exec == nil && probeFromCr.HTTPGet == nil && probeFromCr.TCPSocket == nil {
 			//add the default readiness check if none
 			clog.V(1).Info("Using user provided readiness Probe")
 			readinessProbe.ProbeHandler = corev1.ProbeHandler{
@@ -1981,7 +1970,7 @@ func configureReadinessProbe(container *corev1.Container, probe *corev1.Probe) *
 				},
 			}
 		} else {
-			readinessProbe.ProbeHandler = probe.ProbeHandler
+			readinessProbe.ProbeHandler = probeFromCr.ProbeHandler
 		}
 	} else {
 		clog.V(1).Info("Creating Default readiness Probe")
@@ -1999,6 +1988,28 @@ func configureReadinessProbe(container *corev1.Container, probe *corev1.Probe) *
 	}
 
 	return readinessProbe
+}
+
+func applyNonDefaultedValues(readinessProbe *corev1.Probe, probeFromCr *corev1.Probe) {
+	//copy the probe, but only for non default (init values)
+	if probeFromCr.InitialDelaySeconds > 0 {
+		readinessProbe.InitialDelaySeconds = probeFromCr.InitialDelaySeconds
+	}
+	if probeFromCr.TimeoutSeconds > 0 {
+		readinessProbe.TimeoutSeconds = probeFromCr.TimeoutSeconds
+	}
+	if probeFromCr.PeriodSeconds > 0 {
+		readinessProbe.PeriodSeconds = probeFromCr.PeriodSeconds
+	}
+	if probeFromCr.TerminationGracePeriodSeconds != nil {
+		readinessProbe.TerminationGracePeriodSeconds = probeFromCr.TerminationGracePeriodSeconds
+	}
+	if probeFromCr.SuccessThreshold > 0 {
+		readinessProbe.SuccessThreshold = probeFromCr.SuccessThreshold
+	}
+	if probeFromCr.FailureThreshold > 0 {
+		readinessProbe.FailureThreshold = probeFromCr.FailureThreshold
+	}
 }
 
 func getConfigAppliedConfigMapName(artemis *brokerv1beta1.ActiveMQArtemis) types.NamespacedName {
@@ -2298,7 +2309,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewStatefulSetForCR(customResou
 		Name:      customResource.Name,
 		Namespace: customResource.Namespace,
 	}
-	currentStateFullSet = ss.MakeStatefulSet2(currentStateFullSet, namer.SsNameBuilder.Name(), namer.SvcHeadlessNameBuilder.Name(), namespacedName, customResource.Annotations, namer.LabelBuilder.Labels(), customResource.Spec.DeploymentPlan.Size)
+	currentStateFullSet = ss.MakeStatefulSet(currentStateFullSet, namer.SsNameBuilder.Name(), namer.SvcHeadlessNameBuilder.Name(), namespacedName, customResource.Annotations, namer.LabelBuilder.Labels(), customResource.Spec.DeploymentPlan.Size)
 
 	podTemplateSpec, err := reconciler.NewPodTemplateSpecForCR(customResource, namer, &currentStateFullSet.Spec.Template)
 	if err != nil {

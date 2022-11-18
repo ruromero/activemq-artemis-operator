@@ -40,7 +40,7 @@ type StatefulSetInfo struct {
 	Labels         map[string]string
 }
 
-func MakeStatefulSet2(currentStateFulSet *appsv1.StatefulSet, ssName string, svcHeadlessName string, namespacedName types.NamespacedName, annotations map[string]string, labels map[string]string, replicas int32) *appsv1.StatefulSet {
+func MakeStatefulSet(currentStateFulSet *appsv1.StatefulSet, ssName string, svcHeadlessName string, namespacedName types.NamespacedName, annotations map[string]string, labels map[string]string, replicas int32) *appsv1.StatefulSet {
 
 	if currentStateFulSet == nil {
 		currentStateFulSet = &appsv1.StatefulSet{
@@ -105,7 +105,6 @@ func RetrieveStatefulSet(statefulsetName string, namespacedName types.Namespaced
 	return ss, err
 }
 
-//get the statefulset names
 func GetDeployedStatefulSetNames(client rtclient.Client, filter []types.NamespacedName) []StatefulSetInfo {
 
 	var result []StatefulSetInfo = nil

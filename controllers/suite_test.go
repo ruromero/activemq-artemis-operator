@@ -615,6 +615,14 @@ func MatchCapturedLog(pattern string) (matched bool, err error) {
 	return regexp.Match(pattern, logBuffer.Bytes())
 }
 
+func FindAllFromCapturedLog(pattern string) []string {
+	re, err := regexp.Compile(pattern)
+	if err == nil {
+		return re.FindAllString(logBuffer.String(), -1)
+	}
+	return nil
+}
+
 func StopCapturingLog() {
 	logBuffer = nil
 }
