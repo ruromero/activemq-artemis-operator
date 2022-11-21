@@ -62,6 +62,80 @@ var _ = Describe("security controller", func() {
 	AfterEach(func() {
 	})
 
+	Context("broker with security custom resources", Label("broker-security-res"), func() {
+
+		It("security after recreating broker cr", func() {
+
+			By("deploy a security cr")
+			securityCr, createdSecurityCr := DeploySecurity(nameFromTest(), defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemisSecurity) {
+			})
+
+			By("deploy a broker cr")
+			brokerCr, createdBrokerCr := DeployCustomBroker(defaultNamespace, nil)
+
+			By("checking the security gets applied")
+			requestedSs := &appsv1.StatefulSet{}
+			Eventually(func() bool {
+				key := types.NamespacedName{Name: namer.CrToSS(createdBrokerCr.Name), Namespace: defaultNamespace}
+				err := k8sClient.Get(ctx, key, requestedSs)
+				if err != nil {
+					return false
+				}
+
+				initContainer := requestedSs.Spec.Template.Spec.InitContainers[0]
+				secApplied := false
+				for _, arg := range initContainer.Args {
+					if strings.Contains(arg, "mkdir -p /init_cfg_root/security/security") {
+						secApplied = true
+						break
+					}
+				}
+				return secApplied
+			}, timeout, interval).Should(BeTrue())
+
+			By("delete the broker cr")
+			Expect(k8sClient.Delete(ctx, createdBrokerCr)).Should(Succeed())
+			Eventually(func() bool {
+				return checkCrdDeleted(brokerCr.Name, defaultNamespace, createdBrokerCr)
+			}, timeout, interval).Should(BeTrue())
+
+			By("re-deploy the broker cr")
+			brokerCr, createdBrokerCr = DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
+				candidate.Name = brokerCr.Name
+			})
+
+			By("verify the security is re-applied")
+			Eventually(func() bool {
+				key := types.NamespacedName{Name: namer.CrToSS(createdBrokerCr.Name), Namespace: defaultNamespace}
+				err := k8sClient.Get(ctx, key, requestedSs)
+				if err != nil {
+					return false
+				}
+
+				initContainer := requestedSs.Spec.Template.Spec.InitContainers[0]
+				secApplied := false
+				for _, arg := range initContainer.Args {
+					if strings.Contains(arg, "mkdir -p /init_cfg_root/security/security") {
+						secApplied = true
+						break
+					}
+				}
+				return secApplied
+			}, timeout, interval).Should(BeTrue())
+
+			//cleanup
+			Expect(k8sClient.Delete(ctx, createdBrokerCr)).Should(Succeed())
+			Eventually(func() bool {
+				return checkCrdDeleted(brokerCr.Name, defaultNamespace, createdBrokerCr)
+			}, existingClusterTimeout, existingClusterInterval).Should(BeTrue())
+
+			Expect(k8sClient.Delete(ctx, createdSecurityCr)).Should(Succeed())
+			Eventually(func() bool {
+				return checkCrdDeleted(securityCr.Name, defaultNamespace, createdSecurityCr)
+			}, existingClusterTimeout, existingClusterInterval).Should(BeTrue())
+		})
+	})
+
 	Context("Reconcile Test", func() {
 		It("testing security applied after broker", Label("security-apply-restart"), func() {
 			By("deploying the broker cr")
