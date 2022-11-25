@@ -20,6 +20,20 @@ jobs:
       - name: Checkout the repo
         uses: actions/checkout@v2
 
+      - name: Create release tag
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          git fetch --tags
+          HEAD_COMMIT="$(git rev-parse HEAD)"
+          RELEASE_TAG="v$(grep -m 1 -oP '(?<=Version = ")[^"]+' version/version.go)"
+          RELEASE_TAG_COMMIT="$(git rev-list -n 1 ${RELEASE_TAG} || true)"
+          if [ "$RELEASE_TAG_COMMIT" != "$HEAD_COMMIT" ]; then
+            git config user.name 'artemiscloud-bot'
+            git config user.email 'bot@artemiscloud.io'
+            git tag -a ${RELEASE_TAG} -m ${RELEASE_TAG} --force
+            git push origin $RELEASE_TAG --force
+          fi
+
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
@@ -54,7 +68,7 @@ jobs:
 
       - name: Push the image
         run: >
-          export IMAGE_TAG=${GITHUB_REF#refs/tags/v} &&
+          RELEASE_TAG="$(git describe --exact-match --tags)" && IMAGE_TAG=${RELEASE_TAG#v} &&
           docker login --username=${{ secrets.QUAY_USERNAME }} --password=${{ secrets.QUAY_PASSWORD }} quay.io &&
           docker tag $IMAGE_NAME:latest quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME:$IMAGE_TAG &&
           docker push quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME:$IMAGE_TAG &&
@@ -66,7 +80,7 @@ jobs:
 
       - name: Push the bundle image
         run: >
-          export IMAGE_TAG=${GITHUB_REF#refs/tags/v} &&
+          RELEASE_TAG="$(git describe --exact-match --tags)" && IMAGE_TAG=${RELEASE_TAG#v} &&
           docker login --username=${{ secrets.QUAY_USERNAME }} --password=${{ secrets.QUAY_PASSWORD }} quay.io &&
           docker tag $IMAGE_NAME-bundle:latest quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME-bundle:$IMAGE_TAG &&
           docker push quay.io/${{ secrets.QUAY_NAMESPACE }}/$IMAGE_NAME-bundle:$IMAGE_TAG &&
