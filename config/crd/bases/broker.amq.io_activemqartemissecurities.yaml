@@ -11,6 +11,8 @@ spec:
     kind: ActiveMQArtemisSecurity
     listKind: ActiveMQArtemisSecurityList
     plural: activemqartemissecurities
+    shortNames:
+    - aas
     singular: activemqartemissecurity
   scope: Namespaced
   versions:

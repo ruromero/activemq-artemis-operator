@@ -402,6 +402,7 @@ type ActiveMQArtemisSecurityStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:storageversion
+//+kubebuilder:resource:path=activemqartemissecurities,shortName=aas
 
 // Security configuration for the broker
 // +operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis Security"

@@ -46,6 +46,7 @@ type ActiveMQArtemisScaledownStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:storageversion
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:path=activemqartemisscaledowns,shortName=aad
 
 // Provides message migration on clustered broker scaledown
 // +operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis Scaledown"

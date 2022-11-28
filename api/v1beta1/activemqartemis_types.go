@@ -629,6 +629,7 @@ type ExternalConfigStatus struct {
 //+kubebuilder:subresource:scale:specpath=.spec.deploymentPlan.size,statuspath=.status.deploymentPlanSize,selectorpath=.status.scaleLabelSelector
 //+kubebuilder:storageversion
 //+kubebuilder:resource:path=activemqartemises
+//+kubebuilder:resource:path=activemqartemises,shortName=aa
 //+operator-sdk:csv:customresourcedefinitions:resources={{"Service", "v1"}}
 //+operator-sdk:csv:customresourcedefinitions:resources={{"Secret", "v1"}}
 //+operator-sdk:csv:customresourcedefinitions:resources={{"ConfigMap", "v1"}}

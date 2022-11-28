@@ -23,12 +23,12 @@ because the CRD gets exposed automatically through Kubernetes.
 
 The following CRD's are available for the Operator and can be found in the Operator Repository under *config/crd/bases/*
 
-| CRD                 | Description                                                    | 
-| :---                |    :----:                                                      |  
-| **Main broker CRD** | Create and configure a broker deployment                       | 
-| **Address CRD**     | Create addresses and queues for a broker deployment            |
-| **Scaledown CRD**   | Creates a Scaledown Controller for message migration           | 
-| **Security CRD**    | Configure the security and authentication method of the Broker |
+| CRD                 | Description                                                    |           Name            | Shortname  |
+| :---                | :----:                                                         | :----:                    | :---:      |
+| **Main broker CRD** | Create and configure a broker deployment                       |     activemqartemises     |     aa     |
+| **Address CRD**     | Create addresses and queues for a broker deployment            | activemqartemisaddresses  |    aaa     |
+| **Scaledown CRD**   | Creates a Scaledown Controller for message migration           | activemqartemisscaledowns |    aad     |
+| **Security CRD**    | Configure the security and authentication method of the Broker | activemqartemissecurities |    aas     |
 
 ### Additional resources
 

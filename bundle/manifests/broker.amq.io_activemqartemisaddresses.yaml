@@ -10,6 +10,8 @@ spec:
     kind: ActiveMQArtemisAddress
     listKind: ActiveMQArtemisAddressList
     plural: activemqartemisaddresses
+    shortNames:
+    - aaa
     singular: activemqartemisaddress
   scope: Namespaced
   versions:

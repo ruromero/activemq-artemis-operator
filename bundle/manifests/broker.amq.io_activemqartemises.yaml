@@ -23,6 +23,8 @@ spec:
     kind: ActiveMQArtemis
     listKind: ActiveMQArtemisList
     plural: activemqartemises
+    shortNames:
+    - aa
     singular: activemqartemis
   scope: Namespaced
   versions:
