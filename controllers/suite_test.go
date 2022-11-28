@@ -102,14 +102,21 @@ var (
 	brokerReconciler   *ActiveMQArtemisReconciler
 	securityReconciler *ActiveMQArtemisSecurityReconciler
 
+	crdRes = []string{
+		"../deploy/install/010_crd_artemis.yaml",
+		"../deploy/install/020_crd_artemis_security.yaml",
+		"../deploy/install/030_crd_artemis_address.yaml",
+		"../deploy/install/040_crd_artemis_scaledown.yaml",
+	}
+
 	oprRes = []string{
-		"../deploy/service_account.yaml",
-		"../deploy/role.yaml",
-		"../deploy/role_binding.yaml",
-		"../deploy/election_role.yaml",
-		"../deploy/election_role_binding.yaml",
-		"../deploy/operator_config.yaml",
-		"../deploy/operator.yaml",
+		"../deploy/install/050_service_account.yaml",
+		"../deploy/install/060_namespace_role.yaml",
+		"../deploy/install/070_namespace_role_binding.yaml",
+		"../deploy/install/080_election_role.yaml",
+		"../deploy/install/090_election_role_binding.yaml",
+		"../deploy/install/100_operator_config.yaml",
+		"../deploy/install/110_operator.yaml",
 	}
 	managerChannel chan struct{}
 
@@ -354,9 +361,8 @@ func setUpRealOperator() {
 	setUpK8sClient()
 
 	logf.Log.Info("Installing CRDs")
-	crds := []string{"../deploy/crds"}
 	options := envtest.CRDInstallOptions{
-		Paths:              crds,
+		Paths:              crdRes,
 		ErrorIfPathMissing: false,
 	}
 	_, err = envtest.InstallCRDs(restConfig, options)
@@ -389,9 +395,8 @@ func uninstallOperator() error {
 
 	//uninstall CRDs
 	logf.Log.Info("Uninstalling CRDs")
-	crds := []string{"../deploy/crds"}
 	options := envtest.CRDInstallOptions{
-		Paths:              crds,
+		Paths:              crdRes,
 		ErrorIfPathMissing: false,
 	}
 	return envtest.UninstallCRDs(restConfig, options)
