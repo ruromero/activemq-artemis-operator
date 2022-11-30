@@ -744,11 +744,23 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureAcceptorsExposure(cust
 func (reconciler *ActiveMQArtemisReconcilerImpl) ExposureDefinitionForCR(namespacedName types.NamespacedName, labels map[string]string, targetServiceName string, targetPortName string, passthroughTLS bool) rtclient.Object {
 
 	if isOpenshift, err := environments.DetectOpenshift(); isOpenshift && err == nil {
-		clog.Info("creating route for " + targetPortName)
-		return routes.NewRouteDefinitionForCR(namespacedName, labels, targetServiceName, targetPortName, passthroughTLS)
+		clog.Info("creating route for "+targetPortName, "service", targetServiceName)
+
+		var existing *routev1.Route = nil
+		obj := reconciler.cloneOfDeployed(reflect.TypeOf(routev1.Route{}), targetServiceName+"-rte")
+		if obj != nil {
+			existing = obj.(*routev1.Route)
+		}
+		return routes.NewRouteDefinitionForCR(existing, namespacedName, labels, targetServiceName, targetPortName, passthroughTLS)
 	} else {
-		clog.Info("creating ingress for " + targetPortName)
-		return ingresses.NewIngressForCRWithSSL(namespacedName, labels, targetServiceName, targetPortName, passthroughTLS)
+		clog.Info("creating ingress for "+targetPortName, "service", targetServiceName)
+
+		var existing *netv1.Ingress = nil
+		obj := reconciler.cloneOfDeployed(reflect.TypeOf(netv1.Ingress{}), targetServiceName+"-ing")
+		if obj != nil {
+			existing = obj.(*netv1.Ingress)
+		}
+		return ingresses.NewIngressForCRWithSSL(existing, namespacedName, labels, targetServiceName, targetPortName, passthroughTLS)
 	}
 }
 
@@ -795,12 +807,10 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConnectorsExposure(cus
 	return causedUpdate, err
 }
 
-func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, scheme *runtime.Scheme) (bool, error) {
+func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, scheme *runtime.Scheme) {
 
 	var i int32 = 0
-	var err error = nil
 	ordinalString := ""
-	causedUpdate := false
 	console := customResource.Spec.Console
 
 	originalLabels := namer.LabelBuilder.Labels()
@@ -825,30 +835,34 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(custom
 		if console.Expose {
 			reconciler.checkExistingService(customResource, serviceDefinition, client)
 			reconciler.trackDesired(serviceDefinition)
-		}
-		var err error = nil
-		isOpenshift := false
 
-		if isOpenshift, err = environments.DetectOpenshift(); err != nil {
-			clog.Error(err, "Failed to get env, will try kubernetes")
-		}
-		if isOpenshift {
-			clog.Info("Environment is OpenShift")
-			clog.Info("Checking routeDefinition for " + targetPortName)
-			routeDefinition := routes.NewRouteDefinitionForCR(namespacedName, serviceRoutelabels, targetServiceName, targetPortName, console.SSLEnabled)
-			if console.Expose {
-				reconciler.trackDesired(routeDefinition)
+			var err error = nil
+			isOpenshift := false
+			if isOpenshift, err = environments.DetectOpenshift(); err != nil {
+				clog.Error(err, "Failed to get env, will try kubernetes")
 			}
-		} else {
-			clog.Info("Environment is not OpenShift, creating ingress")
-			ingressDefinition := ingresses.NewIngressForCRWithSSL(namespacedName, serviceRoutelabels, targetServiceName, targetPortName, console.SSLEnabled)
-			if console.Expose {
+			if isOpenshift {
+				clog.Info("routeDefinition for " + targetPortName)
+				var existing *routev1.Route = nil
+				obj := reconciler.cloneOfDeployed(reflect.TypeOf(routev1.Route{}), targetServiceName+"-rte")
+				if obj != nil {
+					existing = obj.(*routev1.Route)
+				}
+				routeDefinition := routes.NewRouteDefinitionForCR(existing, namespacedName, serviceRoutelabels, targetServiceName, targetPortName, console.SSLEnabled)
+				reconciler.trackDesired(routeDefinition)
+
+			} else {
+				clog.Info("ingress for " + targetPortName)
+				var existing *netv1.Ingress = nil
+				obj := reconciler.cloneOfDeployed(reflect.TypeOf(netv1.Ingress{}), targetServiceName+"-ing")
+				if obj != nil {
+					existing = obj.(*netv1.Ingress)
+				}
+				ingressDefinition := ingresses.NewIngressForCRWithSSL(existing, namespacedName, serviceRoutelabels, targetServiceName, targetPortName, console.SSLEnabled)
 				reconciler.trackDesired(ingressDefinition)
 			}
 		}
 	}
-
-	return causedUpdate, err
 }
 
 func generateConsoleSSLFlags(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, secretName string) string {
@@ -1218,6 +1232,10 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) ProcessResources(customResource
 			reqLogger.V(1).Info("Unequal", "depoyed", ss1.Spec, "requested", ss2.Spec)
 		}
 		return isEqual
+	})
+
+	comparator.Comparator.SetComparator(reflect.TypeOf(netv1.Ingress{}), func(deployed, requested rtclient.Object) bool {
+		return equality.Semantic.DeepEqual(deployed.(*netv1.Ingress).Spec, requested.(*netv1.Ingress).Spec)
 	})
 
 	deltas := comparator.Compare(reconciler.deployed, requested)

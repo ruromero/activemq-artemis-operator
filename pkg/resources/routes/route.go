@@ -5,42 +5,46 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	logf "sigs.k8s.io/controller-runtime"
 )
 
-var log = logf.Log.WithName("package routes")
+func NewRouteDefinitionForCR(existing *routev1.Route, namespacedName types.NamespacedName, labels map[string]string, targetServiceName string, targetPortName string, passthroughTLS bool) *routev1.Route {
 
-// Create newRouteForCR method to create exposed route
-//func NewRouteDefinitionForCR(cr *v2alpha1.ActiveMQArtemis, labels map[string]string, targetServiceName string, targetPortName string, passthroughTLS bool) *routev1.Route {
-func NewRouteDefinitionForCR(namespacedName types.NamespacedName, labels map[string]string, targetServiceName string, targetPortName string, passthroughTLS bool) *routev1.Route {
+	var desired *routev1.Route = nil
+	if existing == nil {
+		desired = &routev1.Route{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Route",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Labels:    labels,
+				Name:      targetServiceName + "-rte",
+				Namespace: namespacedName.Namespace,
+			},
+			Spec: routev1.RouteSpec{},
+		}
 
-	route := &routev1.Route{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Route",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:    labels,
-			Name:      targetServiceName + "-rte",
-			Namespace: namespacedName.Namespace,
-		},
-		Spec: routev1.RouteSpec{
-			Port: &routev1.RoutePort{
-				TargetPort: intstr.FromString(targetPortName),
-			},
-			To: routev1.RouteTargetReference{
-				Kind: "Service",
-				Name: targetServiceName,
-			},
-		},
+	} else {
+		desired = existing
+	}
+
+	desired.Spec.Port = &routev1.RoutePort{
+		TargetPort: intstr.FromString(targetPortName),
+	}
+
+	desired.Spec.To = routev1.RouteTargetReference{
+		Kind: "Service",
+		Name: targetServiceName,
 	}
 
 	if passthroughTLS {
-		route.Spec.TLS = &routev1.TLSConfig{
+		desired.Spec.TLS = &routev1.TLSConfig{
 			Termination:                   routev1.TLSTerminationPassthrough,
 			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
 		}
+	} else {
+		desired.Spec.TLS = nil
 	}
 
-	return route
+	return desired
 }

@@ -4570,81 +4570,169 @@ var _ = Describe("artemis controller", func() {
 			Eventually(checkCrdDeleted(crd.Name, defaultNamespace, &crd), timeout, interval).Should(BeTrue())
 		})
 
-		It("Checking acceptor service while expose is false", func() {
-			By("By creating a new crd")
-			ctx := context.Background()
-			crd := generateArtemisSpec(defaultNamespace)
+		It("Checking acceptor service and route/ingress while toggle expose", func() {
 
-			crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
-			}
-			crd.Spec.Acceptors = []brokerv1beta1.AcceptorType{
-				{
-					Name:   "new-acceptor",
-					Port:   61616,
-					Expose: false,
-				},
-			}
-			crd.Spec.Connectors = []brokerv1beta1.ConnectorType{
-				{
-					Name:   "new-connector",
-					Port:   61616,
-					Expose: false,
-				},
-			}
-			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
-			Eventually(func() bool {
-				key := types.NamespacedName{Name: crd.Name, Namespace: defaultNamespace}
-				err := k8sClient.Get(ctx, key, &crd)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+				isOpenshift, _ := environments.DetectOpenshift()
 
-			Eventually(func() bool {
-				key := types.NamespacedName{Name: crd.Name + "-" + "new-acceptor-0-svc", Namespace: defaultNamespace}
-				acceptorService := &corev1.Service{}
-				err := k8sClient.Get(context.Background(), key, acceptorService)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+				By("By creating a new crd")
+				ctx := context.Background()
+				crd := generateArtemisSpec(defaultNamespace)
 
-			Eventually(func() bool {
-				key := types.NamespacedName{Name: crd.Name + "-" + "new-connector-0-svc", Namespace: defaultNamespace}
-				connectorService := &corev1.Service{}
-				err := k8sClient.Get(context.Background(), key, connectorService)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-
-			By("updating with expose=true")
-			Eventually(func() bool {
-				key := types.NamespacedName{Name: crd.Name, Namespace: defaultNamespace}
-				err := k8sClient.Get(ctx, key, &crd)
-				if err == nil {
-					crd.Spec.Acceptors[0].Expose = true
-					crd.Spec.Connectors[0].Expose = true
-
-					err = k8sClient.Update(ctx, &crd)
+				crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
+					Size: 1,
 				}
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+				crd.Spec.Acceptors = []brokerv1beta1.AcceptorType{
+					{
+						Name:   "new-acceptor",
+						Port:   61616,
+						Expose: false,
+					},
+				}
+				crd.Spec.Connectors = []brokerv1beta1.ConnectorType{
+					{
+						Name:   "new-connector",
+						Port:   61616,
+						Expose: false,
+					},
+				}
+				Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
-			Eventually(func() bool {
-				key := types.NamespacedName{Name: crd.Name + "-" + "new-acceptor-0-svc-ing", Namespace: defaultNamespace}
-				exposure := &netv1.Ingress{}
-				err := k8sClient.Get(context.Background(), key, exposure)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+				Eventually(func() bool {
+					key := types.NamespacedName{Name: crd.Name, Namespace: defaultNamespace}
+					err := k8sClient.Get(ctx, key, &crd)
+					return err == nil
+				}, timeout, interval).Should(BeTrue())
 
-			Eventually(func() bool {
-				key := types.NamespacedName{Name: crd.Name + "-" + "new-connector-0-svc-ing", Namespace: defaultNamespace}
-				exposure := &netv1.Ingress{}
-				err := k8sClient.Get(context.Background(), key, exposure)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+				Eventually(func() bool {
+					key := types.NamespacedName{Name: crd.Name + "-" + "new-acceptor-0-svc", Namespace: defaultNamespace}
+					acceptorService := &corev1.Service{}
+					err := k8sClient.Get(context.Background(), key, acceptorService)
+					return err == nil
+				}, timeout, interval).Should(BeTrue())
 
-			Expect(k8sClient.Delete(ctx, &crd)).Should(Succeed())
+				Eventually(func() bool {
+					key := types.NamespacedName{Name: crd.Name + "-" + "new-connector-0-svc", Namespace: defaultNamespace}
+					connectorService := &corev1.Service{}
+					err := k8sClient.Get(context.Background(), key, connectorService)
+					return err == nil
+				}, timeout, interval).Should(BeTrue())
 
-			By("check it has gone")
-			Eventually(checkCrdDeleted(crd.Name, defaultNamespace, &crd), timeout, interval).Should(BeTrue())
+				By("updating with expose=true")
+				Eventually(func() bool {
+					key := types.NamespacedName{Name: crd.Name, Namespace: defaultNamespace}
+					err := k8sClient.Get(ctx, key, &crd)
+					if err == nil {
+						crd.Spec.Acceptors[0].Expose = true
+						crd.Spec.Connectors[0].Expose = true
+
+						err = k8sClient.Update(ctx, &crd)
+					}
+					return err == nil
+				}, timeout, interval).Should(BeTrue())
+
+				var acceptorExposureKindGeneration int64
+				var connectorExposureKindGeneration int64
+				var acceptorKey types.NamespacedName
+				var connectorKey types.NamespacedName
+
+				if isOpenshift {
+
+					acceptorKey = types.NamespacedName{Name: crd.Name + "-" + "new-acceptor-0-svc-rte", Namespace: defaultNamespace}
+					connectorKey = types.NamespacedName{Name: crd.Name + "-" + "new-connector-0-svc-rte", Namespace: defaultNamespace}
+
+					Eventually(func(g Gomega) {
+						exposure := &routev1.Route{}
+						g.Expect(k8sClient.Get(context.Background(), acceptorKey, exposure)).Should(Succeed())
+						g.Expect(exposure.ResourceVersion).ShouldNot(BeEmpty())
+						acceptorExposureKindGeneration = exposure.Generation
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+					Eventually(func(g Gomega) {
+						exposure := &routev1.Route{}
+						g.Expect(k8sClient.Get(context.Background(), connectorKey, exposure)).Should(Succeed())
+						g.Expect(exposure.ResourceVersion).ShouldNot(BeEmpty())
+						connectorExposureKindGeneration = exposure.Generation
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				} else {
+
+					acceptorKey = types.NamespacedName{Name: crd.Name + "-" + "new-acceptor-0-svc-ing", Namespace: defaultNamespace}
+					connectorKey = types.NamespacedName{Name: crd.Name + "-" + "new-connector-0-svc-ing", Namespace: defaultNamespace}
+
+					Eventually(func(g Gomega) {
+						exposure := &netv1.Ingress{}
+						g.Expect(k8sClient.Get(context.Background(), acceptorKey, exposure)).Should(Succeed())
+						g.Expect(exposure.ResourceVersion).ShouldNot(BeEmpty())
+						acceptorExposureKindGeneration = exposure.Generation
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+					Eventually(func(g Gomega) {
+						exposure := &netv1.Ingress{}
+						g.Expect(k8sClient.Get(context.Background(), connectorKey, exposure)).Should(Succeed())
+						g.Expect(exposure.ResourceVersion).ShouldNot(BeEmpty())
+						connectorExposureKindGeneration = exposure.Generation
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+				}
+
+				By("updating with expose=true and tls")
+				Eventually(func(g Gomega) {
+					key := types.NamespacedName{Name: crd.Name, Namespace: defaultNamespace}
+					g.Expect(k8sClient.Get(ctx, key, &crd)).Should(Succeed())
+
+					crd.Spec.Acceptors[0].SSLEnabled = true
+					crd.Spec.Connectors[0].SSLEnabled = true
+
+					g.Expect(k8sClient.Update(ctx, &crd)).Should(Succeed())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				By("verify reconcile - new generation of ingress or route")
+
+				if isOpenshift {
+
+					// type metadata and generation not visible to this kube client for Route
+					//g.Expect(exposure.Generation).ShouldNot(Equal(acceptorExposureKindGeneration))
+
+					Eventually(func(g Gomega) {
+						exposure := &routev1.Route{}
+						g.Expect(k8sClient.Get(context.Background(), acceptorKey, exposure)).Should(Succeed())
+
+						g.Expect(exposure.Spec.TLS).ShouldNot(BeNil())
+						g.Expect(exposure.Spec.TLS.Termination).Should(Equal(routev1.TLSTerminationPassthrough))
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+					Eventually(func(g Gomega) {
+						exposure := &routev1.Route{}
+						g.Expect(k8sClient.Get(context.Background(), connectorKey, exposure)).Should(Succeed())
+						g.Expect(exposure.Spec.TLS).ShouldNot(BeNil())
+						g.Expect(exposure.Spec.TLS.Termination).Should(Equal(routev1.TLSTerminationPassthrough))
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				} else {
+
+					Eventually(func(g Gomega) {
+						exposure := &netv1.Ingress{}
+						g.Expect(k8sClient.Get(context.Background(), acceptorKey, exposure)).Should(Succeed())
+						g.Expect(exposure.Generation).ShouldNot(Equal(acceptorExposureKindGeneration))
+						g.Expect(exposure.Spec.TLS).ShouldNot(BeNil())
+
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+					Eventually(func(g Gomega) {
+						exposure := &netv1.Ingress{}
+						g.Expect(k8sClient.Get(context.Background(), connectorKey, exposure)).Should(Succeed())
+						g.Expect(exposure.Generation).ShouldNot(Equal(connectorExposureKindGeneration))
+						g.Expect(exposure.Spec.TLS).ShouldNot(BeNil())
+
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+				}
+
+				Expect(k8sClient.Delete(ctx, &crd)).Should(Succeed())
+
+				By("check it has gone")
+				Eventually(checkCrdDeleted(crd.Name, defaultNamespace, &crd), timeout, interval).Should(BeTrue())
+			}
 		})
 	})
 
