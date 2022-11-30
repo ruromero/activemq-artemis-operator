@@ -240,12 +240,12 @@ func TestGetConfigAppliedConfigMapName(t *testing.T) {
 }
 
 func TestExtractSha(t *testing.T) {
-	json := `{"properties": {"a_status.properties": {"cr:alder32": "123456"}}}`
+	json := `{"configuration": {"properties": {"a_status.properties": {"cr:alder32": "123456"}}}}`
 	sha, err := extractSha(json)
 	assert.Equal(t, "123456", sha)
 	assert.NoError(t, err)
 
-	json = `{"properties": {"a_status.properties": {}}}`
+	json = `{"configuration": {"properties": {"a_status.properties": {}}}}`
 	sha, err = extractSha(json)
 	assert.Empty(t, sha)
 	assert.NoError(t, err)
@@ -254,6 +254,12 @@ func TestExtractSha(t *testing.T) {
 	sha, err = extractSha(json)
 	assert.Empty(t, sha)
 	assert.Error(t, err)
+
+	json = "{\"configuration\":{\"properties\":{\"a_status.properties\":{\"alder32\":\"30349585\",\"cr:alder32\":\"00000001\",\"errors\":[]},\"broker.properties\":{\"alder32\":\"1\"},\"system\":{\"alder32\":\"1\"}}},\"server\":{\"jaas\":{\"properties\":{\"artemis-users.properties\":{\"reloadTime\":\"1669744377685\",\"Alder32\":\"955331033\"},\"artemis-roles.properties\":{\"reloadTime\":\"1669744377685\",\"Alder32\":\"701302135\"}}},\"state\":\"STARTED\",\"version\":\"2.27.0\",\"nodeId\":\"a644c0c6-700e-11ed-9d4f-0a580ad90188\",\"identity\":null,\"uptime\":\"33.176 seconds\"}}"
+	sha, err = extractSha(json)
+	assert.Equal(t, "00000001", sha)
+	assert.NoError(t, err)
+
 }
 
 func TestGetJaasConfigExtraMountPath(t *testing.T) {
