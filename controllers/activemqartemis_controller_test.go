@@ -6011,7 +6011,7 @@ var _ = Describe("artemis controller", func() {
 		Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
 	})
 
-	It("extraMount.configMap logging config", func() {
+	It("extraMount.configMap logging config manually", func() {
 
 		ctx := context.Background()
 		crd := generateArtemisSpec(defaultNamespace)
@@ -6028,7 +6028,7 @@ var _ = Describe("artemis controller", func() {
 				APIVersion: "k8s.io.api.core.v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:         crd.Name + "-logging-confg",
+				Name:         crd.Name + "-loggingconfg", // note extramounts "-logging-confg" postfix awareness trumps this
 				GenerateName: "",
 				Namespace:    crd.ObjectMeta.Namespace,
 			},
@@ -6037,24 +6037,12 @@ var _ = Describe("artemis controller", func() {
 
 		customLogFilePropertiesFileName := "customLogging.properties"
 		configMap.Data = map[string]string{
-			customLogFilePropertiesFileName: "logger.level=WARN\n" +
-				"logger.handlers=CONSOLE\n" +
-				"handler.CONSOLE=org.jboss.logmanager.handlers.ConsoleHandler\n" +
-				"handler.CONSOLE.level=WARN",
+			customLogFilePropertiesFileName: "appender.stdout.name = STDOUT\nappender.stdout.type = Console\nrootLogger = ERROR, STDOUT",
 		}
 
 		crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{configMap.Name}
 		crd.Spec.Env = []corev1.EnvVar{
-			// JDK_JAVA_OPTS are prepend, so those cannot override, DEBUG_ARGS env is in the
-			// right place in the artemis script.
-			// maybe we need to pop in a JAVA_ARGS_APPEND? or own the java command line
-			// The other option would be to use $ARTEMIS_LOGGING_CONF and have the artemis script only
-			// set when empty. Currently it overrides the env
-			// This is more natural
-			//{Name: "ARTEMIS_LOGGING_CONF", Value: "file:/amq/extra/configmaps/" + configMap.Name + "/" + customLogFilePropertiesFileName},
-
-			// this works!
-			{Name: "JAVA_ARGS_APPEND", Value: "-Dlogging.configuration=file:/amq/extra/configmaps/" + configMap.Name + "/" + customLogFilePropertiesFileName},
+			{Name: "JAVA_ARGS_APPEND", Value: "-Dlog4j2.configurationFile=file:/amq/extra/configmaps/" + configMap.Name + "/" + customLogFilePropertiesFileName},
 		}
 
 		By("Deploying the configMap " + configMap.ObjectMeta.Name)
