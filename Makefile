@@ -121,7 +121,7 @@ test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test  ./... $(TEST_ARGS) -ginkgo.fail-fast -coverprofile cover.out
 
 test-mk: manifests generate fmt vet envtest ## Run tests against minikube with local operator.
-	USE_EXISTING_CLUSTER=true go test  ./... $(TEST_ARGS) -test.timeout=50m -ginkgo.slow-spec-threshold=30s -ginkgo.fail-fast -coverprofile cover-mk.out
+	USE_EXISTING_CLUSTER=true go test  ./... $(TEST_ARGS) -test.timeout=50m -ginkgo.slow-spec-threshold=30s -ginkgo.fail-fast -ginkgo.label-filter="!do" -coverprofile cover-mk.out
 
 test-mk-do: manifests generate fmt vet envtest generate-deploy ## Run tests against minikube with deployed operator(do)
 	DEPLOY_OPERATOR=true USE_EXISTING_CLUSTER=true go test  ./controllers/... -test.timeout=40m -ginkgo.slow-spec-threshold=30s -ginkgo.fail-fast -ginkgo.v -ginkgo.label-filter="do"
