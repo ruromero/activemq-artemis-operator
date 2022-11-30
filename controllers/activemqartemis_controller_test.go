@@ -2774,7 +2774,11 @@ var _ = Describe("artemis controller", func() {
 	})
 
 	Context("Different namespace, deployed before start", func() {
-		It("Expect pod desc", func() {
+		It("verify reconcile in own namespace", func() {
+
+			By("By stopping suite controller that watches all namespace")
+			shutdownControllerManager()
+
 			By("By creating a new crd")
 			ctx := context.Background()
 
@@ -2808,8 +2812,6 @@ var _ = Describe("artemis controller", func() {
 			Expect(k8sClient.Get(ctx, key, createdSs)).ShouldNot(Succeed())
 
 			By("By starting reconciler for this namespace")
-
-			shutdownControllerManager()
 			createControllerManager(true, nonDefaultNamespace)
 
 			key = types.NamespacedName{Name: createdCrd.Name, Namespace: nonDefaultNamespace}
