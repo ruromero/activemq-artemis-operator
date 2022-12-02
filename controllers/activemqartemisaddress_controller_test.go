@@ -99,7 +99,7 @@ var _ = Describe("Address controller tests", func() {
 		}
 	})
 
-	Context("Address test", func() {
+	Context("address controller test with reconcile", func() {
 
 		It("Deploy CR with size 5 (pods)", func() {
 
@@ -111,15 +111,6 @@ var _ = Describe("Address controller tests", func() {
 
 			brokerCrd.Spec.DeploymentPlan.Size = 5
 
-			brokerCrd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       5,
-			}
-			brokerCrd.Spec.DeploymentPlan.LivenessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       5,
-			}
-
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
 				Expect(k8sClient.Create(ctx, &brokerCrd)).Should(Succeed())
@@ -129,7 +120,7 @@ var _ = Describe("Address controller tests", func() {
 				Eventually(func(g Gomega) {
 
 					getPersistedVersionedCrd(brokerCrd.ObjectMeta.Name, defaultNamespace, createdBrokerCrd)
-					g.Expect(len(createdBrokerCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(5))
+					g.Expect(len(createdBrokerCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(brokerCrd.Spec.DeploymentPlan.Size))
 
 				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
@@ -180,7 +171,7 @@ var _ = Describe("Address controller tests", func() {
 				Eventually(func(g Gomega) {
 
 					getPersistedVersionedCrd(brokerCrd.ObjectMeta.Name, defaultNamespace, createdBrokerCrd)
-					g.Expect(len(createdBrokerCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(5))
+					g.Expect(len(createdBrokerCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(brokerCrd.Spec.DeploymentPlan.Size))
 
 				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
@@ -194,10 +185,11 @@ var _ = Describe("Address controller tests", func() {
 				restClient, err := apiutil.RESTClientForGVK(gvk, false, restConfig, serializer.NewCodecFactory(scheme.Scheme))
 				Expect(err).To(BeNil())
 
-				for ipod := 4; ipod >= 0; ipod-- {
+				for ipod := brokerCrd.Spec.DeploymentPlan.Size - 1; ipod >= 0; ipod-- {
 					podOrdinal := strconv.FormatInt(int64(ipod), 10)
 					podName := namer.CrToSS(brokerCrd.Name) + "-" + podOrdinal
 
+					By("Checking all addresses are created on " + podName)
 					Eventually(func(g Gomega) {
 						execReq := restClient.
 							Post().
@@ -229,14 +221,15 @@ var _ = Describe("Address controller tests", func() {
 						})
 						g.Expect(err).To(BeNil())
 
-						By("Checking for output pod")
+						By("Checking for output on " + podName)
 						g.Expect(capturedOut.Len() > 0)
 						content := capturedOut.String()
-						g.Expect(content).Should(ContainSubstring("myQueue0"))
-						g.Expect(content).Should(ContainSubstring("myQueue1"))
-						g.Expect(content).Should(ContainSubstring("myQueue2"))
-						g.Expect(content).Should(ContainSubstring("myQueue3"))
-						g.Expect(content).Should(ContainSubstring("myQueue4"))
+
+						for ipod := brokerCrd.Spec.DeploymentPlan.Size - 1; ipod >= 0; ipod-- {
+							queueName := fmt.Sprintf("myQueue%d", ipod)
+							By("finding Q " + queueName)
+							g.Expect(content).Should(ContainSubstring(queueName))
+						}
 					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 				}
 
@@ -256,10 +249,6 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 1,
-				PeriodSeconds:       5,
-			}
 			crd.Spec.DeploymentPlan.Size = 2
 
 			By("By deploying address cr for a2 for this broker in advance")
@@ -427,10 +416,6 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       10,
-			}
 			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
@@ -547,10 +532,6 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       10,
-			}
 			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
@@ -606,10 +587,6 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       10,
-			}
 			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
@@ -676,18 +653,10 @@ var _ = Describe("Address controller tests", func() {
 			}
 
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       10,
-			}
 			crd.Spec.DeploymentPlan.Size = 2
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			otherCrd := generateArtemisSpec(otherNamespace)
-			otherCrd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       10,
-			}
 			otherCrd.Spec.DeploymentPlan.Size = 2
 			otherCrd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
@@ -779,26 +748,14 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd0 := generateOriginalArtemisSpec(defaultNamespace, "broker")
-			crd0.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       10,
-			}
 			crd0.Spec.DeploymentPlan.Size = 1
 			crd0.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			crd1 := generateOriginalArtemisSpec(defaultNamespace, "broker1")
-			crd1.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       10,
-			}
 			crd1.Spec.DeploymentPlan.Size = 1
 			crd1.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			crd2 := generateOriginalArtemisSpec(defaultNamespace, "broker2")
-			crd2.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-				InitialDelaySeconds: 5,
-				PeriodSeconds:       10,
-			}
 			crd2.Spec.DeploymentPlan.Size = 1
 			crd2.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
