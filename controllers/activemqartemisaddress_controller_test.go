@@ -38,8 +38,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/artemiscloud/activemq-artemis-management/jolokia"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

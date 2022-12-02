@@ -20,10 +20,10 @@ import (
 	"context"
 	"strconv"
 
-	mgmt "github.com/artemiscloud/activemq-artemis-management"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/secrets"
 	ss "github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
+	mgmt "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/artemis"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	ss "github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
-	jolokia_client "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia_client"
 )
 
 var _ = Describe("JolokiaClient", func() {

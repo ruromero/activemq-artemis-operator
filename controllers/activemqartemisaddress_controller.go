@@ -19,13 +19,13 @@ package controllers
 import (
 	"context"
 
-	mgmt "github.com/artemiscloud/activemq-artemis-management"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
 	ss "github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
+	mgmt "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/artemis"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/channels"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
-	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
+	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia_client"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/lsrcrs"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/selectors"

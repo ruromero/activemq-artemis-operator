@@ -10,7 +10,7 @@ import (
 
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 
-	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
+	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia_client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

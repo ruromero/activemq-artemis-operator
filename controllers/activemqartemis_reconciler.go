@@ -25,7 +25,7 @@ import (
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/channels"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/cr2jinja2"
-	jolokia_client "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia_client"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/selectors"
 	"github.com/artemiscloud/activemq-artemis-operator/version"
