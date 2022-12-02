@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/Azure/go-amqp v0.17.4
+	github.com/Masterminds/semver v1.5.0
 	//this module is problematic
 	github.com/RHsyseng/operator-utils v1.4.10
 	github.com/go-logr/logr v1.2.0

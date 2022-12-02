@@ -3,9 +3,11 @@ package common
 import (
 	"encoding/json"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -120,4 +122,53 @@ func ResolveWatchNamespaceForManager(oprNamespace string, watchNamespace string)
 		return false, nil
 	}
 	return false, strings.Split(watchNamespace, ",")
+}
+
+type BrokerVersion struct {
+	Version *semver.Version
+}
+
+func NewBrokerVersion(ver *semver.Version) *BrokerVersion {
+	return &BrokerVersion{
+		Version: ver,
+	}
+}
+
+func (bver *BrokerVersion) MajorOnly() bool {
+	fields := strings.Split(bver.Version.Original(), ".")
+	return len(fields) == 1
+}
+
+func (bver *BrokerVersion) MinorOnly() bool {
+	fields := strings.Split(bver.Version.Original(), ".")
+	return len(fields) == 2
+}
+
+func (bver *BrokerVersion) IsMatch(ver *semver.Version) bool {
+	if bver.MajorOnly() {
+		return bver.Version.Major() == ver.Major()
+	}
+	if bver.MinorOnly() {
+		return bver.Version.Major() == ver.Major() && bver.Version.Minor() == ver.Minor()
+	}
+	return bver.Version.Equal(ver)
+}
+
+func ResolveBrokerVersion(existingVersions map[string]*semver.Version, expected *semver.Version) *semver.Version {
+
+	versions := []*semver.Version{}
+	for _, v := range existingVersions {
+		versions = append(versions, v)
+	}
+
+	sort.Sort(semver.Collection(versions))
+
+	brokerVersion := NewBrokerVersion(expected)
+
+	for i := len(versions) - 1; i >= 0; i-- {
+		if brokerVersion.IsMatch(versions[i]) {
+			return versions[i]
+		}
+	}
+	return nil
 }

@@ -11,6 +11,7 @@ import (
 	osruntime "runtime"
 	"sort"
 
+	"github.com/Masterminds/semver"
 	"github.com/RHsyseng/operator-utils/pkg/olm"
 	"github.com/RHsyseng/operator-utils/pkg/resource/compare"
 	"github.com/RHsyseng/operator-utils/pkg/resource/read"
@@ -1629,10 +1630,15 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 	}
 
 	imageName := ""
+	var verr error
 	if "placeholder" == customResource.Spec.DeploymentPlan.Image ||
 		0 == len(customResource.Spec.DeploymentPlan.Image) {
 		reqLogger.Info("Determining the kubernetes image to use due to placeholder setting")
-		imageName = determineImageToUse(customResource, "Kubernetes")
+		imageName, verr = determineImageToUse(customResource, "Kubernetes")
+		if verr != nil {
+			reqLogger.Error(verr, "failed to determine image for", customResource.Spec.Version)
+			return nil, verr
+		}
 	} else {
 		reqLogger.Info("Using the user provided kubernetes image " + customResource.Spec.DeploymentPlan.Image)
 		imageName = customResource.Spec.DeploymentPlan.Image
@@ -1732,7 +1738,11 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 	if "placeholder" == customResource.Spec.DeploymentPlan.InitImage ||
 		0 == len(customResource.Spec.DeploymentPlan.InitImage) {
 		reqLogger.Info("Determining the init image to use due to placeholder setting")
-		initImageName = determineImageToUse(customResource, "Init")
+		initImageName, verr = determineImageToUse(customResource, "Init")
+		if verr != nil {
+			reqLogger.Error(verr, "failed to determine init image for", customResource.Spec.Version)
+			return nil, verr
+		}
 	} else {
 		reqLogger.Info("Using the user provided init image " + customResource.Spec.DeploymentPlan.InitImage)
 		initImageName = customResource.Spec.DeploymentPlan.InitImage
@@ -1745,7 +1755,11 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 	var initCmds []string
 	var initCfgRootDir = "/init_cfg_root"
 
-	compactVersionToUse := determineCompactVersionToUse(customResource)
+	compactVersionToUse, verr := determineCompactVersionToUse(customResource)
+	if verr != nil {
+		reqLogger.Error(verr, "failed to get compact version for", customResource.Spec.Version)
+		return nil, verr
+	}
 	yacfgProfileVersion = version.YacfgProfileVersionFromFullVersion[version.FullVersionFromCompactVersion[compactVersionToUse]]
 	yacfgProfileName := version.YacfgProfileName
 
@@ -2226,10 +2240,10 @@ func configPodSecurity(podSpec *corev1.PodSpec, podSecurity *brokerv1beta1.PodSe
 	}
 }
 
-func determineImageToUse(customResource *brokerv1beta1.ActiveMQArtemis, imageTypeName string) string {
+func determineImageToUse(customResource *brokerv1beta1.ActiveMQArtemis, imageTypeName string) (string, error) {
 
 	imageName := ""
-	compactVersionToUse := determineCompactVersionToUse(customResource)
+	compactVersionToUse, _ := determineCompactVersionToUse(customResource)
 
 	genericRelatedImageEnvVarName := ImageNamePrefix + imageTypeName + "_" + compactVersionToUse
 	// Default case of x86_64/amd64 covered here
@@ -2244,36 +2258,61 @@ func determineImageToUse(customResource *brokerv1beta1.ActiveMQArtemis, imageTyp
 		clog.V(1).Info("DetermineImageToUse - from default", "env", archSpecificRelatedImageEnvVarName, "imageName", imageName)
 	}
 
-	return imageName
+	return imageName, nil
 }
 
-func determineCompactVersionToUse(customResource *brokerv1beta1.ActiveMQArtemis) string {
+func resolveBrokerVersion(cr *brokerv1beta1.ActiveMQArtemis) (string, error) {
+	specifiedVersion := cr.Spec.Version
+	if specifiedVersion == "" {
+		return "", nil
+	}
+	originalVersion, verr := semver.NewVersion(specifiedVersion)
+	if verr != nil {
+		return "", verr
+	}
 
-	specifiedVersion := customResource.Spec.Version
+	existingVersionMap := map[string]*semver.Version{}
+	for _, v := range version.FullVersionFromCompactVersion {
+		if existingVersionMap[v], verr = semver.NewVersion(v); verr != nil {
+			return "", verr
+		}
+	}
+	result := common.ResolveBrokerVersion(existingVersionMap, originalVersion)
+	if result == nil {
+		return "", errors.New("Did not find a matched broker version")
+	}
+	return result.String(), nil
+}
+
+func determineCompactVersionToUse(customResource *brokerv1beta1.ActiveMQArtemis) (string, error) {
+
 	compactVersionToUse := version.CompactLatestVersion
-	//yacfgProfileVersion
 
+	resolvedFullVersion, err := resolveBrokerVersion(customResource)
+	if err != nil {
+		return "", err
+	}
 	// See if we need to lookup what version to use
 	for {
 		// If there's no version specified just use the default above
-		if 0 == len(specifiedVersion) {
+		if 0 == len(resolvedFullVersion) {
 			clog.V(1).Info("DetermineImageToUse specifiedVersion was empty")
 			break
 		}
-		clog.V(1).Info("DetermineImageToUse specifiedVersion was " + specifiedVersion)
+		clog.V(1).Info("DetermineImageToUse specifiedVersion was " + resolvedFullVersion)
 
 		// There is a version specified by the user...
 		if !customResource.Spec.Upgrades.Enabled {
 			clog.V(1).Info("DetermineImageToUse upgrades are disabled, using version as specified")
 
 			// Upgrades deprecated, we just respect the specified version when (by default) false
-			compactSpecifiedVersion := version.CompactVersionFromVersion[specifiedVersion]
+			compactSpecifiedVersion := version.CompactVersionFromVersion[resolvedFullVersion]
 			if len(compactSpecifiedVersion) == 0 {
-				clog.V(1).Info("DetermineImageToUse failed to find the compact form of", "specified version ", specifiedVersion, "defaulting to", compactVersionToUse)
+				clog.V(1).Info("DetermineImageToUse failed to find the compact form of", "specified version ", resolvedFullVersion, "defaulting to", compactVersionToUse)
 				break
 			}
 			compactVersionToUse = compactSpecifiedVersion
-			clog.V(1).Info("DetermineImageToUse found the compact form of ", "specified version ", specifiedVersion, "using version", compactSpecifiedVersion)
+			clog.V(1).Info("DetermineImageToUse found the compact form of ", "specified version ", resolvedFullVersion, "using version", compactSpecifiedVersion)
 			break
 
 		} else {
@@ -2282,26 +2321,26 @@ func determineCompactVersionToUse(customResource *brokerv1beta1.ActiveMQArtemis)
 
 		// We have a specified version and upgrades are enabled in general
 		// Is the version specified on "the list"
-		compactSpecifiedVersion := version.CompactVersionFromVersion[specifiedVersion]
+		compactSpecifiedVersion := version.CompactVersionFromVersion[resolvedFullVersion]
 		if 0 == len(compactSpecifiedVersion) {
-			clog.V(1).Info("DetermineImageToUse failed to find the compact form of the specified version " + specifiedVersion)
+			clog.V(1).Info("DetermineImageToUse failed to find the compact form of the specified version " + resolvedFullVersion)
 			break
 		}
 		clog.V(1).Info("DetermineImageToUse found the compact form " + compactSpecifiedVersion + " of specifiedVersion")
 
 		// We found the compact form in our list, is it a minor bump?
-		if version.LastMinorVersion == specifiedVersion &&
+		if version.LastMinorVersion == resolvedFullVersion &&
 			!customResource.Spec.Upgrades.Minor {
 			clog.V(1).Info("DetermineImageToUse requested minor version upgrade but minor upgrades NOT enabled")
 			break
 		}
 
-		clog.V(1).Info("DetermineImageToUse all checks ok using user specified version " + specifiedVersion)
+		clog.V(1).Info("DetermineImageToUse all checks ok using user specified version " + resolvedFullVersion)
 		compactVersionToUse = compactSpecifiedVersion
 		break
 	}
 
-	return compactVersionToUse
+	return compactVersionToUse, nil
 }
 
 func createExtraConfigmapsAndSecrets(brokerContainer *corev1.Container, configMaps []string, secrets []string) ([]corev1.Volume, []corev1.VolumeMount) {
