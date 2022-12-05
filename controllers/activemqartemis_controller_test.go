@@ -344,7 +344,7 @@ var _ = Describe("artemis controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, brokerKey, createdBrokerCr)).Should(Succeed())
 				createdBrokerCr.Spec.Env = append(createdBrokerCr.Spec.Env, corev1.EnvVar{Name: "NEW_VAR", Value: "NEW_VALUE"})
-				Expect(k8sClient.Update(ctx, createdBrokerCr)).Should(Succeed())
+				g.Expect(k8sClient.Update(ctx, createdBrokerCr)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 
 			newCreatedBrokerCr := brokerv1beta1.ActiveMQArtemis{}
