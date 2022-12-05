@@ -67,7 +67,8 @@ func NewIngressForCRWithSSL(existing *netv1.Ingress, namespacedName types.Namesp
 			Name: portName,
 		}
 	}
-	desired.Spec.Rules[0].Host = "www.mgmtconsole.com"
+	host := desired.GetObjectMeta().GetName() + ".apps.artemiscloud.io"
+	desired.Spec.Rules[0].Host = host
 	if sslEnabled {
 		//ingress assumes TLS termination at the ingress point and uses default https port 443
 		//it requires a host name that matches the certificate's CN value
@@ -75,9 +76,7 @@ func NewIngressForCRWithSSL(existing *netv1.Ingress, namespacedName types.Namesp
 		//this is the default configuration in minikube
 		tls := []netv1.IngressTLS{
 			{
-				Hosts: []string{
-					"www.mgmtconsole.com",
-				},
+				Hosts: []string{host},
 			},
 		}
 		desired.Spec.TLS = tls
