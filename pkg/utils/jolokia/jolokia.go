@@ -99,7 +99,7 @@ func (j *Jolokia) Read(_path string) (*ResponseData, error) {
 
 	jolokiaClient := j.getClient()
 
-	var err error = nil
+	var respError error = nil
 	var jdata *ResponseData = nil
 
 	for {
@@ -112,6 +112,7 @@ func (j *Jolokia) Read(_path string) (*ResponseData, error) {
 		res, err := jolokiaClient.Do(req)
 
 		if err != nil {
+			respError = err
 			break
 		}
 		defer res.Body.Close()
@@ -119,6 +120,7 @@ func (j *Jolokia) Read(_path string) (*ResponseData, error) {
 		//decoding
 		result, _, err := decodeResponseData(res)
 		if err != nil {
+			respError = err
 			return result, err
 		}
 
@@ -127,10 +129,14 @@ func (j *Jolokia) Read(_path string) (*ResponseData, error) {
 		//before decoding the body, we need to check the http code
 		err = CheckResponse(res, result)
 
+		if err != nil {
+			respError = err
+		}
+
 		break
 	}
 
-	return jdata, err
+	return jdata, respError
 }
 
 func (j *Jolokia) Exec(_path string, _postJsonString string) (*ResponseData, error) {
@@ -212,12 +218,12 @@ func decodeResponseData(resp *http.Response) (*ResponseData, map[string]interfac
 	//fill in response data
 	if v, ok := rawData["error"]; ok {
 		if v != nil {
-			result.Error = v.(string)
+			result.Error = fmt.Sprintf("%v", v)
 		}
 	}
 	if v, ok := rawData["error_type"]; ok {
 		if v != nil {
-			result.ErrorType = v.(string)
+			result.ErrorType = fmt.Sprintf("%v", v)
 		}
 	}
 	if v, ok := rawData["status"]; ok {
@@ -227,7 +233,7 @@ func decodeResponseData(resp *http.Response) (*ResponseData, map[string]interfac
 	}
 	if v, ok := rawData["value"]; ok {
 		if v != nil {
-			result.Value = v.(string)
+			result.Value = fmt.Sprintf("%v", v)
 		}
 	}
 

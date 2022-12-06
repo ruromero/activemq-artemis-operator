@@ -49,6 +49,81 @@ import (
 
 var _ = Describe("Address controller tests", func() {
 
+	Context("address queue config defaults", Label("queue-config-defaults"), func() {
+		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+			queueName := "myqueue"
+			addressName := "myaddress"
+			anycastType := "ANYCAST"
+			It("configurationManaged default should be true (without queue configuration)", func() {
+				By("deploy a broker cr")
+				brokerCr, createdBrokerCr := DeployCustomBroker(defaultNamespace, nil)
+
+				By("deploy an address cr")
+				addressCr, createdAddressCr := DeployCustomAddress(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemisAddress) {
+					candidate.Spec.AddressName = addressName
+					candidate.Spec.QueueName = &queueName
+					candidate.Spec.RoutingType = &anycastType
+				})
+
+				By("verify the configurationManaged attribute of the queue is true")
+				podOrdinal := strconv.FormatInt(0, 10)
+				podName := namer.CrToSS(brokerCr.Name) + "-" + podOrdinal
+
+				CheckQueueExistInPod(brokerCr.Name, podName, queueName, defaultNamespace)
+
+				CheckQueueAttribute(brokerCr.Name, podName, defaultNamespace, queueName, addressName, "anycast", "ConfigurationManaged", "true")
+
+				//cleanup
+				Expect(k8sClient.Delete(ctx, createdBrokerCr)).Should(Succeed())
+				Eventually(func() bool {
+					return checkCrdDeleted(brokerCr.Name, defaultNamespace, createdBrokerCr)
+				}, existingClusterTimeout, existingClusterInterval).Should(BeTrue())
+
+				Expect(k8sClient.Delete(ctx, createdAddressCr)).Should(Succeed())
+				Eventually(func() bool {
+					return checkCrdDeleted(addressCr.Name, defaultNamespace, createdAddressCr)
+				}, existingClusterTimeout, existingClusterInterval).Should(BeTrue())
+
+			})
+
+			It("configurationManaged default should be true (with queue configuration)", func() {
+				By("deploy a broker cr")
+				brokerCr, createdBrokerCr := DeployCustomBroker(defaultNamespace, nil)
+
+				By("deploy an address cr")
+				addressCr, createdAddressCr := DeployCustomAddress(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemisAddress) {
+					candidate.Spec.AddressName = addressName
+					candidate.Spec.QueueName = &queueName
+					candidate.Spec.QueueConfiguration = &brokerv1beta1.QueueConfigurationType{
+						RoutingType: &anycastType,
+					}
+				})
+
+				By("verify the configurationManaged attribute of the queue is true")
+				podOrdinal := strconv.FormatInt(0, 10)
+				podName := namer.CrToSS(brokerCr.Name) + "-" + podOrdinal
+
+				CheckQueueExistInPod(brokerCr.Name, podName, queueName, defaultNamespace)
+
+				CheckQueueAttribute(brokerCr.Name, podName, defaultNamespace, queueName, addressName, "anycast", "ConfigurationManaged", "true")
+
+				//cleanup
+				Expect(k8sClient.Delete(ctx, createdBrokerCr)).Should(Succeed())
+				Eventually(func() bool {
+					return checkCrdDeleted(brokerCr.Name, defaultNamespace, createdBrokerCr)
+				}, existingClusterTimeout, existingClusterInterval).Should(BeTrue())
+
+				Expect(k8sClient.Delete(ctx, createdAddressCr)).Should(Succeed())
+				Eventually(func() bool {
+					return checkCrdDeleted(addressCr.Name, defaultNamespace, createdAddressCr)
+				}, existingClusterTimeout, existingClusterInterval).Should(BeTrue())
+
+			})
+		} else {
+			fmt.Println("Test skipped as it requires an existing cluster")
+		}
+	})
+
 	Context("broker with address custom resources", Label("broker-address-res"), func() {
 		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 			queueName := "myqueue"
@@ -1056,5 +1131,34 @@ func CheckQueueExistInPod(brokerCrName string, podName string, queueName string,
 		g.Expect(capturedOut.Len() > 0)
 		content := capturedOut.String()
 		g.Expect(content).Should(ContainSubstring(queueName))
+	}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+}
+
+func CheckQueueAttribute(brokerCrName string, podName string, namespace string, queueName string, addressName string, routingType string, attrName string, attrValueAsString string) {
+
+	if os.Getenv("USE_EXISTING_CLUSTER") != "true" {
+		Fail("function should be called with an existing cluster")
+	}
+
+	Eventually(func(g Gomega) {
+		key := types.NamespacedName{Name: namer.CrToSS(brokerCrName), Namespace: namespace}
+		sfsFound := &appsv1.StatefulSet{}
+
+		g.Expect(k8sClient.Get(ctx, key, sfsFound)).Should(Succeed())
+		g.Expect(sfsFound.Status.ReadyReplicas).Should(BeEquivalentTo(1))
+	}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+	podKey := types.NamespacedName{
+		Name:      podName,
+		Namespace: namespace,
+	}
+	pod := &corev1.Pod{}
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, podKey, pod)).Should(Succeed())
+		jolokia := jolokia.GetJolokia(pod.Status.PodIP, "8161", "/console/jolokia", "", "", "http")
+		data, err := jolokia.Read("org.apache.activemq.artemis:broker=\"amq-broker\",address=\"" + addressName + "\",component=addresses,queue=\"" + queueName + "\",routing-type=\"" + routingType + "\",subcomponent=queues/" + attrName)
+		g.Expect(err).To(BeNil())
+		g.Expect(data.Value).Should(ContainSubstring(attrValueAsString), data.Value)
+
 	}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 }

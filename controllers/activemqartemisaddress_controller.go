@@ -235,49 +235,43 @@ func createAddressResource(a *jc.JkInfo, addressRes *brokerv1beta1.ActiveMQArtem
 			return err
 		}
 
+		defaultConfigurationManaged := true
 		if addressRes.Spec.QueueConfiguration == nil {
 			routingType := "MULTICAST"
 			if addressRes.Spec.RoutingType != nil {
 				routingType = *addressRes.Spec.RoutingType
 			}
-			response, err := a.Artemis.CreateQueue(addressRes.Spec.AddressName, *addressRes.Spec.QueueName, routingType)
-			if nil != err {
-				if mgmt.GetCreationError(response) == mgmt.QUEUE_ALREADY_EXISTS {
-					//TODO: we may add an update API to management module like the queueConfig case
-					glog.V(1).Error(err, "some error occurred", "response", response, "broker", a.IP)
-					glog.V(1).Info("Queue already exists, ignore and return success", "broker", a.IP)
-					err = nil
-				} else {
-					glog.Error(err, "Creating ActiveMQArtemisAddress error for "+*addressRes.Spec.QueueName, "broker", a.IP)
-					return err
-				}
-			} else {
-				glog.Info("Created ActiveMQArtemisAddress for "+*addressRes.Spec.QueueName, "on broker", a.IP)
+
+			addressRes.Spec.QueueConfiguration = &brokerv1beta1.QueueConfigurationType{
+				RoutingType:          &routingType,
+				ConfigurationManaged: &defaultConfigurationManaged,
 			}
-		} else {
-			//create queue using queueconfig
-			queueCfg, ignoreIfExists, err := GetQueueConfig(addressRes)
-			if err != nil {
-				glog.Error(err, "Failed to get queue config json string")
-				//here we return nil as no point to requeue reconcile again
-				return nil
-			}
-			respData, err := a.Artemis.CreateQueueFromConfig(queueCfg, ignoreIfExists)
-			if nil != err {
-				if mgmt.GetCreationError(respData) == mgmt.QUEUE_ALREADY_EXISTS {
-					glog.Info("The queue already exists, updating", "queue", queueCfg)
-					respData, err := a.Artemis.UpdateQueue(queueCfg)
-					if err != nil {
-						glog.Error(err, "Failed to update queue", "details", respData)
-					}
-					return err
-				}
-				glog.Error(err, "Creating ActiveMQArtemisAddress error for "+*addressRes.Spec.QueueName)
-				return err
-			} else {
-				glog.Info("Created ActiveMQArtemisAddress for " + *addressRes.Spec.QueueName)
-			}
+		} else if addressRes.Spec.QueueConfiguration.ConfigurationManaged == nil {
+			addressRes.Spec.QueueConfiguration.ConfigurationManaged = &defaultConfigurationManaged
 		}
+		//create queue using queueconfig
+		queueCfg, ignoreIfExists, err := GetQueueConfig(addressRes)
+		if err != nil {
+			glog.Error(err, "Failed to get queue config json string")
+			//here we return nil as no point to requeue reconcile again
+			return nil
+		}
+		respData, err := a.Artemis.CreateQueueFromConfig(queueCfg, ignoreIfExists)
+		if nil != err {
+			if mgmt.GetCreationError(respData) == mgmt.QUEUE_ALREADY_EXISTS {
+				glog.Info("The queue already exists, updating", "queue", queueCfg)
+				respData, err := a.Artemis.UpdateQueue(queueCfg)
+				if err != nil {
+					glog.Error(err, "Failed to update queue", "details", respData)
+				}
+				return err
+			}
+			glog.Error(err, "Creating ActiveMQArtemisAddress error for "+*addressRes.Spec.QueueName)
+			return err
+		} else {
+			glog.Info("Created ActiveMQArtemisAddress for " + *addressRes.Spec.QueueName)
+		}
+
 	}
 	return nil
 }
