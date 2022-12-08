@@ -322,7 +322,7 @@ func GetDefaultLabels(cr *brokerv1beta1.ActiveMQArtemis) map[string]string {
 	return defaultLabelData.Labels()
 }
 
-//only test uses this
+// only test uses this
 func NewReconcileActiveMQArtemis(c rtclient.Client, s *runtime.Scheme) ActiveMQArtemisReconciler {
 	return ActiveMQArtemisReconciler{
 		Client: c,
@@ -390,9 +390,9 @@ type jolokiaClientNotFoundError struct {
 	cause error
 }
 
-const StatusOutOfSyncError statusOutOfSyncError = "BrokerProperties status out of sync"
-
-type statusOutOfSyncError string
+type statusOutOfSyncError struct {
+	cause string
+}
 
 func NewUnknownJolokiaError(err error) unknownJolokiaError {
 	return unknownJolokiaError{
@@ -422,10 +422,47 @@ func (e jolokiaClientNotFoundError) Requeue() bool {
 	return true
 }
 
+func NewStatusOutOfSyncError(brokerPropertiesName, expected, current string) statusOutOfSyncError {
+	return statusOutOfSyncError{
+		fmt.Sprintf("%s status out of sync, expected: %s, current: %s", brokerPropertiesName, expected, current),
+	}
+}
+
 func (e statusOutOfSyncError) Error() string {
-	return string(StatusOutOfSyncError)
+	return e.cause
 }
 
 func (e statusOutOfSyncError) Requeue() bool {
 	return true
+}
+
+type inSyncApplyError struct {
+	cause  error
+	detail map[string]string
+}
+
+const inSyncWithErrorCause = "some properties resulted in error"
+
+func NewInSyncWithError() *inSyncApplyError {
+	return &inSyncApplyError{
+		cause:  errors.Errorf(inSyncWithErrorCause),
+		detail: map[string]string{},
+	}
+}
+
+func (e inSyncApplyError) Requeue() bool {
+	return false
+}
+
+func (e inSyncApplyError) Error() string {
+	return fmt.Sprintf("%s : reasons: %v", e.cause.Error(), e.detail)
+}
+
+func (e *inSyncApplyError) ErrorApplyDetail(container string, reason string) {
+	existing, present := e.detail[container]
+	if present {
+		e.detail[container] = fmt.Sprintf("%s, %s", existing, reason)
+	} else {
+		e.detail[container] = reason
+	}
 }

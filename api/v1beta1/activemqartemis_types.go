@@ -424,8 +424,10 @@ const (
 
 	ValidConditionFailedReservedLabelReason = "ReservedLabelReference"
 
-	ConfigAppliedConditionType                            = "BrokerPropertiesApplied"
-	ConfigAppliedConditionSynchedReason                   = "Applied"
+	ConfigAppliedConditionType                   = "BrokerPropertiesApplied"
+	ConfigAppliedConditionSynchedReason          = "Applied"
+	ConfigAppliedConditionSynchedWithErrorReason = "AppliedWithError"
+
 	ConfigAppliedConditionUnknownReason                   = "UnableToRetrieveStatus"
 	ConfigAppliedConditionOutOfSyncReason                 = "OutOfSync"
 	ConfigAppliedConditionOutOfSyncMessage                = "Waiting for the Broker to ackowledge the changes"

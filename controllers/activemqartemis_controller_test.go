@@ -3689,6 +3689,8 @@ var _ = Describe("artemis controller", func() {
 			By("By eventualy finding a matching config map with broker props")
 			cmResourceVersion := ""
 
+			alder32 := ""
+			alder32LabelKey := alder32LabelBase + brokerPropertiesName
 			createdConfigMap := &corev1.ConfigMap{}
 			configMapKey := types.NamespacedName{Name: configMapName, Namespace: defaultNamespace}
 			Eventually(func(g Gomega) {
@@ -3696,6 +3698,7 @@ var _ = Describe("artemis controller", func() {
 				g.Expect(k8sClient.Get(ctx, configMapKey, createdConfigMap)).Should(Succeed())
 				g.Expect(createdConfigMap.ResourceVersion).ShouldNot(BeNil())
 				cmResourceVersion = createdConfigMap.ResourceVersion
+				alder32 = createdConfigMap.Labels[alder32LabelKey]
 			}, timeout, interval).Should(Succeed())
 
 			By("updating the crd, expect new ConfigMap generation")
@@ -3712,18 +3715,18 @@ var _ = Describe("artemis controller", func() {
 				g.Expect(k8sClient.Update(ctx, createdCrd)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			hexShaModified := hexShaHashOfMap(createdCrd.Spec.BrokerProperties)
+			modifiedAlder32 := alder32LabelValue(alder32OfMap(createdCrd.Spec.BrokerProperties))
 
 			By("finding the updated config map")
 			Eventually(func(g Gomega) {
 
 				g.Expect(k8sClient.Get(ctx, configMapKey, createdConfigMap)).Should(Succeed())
 				g.Expect(createdConfigMap.ResourceVersion).ShouldNot(BeNil())
-				g.Expect(createdConfigMap.Data["a_status.properties"]).ShouldNot(BeEmpty())
-				g.Expect(createdConfigMap.Data["a_status.properties"]).Should(ContainSubstring(hexShaModified))
 
 				// verify update
 				g.Expect(createdConfigMap.ResourceVersion).ShouldNot(Equal(cmResourceVersion))
+				g.Expect(createdConfigMap.Labels[alder32LabelKey]).ShouldNot(Equal(alder32))
+				g.Expect(createdConfigMap.Labels[alder32LabelKey]).Should(Equal(modifiedAlder32))
 
 			}, timeout, interval).Should(Succeed())
 
@@ -3869,6 +3872,42 @@ var _ = Describe("artemis controller", func() {
 			Expect(k8sClient.Delete(ctx, &crd2)).Should(Succeed())
 		})
 
+		It("expect error message on invalid property value", func() {
+			By("By creating a crd with BrokerProperties in the spec")
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+
+			crd.Spec.BrokerProperties = []string{"notValid=bla"}
+			crd.Spec.DeploymentPlan.Size = 1
+
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			crdRef := types.NamespacedName{
+				Namespace: crd.Namespace,
+				Name:      crd.Name,
+			}
+
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+				createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, crdRef, createdCrd)).Should(Succeed())
+
+					condition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
+					g.Expect(condition).NotTo(BeNil())
+
+					g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+
+					g.Expect(condition.Reason).Should(Equal(brokerv1beta1.ConfigAppliedConditionSynchedWithErrorReason))
+					g.Expect(condition.Message).Should(ContainSubstring("bla"))
+
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+			}
+
+			// cleanup
+			Expect(k8sClient.Delete(ctx, &crd)).Should(Succeed())
+
+		})
 	})
 
 	Context("LoggerProperties", Label("LoggerProperties-test"), func() {

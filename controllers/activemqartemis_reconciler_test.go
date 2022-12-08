@@ -1,7 +1,9 @@
 package controllers
 
 import (
+	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/RHsyseng/operator-utils/pkg/resource/compare"
@@ -240,25 +242,72 @@ func TestGetConfigAppliedConfigMapName(t *testing.T) {
 }
 
 func TestExtractSha(t *testing.T) {
-	json := `{"configuration": {"properties": {"a_status.properties": {"cr:alder32": "123456"}}}}`
-	sha, err := extractSha(json)
+	json := `{"configuration": {"properties": {"a_status.properties": {"alder32": "123456"}}}}`
+	status, err := unmarshallStatus(json)
+	assert.NoError(t, err)
+	sha, err := extractSha(status, "a_status.properties")
 	assert.Equal(t, "123456", sha)
 	assert.NoError(t, err)
 
 	json = `{"configuration": {"properties": {"a_status.properties": {}}}}`
-	sha, err = extractSha(json)
+	status, err = unmarshallStatus(json)
+	assert.NoError(t, err)
+	sha, err = extractSha(status, "a_status.properties")
 	assert.Empty(t, sha)
 	assert.NoError(t, err)
 
 	json = `you shall fail`
-	sha, err = extractSha(json)
+	status, err = unmarshallStatus(json)
+	assert.Error(t, err)
+	sha, err = extractSha(status, "a_status.properties")
 	assert.Empty(t, sha)
 	assert.Error(t, err)
+}
 
-	json = "{\"configuration\":{\"properties\":{\"a_status.properties\":{\"alder32\":\"30349585\",\"cr:alder32\":\"00000001\",\"errors\":[]},\"broker.properties\":{\"alder32\":\"1\"},\"system\":{\"alder32\":\"1\"}}},\"server\":{\"jaas\":{\"properties\":{\"artemis-users.properties\":{\"reloadTime\":\"1669744377685\",\"Alder32\":\"955331033\"},\"artemis-roles.properties\":{\"reloadTime\":\"1669744377685\",\"Alder32\":\"701302135\"}}},\"state\":\"STARTED\",\"version\":\"2.27.0\",\"nodeId\":\"a644c0c6-700e-11ed-9d4f-0a580ad90188\",\"identity\":null,\"uptime\":\"33.176 seconds\"}}"
-	sha, err = extractSha(json)
-	assert.Equal(t, "00000001", sha)
+func extractSha(status brokerStatus, name string) (string, error) {
+	current, present := status.BrokerConfigStatus.PropertiesStatus[name]
+	if !present {
+		return "", errors.New("not present")
+	} else {
+		return current.Alder32, nil
+	}
+}
+
+func TestExtractErrors(t *testing.T) {
+
+	json := "{\"configuration\":{\"properties\":{\"broker.properties\":{\"alder32\":\"1\"},\"system\":{\"alder32\":\"1\"}}},\"server\":{\"jaas\":{\"properties\":{\"artemis-users.properties\":{\"reloadTime\":\"1669744377685\",\"Alder32\":\"955331033\"},\"artemis-roles.properties\":{\"reloadTime\":\"1669744377685\",\"Alder32\":\"701302135\"}}},\"state\":\"STARTED\",\"version\":\"2.27.0\",\"nodeId\":\"a644c0c6-700e-11ed-9d4f-0a580ad90188\",\"identity\":null,\"uptime\":\"33.176 seconds\"}}"
+	status, err := unmarshallStatus(json)
 	assert.NoError(t, err)
+	sha, err := extractSha(status, "broker.properties")
+	assert.Equal(t, "1", sha)
+	assert.NoError(t, err)
+
+	json = `{"configuration": {
+			"properties": {
+				"a_status.properties": {
+					"alder32": "110827957",
+					"cr:alder32": "1f4004ae",
+					"errors": []
+				},
+				"broker.properties": {
+					"alder32": "524289198",
+					"errors": [
+						{
+							"value": "notValid=bla",
+							"reason": "No accessor method descriptor for: notValid on: class org.apache.activemq.artemis.core.config.impl.FileConfiguration"
+						}
+					]
+				}
+			}
+		}
+	}`
+	status, err = unmarshallStatus(json)
+	assert.NoError(t, err)
+	appplyErrors := status.BrokerConfigStatus.PropertiesStatus["broker.properties"].ApplyErrors
+	assert.True(t, len(appplyErrors) > 0)
+
+	marshalledErrorsStr := marshallApplyErrors(appplyErrors)
+	assert.True(t, strings.Contains(marshalledErrorsStr, "bla"))
 
 }
 
