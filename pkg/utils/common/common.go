@@ -172,3 +172,16 @@ func ResolveBrokerVersion(existingVersions map[string]*semver.Version, expected 
 	}
 	return nil
 }
+
+func FindArgFromEnv(argName string, argPrefix string) (string, bool) {
+	argsFromEnv := os.Getenv(argName)
+	if argsFromEnv != "" {
+		args := strings.Split(argsFromEnv, " ")
+		for _, arg := range args {
+			if strings.HasPrefix(arg, argPrefix) {
+				return arg, true
+			}
+		}
+	}
+	return "", false
+}

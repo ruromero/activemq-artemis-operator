@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -39,6 +40,7 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -368,16 +370,16 @@ func setUpRealOperator() {
 	_, err = envtest.InstallCRDs(restConfig, options)
 	Expect(err).To(Succeed())
 
-	err = installOperator()
+	err = installOperator(nil)
 	Expect(err).To(Succeed(), "failed to install operator")
 }
 
 //Deploy operator resources
 //TODO: provide 'watch all namespaces' option
-func installOperator() error {
+func installOperator(envMap map[string]string) error {
 	logf.Log.Info("#### Installing Operator ####")
 	for _, res := range oprRes {
-		if err := installYamlResource(res); err != nil {
+		if err := installYamlResource(res, envMap); err != nil {
 			return err
 		}
 	}
@@ -385,7 +387,18 @@ func installOperator() error {
 	return waitForOperator()
 }
 
-func uninstallOperator() error {
+func expectOperatorInstallFailureWithMessage(message *string) error {
+	logf.Log.Info("#### Installing Operator ####")
+	for _, res := range oprRes {
+		if err := installYamlResource(res, nil); err != nil {
+			return err
+		}
+	}
+
+	return waitForOperatorFailStart(message)
+}
+
+func uninstallOperator(deleteCrds bool) error {
 	logf.Log.Info("#### Uninstalling Operator ####")
 	for _, res := range oprRes {
 		if err := uninstallYamlResource(res); err != nil {
@@ -393,13 +406,55 @@ func uninstallOperator() error {
 		}
 	}
 
-	//uninstall CRDs
-	logf.Log.Info("Uninstalling CRDs")
-	options := envtest.CRDInstallOptions{
-		Paths:              crdRes,
-		ErrorIfPathMissing: false,
+	if deleteCrds {
+		//uninstall CRDs
+		logf.Log.Info("Uninstalling CRDs")
+		options := envtest.CRDInstallOptions{
+			Paths:              crdRes,
+			ErrorIfPathMissing: false,
+		}
+		return envtest.UninstallCRDs(restConfig, options)
 	}
-	return envtest.UninstallCRDs(restConfig, options)
+	return nil
+}
+
+func waitForOperatorFailStart(expectedErrMessage *string) error {
+	podList := &corev1.PodList{}
+	opts := &client.ListOptions{
+		Namespace: defaultNamespace,
+	}
+
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.List(ctx, podList, opts)).Should(Succeed())
+
+		g.Expect(len(podList.Items)).Should(BeEquivalentTo(1))
+		oprPod := podList.Items[0]
+		g.Expect(len(oprPod.Status.ContainerStatuses)).Should(BeEquivalentTo(1))
+		g.Expect(oprPod.Status.ContainerStatuses[0].Ready).Should(BeFalse())
+
+		//get operator pod log
+		cfg, err := config.GetConfig()
+		Expect(err).To(BeNil())
+		clientset, err := kubernetes.NewForConfig(cfg)
+		Expect(err).To(BeNil())
+
+		podLogOpts := corev1.PodLogOptions{}
+		req := clientset.CoreV1().Pods(defaultNamespace).GetLogs(oprPod.Name, &podLogOpts)
+		podLogs, err := req.Stream(context.Background())
+		Expect(err).To(BeNil())
+		defer podLogs.Close()
+
+		Expect(err).To(BeNil())
+
+		buf := new(bytes.Buffer)
+		_, err = io.Copy(buf, podLogs)
+		Expect(err).To(BeNil())
+		oprLog := buf.String()
+
+		Expect(oprLog).To(ContainSubstring(*expectedErrMessage))
+
+	}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+	return nil
 }
 
 func waitForOperator() error {
@@ -407,6 +462,7 @@ func waitForOperator() error {
 	opts := &client.ListOptions{
 		Namespace: defaultNamespace,
 	}
+
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.List(ctx, podList, opts)).Should(Succeed())
 
@@ -459,7 +515,7 @@ func uninstallYamlResource(resPath string) error {
 	return nil
 }
 
-func installYamlResource(resPath string) error {
+func installYamlResource(resPath string, envMap map[string]string) error {
 	logf.Log.Info("Installing yaml resource", "yaml", resPath)
 	robj, gkv, err := loadYamlResource(resPath)
 	if err != nil {
@@ -468,11 +524,19 @@ func installYamlResource(resPath string) error {
 	cobj := robj.(client.Object)
 	cobj.SetNamespace(defaultNamespace)
 
-	if oprImg := os.Getenv("OPERATOR_IMAGE"); oprImg != "" {
-		if gkv.Kind == "Deployment" {
+	if gkv.Kind == "Deployment" {
+		oprObj := cobj.(*appsv1.Deployment)
+		if oprImg := os.Getenv("IMG"); oprImg != "" {
 			logf.Log.Info("Using custom operator image", "url", oprImg)
-			oprObj := cobj.(*appsv1.Deployment)
 			oprObj.Spec.Template.Spec.Containers[0].Image = oprImg
+		}
+		for k, v := range envMap {
+			logf.Log.Info("Adding new env var into operator", "name", k, "value", v)
+			newEnv := corev1.EnvVar{
+				Name:  k,
+				Value: v,
+			}
+			oprObj.Spec.Template.Spec.Containers[0].Env = append(oprObj.Spec.Template.Spec.Containers[0].Env, newEnv)
 		}
 	}
 
@@ -580,7 +644,7 @@ var _ = AfterSuite(func() {
 	os.Unsetenv("OPERATOR_WATCH_NAMESPACE")
 
 	if os.Getenv("DEPLOY_OPERATOR") == "true" {
-		err := uninstallOperator()
+		err := uninstallOperator(true)
 		Expect(err).NotTo(HaveOccurred())
 	} else {
 

@@ -84,6 +84,53 @@ in your Custom Resource), you need to have two PVs available. By default, each b
 If you specify persistenceEnabled=false in your Custom Resource, the deployed brokers uses ephemeral storage. Ephemeral 
 storage means that that every time you restart the broker Pods, any existing data is lost.
 
+## Configuring logging for the Operator
+
+This section describes how to configure logging for the operator.
+
+The operator image is using zap logger for logging. You can set the zap log level editing the container args defined in the operator deployment, i.e.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: activemq-artemis-controller-manager
+  spec:
+      containers:
+      - args:
+        - --zap-log-level=error
+...
+```
+
+You can also edit the operator deployment using the Kubernetes dashboard or the Kubernetes command-line tool, for example
+
+```shell script
+$ sed 's/--zap-log-level=debug/--zap-log-level=error/' deploy/ install/110_operator.yaml | kubectl apply -f -
+```
+
+However if you install the operator from OperatorHub you don't have control over the resources which are deployed by olm
+framework. In that case if you want to change log options for the operator you need to edit the Subscription yaml
+from the OperatorHub after the operator is installed. The Subscription spec has a config option that allows you to 
+pass environment variables into operator container. To configure the log level add/edit the config option as shown
+in below example:
+
+```yaml
+kind: Subscription
+metadata:
+  name: operator
+spec:
+  config:
+    env:
+    - name: ARGS
+      value: "--zap-log-level=debug"
+```
+
+Note: The env var name must be **ARGS** and the value is **--zap-log-level={level}** where {level} must
+be one of **debug**, **info** and **error**. Any other values will be ignored.
+
+After editing the Subscription yaml as such, save it and the operator will restart with the given log level.
 
 ### Getting the Operator code
 

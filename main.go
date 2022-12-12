@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/artemiscloud/activemq-artemis-operator/version"
+	"github.com/go-logr/logr"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -70,7 +71,7 @@ var (
 	//hard coded because the sdk version pkg is moved in internal package
 	sdkVersion = "1.15.0"
 	scheme     = runtime.NewScheme()
-	log        = ctrl.Log.WithName("setup")
+	log        logr.Logger
 )
 
 func printVersion() {
@@ -95,6 +96,30 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
+func SetupLogging(opts *zap.Options) {
+	if logLevelArg, ok := common.FindArgFromEnv("ARGS", "--zap-log-level="); ok {
+		fmt.Printf("Setting operator log level from env var %v\n", logLevelArg)
+		index := -1
+		for i, arg := range os.Args {
+			if strings.HasPrefix(arg, "--zap-log-level") {
+				index = i
+				break
+			}
+		}
+		if index >= 0 {
+			os.Args[index] = logLevelArg
+		} else {
+			os.Args = append(os.Args, logLevelArg)
+		}
+	}
+
+	flag.Parse()
+
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(opts)))
+
+	log = ctrl.Log.WithName("setup")
+}
+
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -108,9 +133,8 @@ func main() {
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	SetupLogging(&opts)
 
 	printVersion()
 
