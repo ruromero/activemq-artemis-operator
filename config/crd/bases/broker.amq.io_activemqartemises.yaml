@@ -2229,6 +2229,19 @@ spec:
                   - type
                   type: object
                 type: array
+              externalConfigs:
+                description: Current state of external referenced resources
+                items:
+                  properties:
+                    name:
+                      type: string
+                    resourceVersion:
+                      type: string
+                  required:
+                  - name
+                  - resourceVersion
+                  type: object
+                type: array
               podStatus:
                 description: Pod Status
                 properties:

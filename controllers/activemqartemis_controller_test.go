@@ -21,6 +21,7 @@ package controllers
 import (
 	"container/list"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"net"
@@ -3689,8 +3690,6 @@ var _ = Describe("artemis controller", func() {
 			By("By eventualy finding a matching config map with broker props")
 			cmResourceVersion := ""
 
-			alder32 := ""
-			alder32LabelKey := alder32LabelBase + brokerPropertiesName
 			createdConfigMap := &corev1.ConfigMap{}
 			configMapKey := types.NamespacedName{Name: configMapName, Namespace: defaultNamespace}
 			Eventually(func(g Gomega) {
@@ -3698,7 +3697,6 @@ var _ = Describe("artemis controller", func() {
 				g.Expect(k8sClient.Get(ctx, configMapKey, createdConfigMap)).Should(Succeed())
 				g.Expect(createdConfigMap.ResourceVersion).ShouldNot(BeNil())
 				cmResourceVersion = createdConfigMap.ResourceVersion
-				alder32 = createdConfigMap.Labels[alder32LabelKey]
 			}, timeout, interval).Should(Succeed())
 
 			By("updating the crd, expect new ConfigMap generation")
@@ -3715,8 +3713,6 @@ var _ = Describe("artemis controller", func() {
 				g.Expect(k8sClient.Update(ctx, createdCrd)).Should(Succeed())
 			}, timeout, interval).Should(Succeed())
 
-			modifiedAlder32 := alder32LabelValue(alder32OfMap(createdCrd.Spec.BrokerProperties))
-
 			By("finding the updated config map")
 			Eventually(func(g Gomega) {
 
@@ -3725,8 +3721,6 @@ var _ = Describe("artemis controller", func() {
 
 				// verify update
 				g.Expect(createdConfigMap.ResourceVersion).ShouldNot(Equal(cmResourceVersion))
-				g.Expect(createdConfigMap.Labels[alder32LabelKey]).ShouldNot(Equal(alder32))
-				g.Expect(createdConfigMap.Labels[alder32LabelKey]).Should(Equal(modifiedAlder32))
 
 			}, timeout, interval).Should(Succeed())
 
@@ -3896,7 +3890,7 @@ var _ = Describe("artemis controller", func() {
 					condition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
 					g.Expect(condition).NotTo(BeNil())
 
-					g.Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+					g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
 
 					g.Expect(condition.Reason).Should(Equal(brokerv1beta1.ConfigAppliedConditionSynchedWithErrorReason))
 					g.Expect(condition.Message).Should(ContainSubstring("bla"))
@@ -6115,6 +6109,178 @@ var _ = Describe("artemis controller", func() {
 		Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
 	})
 
+	It("extraMount.configMap x-jaas-config update status", func() {
+
+		ctx := context.Background()
+		crd := generateArtemisSpec(defaultNamespace)
+		crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
+			InitialDelaySeconds: 2,
+			TimeoutSeconds:      5,
+			PeriodSeconds:       5,
+		}
+		crd.Spec.DeploymentPlan.Size = 1
+
+		loggingConfigMapName := "my-logging-config"
+		loggingData := make(map[string]string)
+		loggingData["logging.properties"] = `appender.stdout.name = STDOUT
+		appender.stdout.type = Console
+		rootLogger = info, STDOUT
+		logger.activemq.name=org.apache.activemq.artemis.spi.core.security.jaas
+        logger.activemq.level=TRACE
+`
+
+		loggingConfigMap := configmaps.MakeConfigMap(defaultNamespace, loggingConfigMapName, loggingData)
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Create(ctx, loggingConfigMap, &client.CreateOptions{})).Should(Succeed())
+		}, timeout, interval).Should(Succeed())
+
+		configMap := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "k8s.io.api.core.v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "x-jaas-config",
+				Namespace: crd.ObjectMeta.Namespace,
+			},
+			// mutable
+		}
+
+		crd.Spec.AdminUser = "admin"
+		crd.Spec.AdminPassword = "admin"
+
+		userPropsKey := "users.properties"
+
+		loginPropsKey := "login.config"
+		configMap.Data = map[string]string{loginPropsKey: `activemq {
+			org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule required
+			reload=true
+			debug=true
+			org.apache.activemq.jaas.properties.user="users.properties"
+			org.apache.activemq.jaas.properties.role="roles.properties";
+			};`,
+			userPropsKey: `admin=admin
+			tom=tom
+			peter=peter`,
+			"roles.properties": `admin=admin,amq,joe`,
+		}
+
+		// extra bits - not read by the broker - won't be in brokerStatus
+		configMap.Data["a.props"] = "a=a1"
+
+		crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{configMap.Name, loggingConfigMapName}
+
+		By("Deploying the configMap " + configMap.ObjectMeta.Name)
+		Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
+
+		By("Deploying the CRD " + crd.ObjectMeta.Name)
+		Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			var originalResourceVersion string
+			var updatedResourceVersion string
+
+			By("verifying via status")
+			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+			Eventually(func(g Gomega) {
+
+				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+
+				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+
+				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
+
+				ConfigAppliedCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
+				g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionSynchedReason))
+
+				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeTrue())
+
+				ConfigAppliedCondition = meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)
+				g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionSynchedReason))
+
+				g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
+				g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("x"))
+
+				originalResourceVersion = createdCrd.Status.ExternalConfigs[0].ResourceVersion
+
+			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+			By("updating custom map with new user joe")
+			createdConfigMap := &corev1.ConfigMap{}
+			configMapKey := types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}
+			Eventually(func(g Gomega) {
+
+				g.Expect(k8sClient.Get(ctx, configMapKey, createdConfigMap)).Should(Succeed())
+
+				createdConfigMap.Data[userPropsKey] = createdConfigMap.Data[userPropsKey] + `
+				joe=joe`
+
+				g.Expect(k8sClient.Update(ctx, createdConfigMap)).Should(Succeed())
+
+				g.Expect(k8sClient.Get(ctx, configMapKey, createdConfigMap)).Should(Succeed())
+				updatedResourceVersion = createdConfigMap.ResourceVersion
+				g.Expect(updatedResourceVersion).ShouldNot(Equal(originalResourceVersion))
+
+			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+			By("verifying updated content via status out of sync")
+
+			Eventually(func(g Gomega) {
+
+				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+
+				g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
+				g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("x"))
+
+				g.Expect(createdCrd.Status.ExternalConfigs[0].ResourceVersion).Should(BeEquivalentTo(updatedResourceVersion))
+
+				// reload=true but it is done on demand, so will require a login attempt to trigger
+				// however the jolokia auth request will be sufficient... but that result is cached
+				// we can use that to validate out of sync
+				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeFalse())
+
+				ConfigAppliedCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)
+				g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionOutOfSyncReason))
+				g.Expect(ConfigAppliedCondition.Message).To(ContainSubstring(userPropsKey))
+
+			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+			By("forcing a new login to reload custom user")
+
+			podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
+			command := []string{"amq-broker/bin/artemis", "producer", "--user", "joe", "--password", "joe", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--destination", "queue://DLQ", "--verbose"}
+
+			Eventually(func(g Gomega) {
+				stdOutContent := ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, command, g)
+				g.Expect(stdOutContent).Should(ContainSubstring("Produced: 1 messages"))
+			}, existingClusterTimeout, existingClusterInterval*2).Should(Succeed())
+
+			By("verifying updated content via status in sync")
+
+			Eventually(func(g Gomega) {
+
+				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+
+				g.Expect(createdCrd.Status.ExternalConfigs[0].ResourceVersion).Should(BeEquivalentTo(updatedResourceVersion))
+				g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
+				g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("x"))
+
+				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeTrue())
+
+			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+		}
+
+		Expect(k8sClient.Delete(ctx, loggingConfigMap)).To(Succeed())
+		Expect(k8sClient.Delete(ctx, configMap)).To(Succeed())
+		Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+	})
+
 	It("extraMount.configMap logging config manually", func() {
 
 		ctx := context.Background()
@@ -6374,4 +6540,8 @@ func DeploySecret(targetNamespace string, customFunc func(candidate *corev1.Secr
 	Expect(createdSecret.Namespace).Should(Equal(targetNamespace))
 
 	return &secretDefinition, &createdSecret
+}
+
+func hexShaHashOfMap(props []string) string {
+	return hex.EncodeToString(alder32Of(props))
 }

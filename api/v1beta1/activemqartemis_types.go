@@ -379,6 +379,15 @@ type ActiveMQArtemisStatus struct {
 	//Deployments olm.DeploymentStatus `json:"podStatus"`
 	//we probably use Deployments as operatorHub shows invalid field podStatus
 	//see 3scale https://github.com/3scale/3scale-operator/blob/8abbabd926616b98db0e7e736e68e5ceba90ed9d/apis/apps/v1alpha1/apimanager_types.go#L87
+
+	// Current state of external referenced resources
+	// +optional
+	ExternalConfigs []ExternalConfigStatus `json:"externalConfigs,omitempty"`
+}
+
+type ExternalConfigStatus struct {
+	Name            string `json:"name"`
+	ResourceVersion string `json:"resourceVersion"`
 }
 
 //+kubebuilder:object:root=true
@@ -424,12 +433,14 @@ const (
 
 	ValidConditionFailedReservedLabelReason = "ReservedLabelReference"
 
-	ConfigAppliedConditionType                   = "BrokerPropertiesApplied"
+	ConfigAppliedConditionType     = "BrokerPropertiesApplied"
+	JaasConfigAppliedConditionType = "JaasPropertiesApplied"
+
 	ConfigAppliedConditionSynchedReason          = "Applied"
 	ConfigAppliedConditionSynchedWithErrorReason = "AppliedWithError"
 
 	ConfigAppliedConditionUnknownReason                   = "UnableToRetrieveStatus"
 	ConfigAppliedConditionOutOfSyncReason                 = "OutOfSync"
-	ConfigAppliedConditionOutOfSyncMessage                = "Waiting for the Broker to ackowledge the changes"
+	ConfigAppliedConditionOutOfSyncMessage                = "Waiting for the Broker to acknowledge changes"
 	ConfigAppliedConditionNoJolokiaClientsAvailableReason = "NoJolokiaClientsAvailable"
 )

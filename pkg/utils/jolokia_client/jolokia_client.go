@@ -36,6 +36,7 @@ import (
 type JkInfo struct {
 	Artemis *mgmt.Artemis
 	IP      string
+	Ordinal string
 }
 
 func GetBrokers(resource types.NamespacedName, ssInfos []ss.StatefulSetInfo, client rtclient.Client) []*JkInfo {
@@ -83,6 +84,7 @@ func GetBrokers(resource types.NamespacedName, ssInfos []ss.StatefulSetInfo, cli
 					jkInfo := JkInfo{
 						Artemis: artemis,
 						IP:      pod.Status.PodIP,
+						Ordinal: strconv.Itoa(i),
 					}
 					artemisArray = append(artemisArray, &jkInfo)
 				}

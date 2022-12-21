@@ -30,9 +30,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	rtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources"
@@ -335,7 +339,20 @@ func (r *ActiveMQArtemisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&brokerv1beta1.ActiveMQArtemis{}).
 		Owns(&appsv1.StatefulSet{}).
-		Owns(&corev1.Pod{})
+		Owns(&corev1.Pod{}).
+
+		// for extra-mounts references, do we need to label/annotate referenced resources
+		// and filter on the label?
+		Watches(
+			&source.Kind{Type: &corev1.ConfigMap{}},
+			handler.EnqueueRequestsFromMapFunc(r.findCrWithReferenceToResource),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findCrWithReferenceToResource),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		)
 
 	var err error
 	controller, err := builder.Build(r)
@@ -347,6 +364,46 @@ func (r *ActiveMQArtemisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		)
 	}
 	return err
+}
+
+func (r *ActiveMQArtemisReconciler) findCrWithReferenceToResource(resource client.Object) []reconcile.Request {
+
+	deployed := &brokerv1beta1.ActiveMQArtemisList{}
+	listOps := &client.ListOptions{
+		Namespace: resource.GetNamespace(),
+	}
+	requests := make([]reconcile.Request, 0)
+
+	if err := r.List(context.TODO(), deployed, listOps); err == nil {
+		for _, cr := range deployed.Items {
+			for _, v := range cr.Spec.DeploymentPlan.ExtraMounts.Secrets {
+				if v == resource.GetName() {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      cr.GetName(),
+							Namespace: cr.GetNamespace(),
+						}})
+					break
+				}
+			}
+
+			for _, v := range cr.Spec.DeploymentPlan.ExtraMounts.ConfigMaps {
+				if v == resource.GetName() {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      cr.GetName(),
+							Namespace: cr.GetNamespace(),
+						}})
+					break
+				}
+			}
+		}
+	}
+
+	if len(requests) > 0 {
+		clog.Info("trigger reconcile on referenced resource version change", "resource", resource.GetName(), "ver", resource.GetResourceVersion(), "related crs", requests)
+	}
+	return requests
 }
 
 func UpdateCRStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, namespacedName types.NamespacedName) error {
@@ -422,10 +479,14 @@ func (e jolokiaClientNotFoundError) Requeue() bool {
 	return true
 }
 
-func NewStatusOutOfSyncError(brokerPropertiesName, expected, current string) statusOutOfSyncError {
+func NewStatusOutOfSyncErrorWith(brokerPropertiesName, expected, current string) statusOutOfSyncError {
 	return statusOutOfSyncError{
 		fmt.Sprintf("%s status out of sync, expected: %s, current: %s", brokerPropertiesName, expected, current),
 	}
+}
+
+func NewStatusOutOfSyncError(err error) statusOutOfSyncError {
+	return statusOutOfSyncError{err.Error()}
 }
 
 func (e statusOutOfSyncError) Error() string {

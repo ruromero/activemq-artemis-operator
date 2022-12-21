@@ -2082,7 +2082,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) addConfigMapForBrokerProperties
 
 	// deal with upgrade to immutable, only upgrade to mutable on not found
 	immmutable := false
-	alder32Bytes := alder32OfMap(customResource.Spec.BrokerProperties)
+	alder32Bytes := alder32Of(customResource.Spec.BrokerProperties)
 	shaOfMap := hex.EncodeToString(alder32Bytes)
 	configMapName := types.NamespacedName{
 		Namespace: customResource.Namespace,
@@ -2124,10 +2124,6 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) addConfigMapForBrokerProperties
 
 	desired.Data = brokerPropertiesData(customResource.Spec.BrokerProperties)
 
-	if !immmutable {
-		trackHashAsLabel(desired, brokerPropertiesName, alder32Bytes)
-	}
-
 	clog.V(1).Info("Requesting configMap for broker properties", "name", configMapName.Name)
 	reconciler.trackDesired(desired)
 
@@ -2135,26 +2131,13 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) addConfigMapForBrokerProperties
 	return configMapName.Name
 }
 
-const alder32LabelBase = "artemisclould.io/alder32-"
-
-func trackHashAsLabel(desired *corev1.ConfigMap, name string, alder32Bytes []byte) {
-	if desired.ObjectMeta.Labels == nil {
-		desired.ObjectMeta.Labels = make(map[string]string)
-	}
-	desired.ObjectMeta.Labels[alder32LabelBase+name] = alder32LabelValue(alder32Bytes)
-}
-
-func alder32LabelValue(alder32Bytes []byte) string {
+func alder32StringValue(alder32Bytes []byte) string {
 	return fmt.Sprintf("%d", binary.BigEndian.Uint32(alder32Bytes))
 }
 
 const brokerPropertiesName = "broker.properties"
 
-func hexShaHashOfMap(props []string) string {
-	return hex.EncodeToString(alder32OfMap(props))
-}
-
-func alder32OfMap(props []string) []byte {
+func alder32Of(props []string) []byte {
 
 	digest := adler32.New()
 	for _, k := range props {
@@ -2607,14 +2590,24 @@ func MakeEnvVarArrayForCR(customResource *brokerv1beta1.ActiveMQArtemis, namer N
 
 type brokerStatus struct {
 	BrokerConfigStatus brokerConfigStatus `json:"configuration"`
+	ServerStatus       serverStatus       `json:"server"`
+}
+
+type serverStatus struct {
+	Jaas jaasStatus `json:"jaas"`
+}
+
+type jaasStatus struct {
+	PropertiesStatus map[string]propertiesStatus `json:"properties"`
 }
 
 type brokerConfigStatus struct {
-	PropertiesStatus map[string]brokerPropsStatus `json:"properties"`
+	PropertiesStatus map[string]propertiesStatus `json:"properties"`
 }
 
-type brokerPropsStatus struct {
+type propertiesStatus struct {
 	Alder32     string       `json:"alder32"`
+	ReloadTime  string       `json:"reloadTime"`
 	ApplyErrors []applyError `json:"errors"`
 }
 
@@ -2624,9 +2617,20 @@ type applyError struct {
 }
 
 func UpdateBrokerPropertiesStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) ctrl.Result {
-	err := AssertBrokerPropertiesStatus(cr, client, scheme)
 	result := ctrl.Result{}
 	var condition metav1.Condition
+
+	err := AssertBrokersAvailable(cr, client, scheme)
+	if err != nil {
+		condition = trapErrorAsCondition(err, brokerv1beta1.ConfigAppliedConditionType)
+		if err.Requeue() {
+			result = ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}
+		}
+		meta.SetStatusCondition(&cr.Status.Conditions, condition)
+		return result
+	}
+
+	err = AssertBrokerPropertiesStatus(cr, client, scheme)
 	if err == nil {
 		condition = metav1.Condition{
 			Type:   brokerv1beta1.ConfigAppliedConditionType,
@@ -2634,67 +2638,124 @@ func UpdateBrokerPropertiesStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtcl
 			Reason: brokerv1beta1.ConfigAppliedConditionSynchedReason,
 		}
 	} else {
-		switch err.(type) {
-		case jolokiaClientNotFoundError:
-			condition = metav1.Condition{
-				Type:    brokerv1beta1.ConfigAppliedConditionType,
-				Status:  metav1.ConditionFalse,
-				Reason:  brokerv1beta1.ConfigAppliedConditionNoJolokiaClientsAvailableReason,
-				Message: err.Error(),
-			}
-		case statusOutOfSyncError:
-			condition = metav1.Condition{
-				Type:    brokerv1beta1.ConfigAppliedConditionType,
-				Status:  metav1.ConditionFalse,
-				Reason:  brokerv1beta1.ConfigAppliedConditionOutOfSyncReason,
-				Message: brokerv1beta1.ConfigAppliedConditionOutOfSyncMessage,
-			}
-		case inSyncApplyError:
-			condition = metav1.Condition{
-				Type:    brokerv1beta1.ConfigAppliedConditionType,
-				Status:  metav1.ConditionTrue,
-				Reason:  brokerv1beta1.ConfigAppliedConditionSynchedWithErrorReason,
-				Message: err.Error(),
-			}
-		default:
-			condition = metav1.Condition{
-				Type:    brokerv1beta1.ConfigAppliedConditionType,
-				Status:  metav1.ConditionUnknown,
-				Reason:  brokerv1beta1.ConfigAppliedConditionUnknownReason,
-				Message: err.Error(),
-			}
-		}
+		condition = trapErrorAsCondition(err, brokerv1beta1.ConfigAppliedConditionType)
 		if err.Requeue() {
 			result = ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}
 		}
 	}
 	meta.SetStatusCondition(&cr.Status.Conditions, condition)
-	return result
 
+	if _, _, found := getConfigExtraMount(cr, jaasConfigSuffix); found {
+		err = AssertJaasPropertiesStatus(cr, client, scheme)
+		if err == nil {
+			condition = metav1.Condition{
+				Type:   brokerv1beta1.JaasConfigAppliedConditionType,
+				Status: metav1.ConditionTrue,
+				Reason: brokerv1beta1.ConfigAppliedConditionSynchedReason,
+			}
+		} else {
+			condition = trapErrorAsCondition(err, brokerv1beta1.JaasConfigAppliedConditionType)
+			if err.Requeue() {
+				result = ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}
+			}
+		}
+
+		meta.SetStatusCondition(&cr.Status.Conditions, condition)
+	}
+	return result
 }
 
-func AssertBrokerPropertiesStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) ArtemisError {
+func trapErrorAsCondition(err ArtemisError, conditionType string) metav1.Condition {
+	var condition metav1.Condition
+	switch err.(type) {
+	case jolokiaClientNotFoundError:
+		condition = metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  brokerv1beta1.ConfigAppliedConditionNoJolokiaClientsAvailableReason,
+			Message: err.Error(),
+		}
+	case statusOutOfSyncError:
+		condition = metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  brokerv1beta1.ConfigAppliedConditionOutOfSyncReason,
+			Message: err.Error(),
+		}
+	case inSyncApplyError:
+		condition = metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  brokerv1beta1.ConfigAppliedConditionSynchedWithErrorReason,
+			Message: err.Error(),
+		}
+	default:
+		condition = metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionUnknown,
+			Reason:  brokerv1beta1.ConfigAppliedConditionUnknownReason,
+			Message: err.Error(),
+		}
+	}
+	return condition
+}
+
+type projection struct {
+	Name            string
+	ResourceVersion string
+	Generation      int64
+	Files           map[string]propertyFile
+	Ordinals        []string
+}
+
+type propertyFile struct {
+	Alder32 string
+}
+
+func AssertBrokersAvailable(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) ArtemisError {
 	reqLogger := ctrl.Log.WithValues("ActiveMQArtemis Name", cr.Name)
 
 	if cr.Spec.DeploymentPlan.Size == 0 || meta.IsStatusConditionFalse(cr.Status.Conditions, brokerv1beta1.DeployedConditionType) {
 		reqLogger.Info("There are no available brokers")
 		return NewUnknownJolokiaError(errors.New("Broker not available"))
 	}
+	return nil
+}
 
-	cmName := getConfigAppliedConfigMapName(cr)
-	configMap := corev1.ConfigMap{}
+func AssertBrokerPropertiesStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) ArtemisError {
+	reqLogger := ctrl.Log.WithValues("ActiveMQArtemis Name", cr.Name)
 
-	err := client.Get(context.TODO(), cmName, &configMap)
+	Projection, err := getConfigMappedBrokerProperties(cr, client)
 	if err != nil {
-		return NewJolokiaClientsNotFoundError(errors.Wrap(err, "unable to retrieve mutable config map"))
-	}
-
-	labelKey := alder32LabelBase + brokerPropertiesName
-	expected, present := configMap.ObjectMeta.Labels[labelKey]
-	if !present {
-		reqLogger.Error(err, "unable to extract brokerProperties sha from configMap label "+labelKey)
+		reqLogger.Info("error retrieving config resources. requeing")
 		return NewUnknownJolokiaError(err)
 	}
+
+	return checkStatus(cr, client, Projection, func(BrokerStatus brokerStatus, FileName string) (propertiesStatus, bool) {
+		current, present := BrokerStatus.BrokerConfigStatus.PropertiesStatus[FileName]
+		return current, present
+	})
+}
+
+func AssertJaasPropertiesStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) ArtemisError {
+	reqLogger := ctrl.Log.WithValues("ActiveMQArtemis Name", cr.Name)
+
+	Projection, err := getConfigMappedJaasProperties(cr, client)
+	if err != nil {
+		reqLogger.Info("error retrieving config resources. requeing")
+		return NewUnknownJolokiaError(err)
+	}
+
+	updateExtraConfigStatus(cr, Projection)
+
+	return checkStatus(cr, client, Projection, func(BrokerStatus brokerStatus, FileName string) (propertiesStatus, bool) {
+		current, present := BrokerStatus.ServerStatus.Jaas.PropertiesStatus[FileName]
+		return current, present
+	})
+}
+
+func checkStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, Projection *projection, extractStatus func(BrokerStatus brokerStatus, FileName string) (propertiesStatus, bool)) ArtemisError {
+	reqLogger := ctrl.Log.WithValues("ActiveMQArtemis Name", cr.Name)
 
 	resource := types.NamespacedName{
 		Name:      cr.Name,
@@ -2714,7 +2775,7 @@ func AssertBrokerPropertiesStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtcl
 		currentJson, err := jk.Artemis.GetStatus()
 
 		if err != nil {
-			reqLogger.Info("unknown status reported from Jolokia.", "IP", jk.IP)
+			reqLogger.Info("unknown status reported from Jolokia.", "IP", jk.IP, "Ordinal", jk.Ordinal)
 			return NewUnknownJolokiaError(err)
 		}
 
@@ -2724,34 +2785,179 @@ func AssertBrokerPropertiesStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtcl
 			return NewUnknownJolokiaError(err)
 		}
 
-		current, present := brokerStatus.BrokerConfigStatus.PropertiesStatus[brokerPropertiesName]
-		if !present || current.Alder32 == "" {
-			reqLogger.Error(err, "unable to extract brokerProperties Alder32 from status", "status", brokerStatus)
-			return NewUnknownJolokiaError(err)
-		}
+		var current propertiesStatus
+		var present bool
+		for name, file := range Projection.Files {
 
-		if expected != current.Alder32 {
-			// normal on update
-			return NewStatusOutOfSyncError(brokerPropertiesName, expected, current.Alder32)
-		}
+			current, present = extractStatus(brokerStatus, name)
 
-		var applyError *inSyncApplyError = nil
-		for k, v := range brokerStatus.BrokerConfigStatus.PropertiesStatus {
-			if len(v.ApplyErrors) > 0 {
-				// some props did not apply for k
-				if applyError == nil {
-					applyError = NewInSyncWithError()
+			if !present {
+				reqLogger.V(2).Info("no status entry for "+name, "status", brokerStatus, "tracked", Projection)
+				delete(Projection.Files, name)
+				continue
+			}
+
+			if current.Alder32 == "" {
+				message := "Status out of sync - empty Alder32 for " + name
+				err = errors.New(message)
+				reqLogger.Info(message, "status", brokerStatus, "tracked", Projection)
+				return NewStatusOutOfSyncError(err)
+			}
+
+			if file.Alder32 != current.Alder32 {
+				reqLogger.Info("status out of sync for "+name, "expected", file, "current", current)
+				return NewStatusOutOfSyncErrorWith(name, file.Alder32, current.Alder32)
+			}
+
+			var applyError *inSyncApplyError = nil
+			for k, v := range brokerStatus.BrokerConfigStatus.PropertiesStatus {
+				if len(v.ApplyErrors) > 0 {
+					// some props did not apply for k
+					if applyError == nil {
+						applyError = NewInSyncWithError()
+					}
+					applyError.ErrorApplyDetail(k, marshallApplyErrors(v.ApplyErrors))
 				}
-				applyError.ErrorApplyDetail(k, marshallApplyErrors(v.ApplyErrors))
+			}
+			if applyError != nil {
+				reqLogger.Info("in sync with apply error", "error", applyError)
+				return *applyError
 			}
 		}
-		if applyError != nil {
-			reqLogger.Info("in sync with apply error", "error", applyError)
-			return *applyError
+		// this broker is Ok
+		Projection.Ordinals = append(Projection.Ordinals, jk.Ordinal)
+	}
+
+	reqLogger.Info("successfully synced with broker", "status", statusMessageFromProjection(Projection))
+	return nil
+}
+
+func statusMessageFromProjection(Projection *projection) string {
+	var statusMessage string
+	statusMessageJson, err := json.Marshal(*Projection)
+	if err == nil {
+		statusMessage = string(statusMessageJson)
+	} else {
+		statusMessage = fmt.Sprintf("%+v", *Projection)
+	}
+	return statusMessage
+}
+
+func updateExtraConfigStatus(cr *brokerv1beta1.ActiveMQArtemis, Projection *projection) {
+	if len(cr.Status.ExternalConfigs) > 0 {
+		for index, s := range cr.Status.ExternalConfigs {
+			if s.Name == Projection.Name {
+				cr.Status.ExternalConfigs[index].ResourceVersion = Projection.ResourceVersion
+				return // update complete
+			}
 		}
 	}
-	reqLogger.Info("successfully synced status in all Jolokia clients")
-	return nil
+
+	// add an entry
+	cr.Status.ExternalConfigs = append(cr.Status.ExternalConfigs,
+		brokerv1beta1.ExternalConfigStatus{Name: Projection.Name, ResourceVersion: Projection.ResourceVersion})
+}
+
+func getConfigMappedBrokerProperties(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client) (*projection, error) {
+
+	// broker.properties - this should probally be a secret
+	cmName := getConfigAppliedConfigMapName(cr)
+	resource := corev1.ConfigMap{}
+	err := client.Get(context.TODO(), cmName, &resource)
+	if err != nil {
+		return nil, NewUnknownJolokiaError(errors.Wrap(err, "unable to retrieve mutable config map"))
+	}
+	return newProjectionFromStringValues(resource.ObjectMeta, resource.Data), nil
+}
+
+func getConfigMappedJaasProperties(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client) (*projection, error) {
+	var instance *projection
+	// extra mounts
+	if t, name, found := getConfigExtraMount(cr, jaasConfigSuffix); found {
+
+		switch t {
+		case "secrets":
+			{
+				resource := corev1.Secret{}
+				err := client.Get(context.TODO(), types.NamespacedName{Namespace: cr.Namespace, Name: name}, &resource)
+				if err != nil {
+					return nil, NewUnknownJolokiaError(errors.Wrap(err, "unable to retrieve mutable secret to hash"))
+				}
+				instance = newProjectionFromByteValues(resource.ObjectMeta, resource.Data)
+			}
+		case "configmaps":
+			{
+				resource := corev1.ConfigMap{}
+				err := client.Get(context.TODO(), types.NamespacedName{Namespace: cr.Namespace, Name: name}, &resource)
+				if err != nil {
+					return nil, NewUnknownJolokiaError(errors.Wrap(err, "unable to retrieve mutable configMap to hash"))
+				}
+				instance = newProjectionFromStringValues(resource.ObjectMeta, resource.Data)
+			}
+		}
+	}
+	return instance, nil
+}
+
+func newProjectionFromByteValues(resourceMeta metav1.ObjectMeta, configKeyValue map[string][]byte) *projection {
+	projection := projection{Name: resourceMeta.Name, ResourceVersion: resourceMeta.ResourceVersion, Generation: resourceMeta.Generation, Files: map[string]propertyFile{}}
+	for prop_file_name, data := range configKeyValue {
+		projection.Files[prop_file_name] = propertyFile{Alder32: alder32FromData([]byte(data))}
+	}
+	return &projection
+}
+
+func newProjectionFromStringValues(resourceMeta metav1.ObjectMeta, configKeyValue map[string]string) *projection {
+	projection := projection{Name: resourceMeta.Name, ResourceVersion: resourceMeta.ResourceVersion, Generation: resourceMeta.Generation, Files: map[string]propertyFile{}}
+	for prop_file_name, data := range configKeyValue {
+		projection.Files[prop_file_name] = propertyFile{Alder32: alder32FromData([]byte(data))}
+	}
+	return &projection
+}
+
+func alder32FromData(data []byte) string {
+	// need to skip white space and comments for checksum
+	keyValuePairs := []string{}
+
+	var skip_comment bool = false
+	var startOfLine = -1
+	for i, v := range data {
+		switch v {
+		case '#':
+			{
+				if startOfLine == -1 {
+					skip_comment = true
+				}
+			}
+		case '\n':
+			{
+				if !skip_comment {
+					keyValuePairs = appendNonEmpty(keyValuePairs, data[startOfLine:i])
+				}
+				skip_comment = false
+				startOfLine = -1
+			}
+		default:
+			{
+				if startOfLine == -1 {
+					startOfLine = i
+				}
+			}
+		}
+	}
+	// no ending \n
+	if !skip_comment && startOfLine != -1 {
+		keyValuePairs = appendNonEmpty(keyValuePairs, data[startOfLine:])
+	}
+	return alder32StringValue(alder32Of(keyValuePairs))
+}
+
+func appendNonEmpty(propsKvs []string, data []byte) []string {
+	keyValue := strings.TrimSpace(string(data))
+	if keyValue != "" {
+		propsKvs = append(propsKvs, keyValue)
+	}
+	return propsKvs
 }
 
 func unmarshallStatus(jsonStatus string) (brokerStatus, error) {
