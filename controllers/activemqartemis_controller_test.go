@@ -1079,10 +1079,10 @@ var _ = Describe("artemis controller", func() {
 					g.Expect(len(retrievedService.Spec.Ports)).To(Equal(2))
 					port0Found, port1Found := false, false
 					for _, p := range retrievedService.Spec.Ports {
-						if p.Name == port0Name && p.Port == portNumber && p.Protocol == corev1.ProtocolTCP && p.TargetPort == intstr.FromInt(int(portNumber)) {
+						if p.Name == port0Name && p.Port == portNumber && p.Protocol == corev1.ProtocolTCP && p.TargetPort == intstr.FromInt(int(portNumber2)) {
 							port0Found = true
 						}
-						if p.Name == port1Name && p.Port == portNumber2 && p.Protocol == corev1.ProtocolTCP && p.TargetPort == intstr.FromInt(int(portNumber)) {
+						if p.Name == port1Name && p.Port == portNumber2 && p.Protocol == corev1.ProtocolTCP && p.TargetPort == intstr.FromInt(int(portNumber2)) {
 							port1Found = true
 						}
 					}

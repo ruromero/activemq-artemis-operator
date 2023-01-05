@@ -724,7 +724,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureAcceptorsExposure(cust
 		serviceRoutelabels["statefulset.kubernetes.io/pod-name"] = namer.SsNameBuilder.Name() + "-" + ordinalString
 
 		for _, acceptor := range customResource.Spec.Acceptors {
-			serviceDefinition := svc.NewServiceDefinitionForCR(client, namespacedName, acceptor.Name+"-"+ordinalString, acceptor.Port, serviceRoutelabels, namer.LabelBuilder.Labels())
+			serviceDefinition := svc.NewServiceDefinitionForCR("", client, namespacedName, acceptor.Name+"-"+ordinalString, acceptor.Port, serviceRoutelabels, namer.LabelBuilder.Labels())
 
 			reconciler.checkExistingService(customResource, serviceDefinition, client)
 			reconciler.trackDesired(serviceDefinition)
@@ -791,7 +791,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConnectorsExposure(cus
 		serviceRoutelabels["statefulset.kubernetes.io/pod-name"] = namer.SsNameBuilder.Name() + "-" + ordinalString
 
 		for _, connector := range customResource.Spec.Connectors {
-			serviceDefinition := svc.NewServiceDefinitionForCR(client, namespacedName, connector.Name+"-"+ordinalString, connector.Port, serviceRoutelabels, namer.LabelBuilder.Labels())
+			serviceDefinition := svc.NewServiceDefinitionForCR("", client, namespacedName, connector.Name+"-"+ordinalString, connector.Port, serviceRoutelabels, namer.LabelBuilder.Labels())
 			reconciler.checkExistingService(customResource, serviceDefinition, client)
 			reconciler.trackDesired(serviceDefinition)
 
@@ -821,7 +821,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(custom
 		Namespace: customResource.Namespace,
 	}
 	commonPortName := "wconsj"
-	secondPort := int32(8161)
+	targetPort := int32(8161)
 	portNumber := int32(8162)
 	for ; i < customResource.Spec.DeploymentPlan.Size; i++ {
 		ordinalString = strconv.Itoa(int(i))
@@ -834,13 +834,13 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(custom
 		targetPortName := commonPortName + "-" + ordinalString
 		targetServiceName := customResource.Name + "-" + targetPortName + "-svc"
 
-		serviceDefinition := svc.NewServiceDefinitionForCR(client, namespacedName, targetPortName, portNumber, serviceRoutelabels, namer.LabelBuilder.Labels())
+		serviceDefinition := svc.NewServiceDefinitionForCR(targetServiceName, client, namespacedName, commonPortName, targetPort, serviceRoutelabels, namer.LabelBuilder.Labels())
 
 		serviceDefinition.Spec.Ports = append(serviceDefinition.Spec.Ports, corev1.ServicePort{
-			Name:       commonPortName,
-			Port:       secondPort,
+			Name:       targetPortName,
+			Port:       portNumber,
 			Protocol:   "TCP",
-			TargetPort: intstr.FromInt(int(portNumber)),
+			TargetPort: intstr.FromInt(int(targetPort)),
 		})
 		if console.Expose {
 			reconciler.checkExistingService(customResource, serviceDefinition, client)

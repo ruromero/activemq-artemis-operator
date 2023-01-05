@@ -41,7 +41,7 @@ func NewHeadlessServiceForCR2(client client.Client, serviceName string, namespac
 	return svc
 }
 
-func NewServiceDefinitionForCR(client client.Client, crNameSpacedName types.NamespacedName, nameSuffix string, portNumber int32, selectorLabels map[string]string, labels map[string]string) *corev1.Service {
+func NewServiceDefinitionForCR(serviceName string, client client.Client, crNameSpacedName types.NamespacedName, nameSuffix string, portNumber int32, selectorLabels map[string]string, labels map[string]string) *corev1.Service {
 
 	port := corev1.ServicePort{
 		Name:       nameSuffix,
@@ -53,6 +53,9 @@ func NewServiceDefinitionForCR(client client.Client, crNameSpacedName types.Name
 	ports = append(ports, port)
 
 	svcName := types.NamespacedName{Namespace: crNameSpacedName.Namespace, Name: crNameSpacedName.Name + "-" + nameSuffix + "-svc"}
+	if serviceName != "" {
+		svcName = types.NamespacedName{Namespace: crNameSpacedName.Namespace, Name: serviceName}
+	}
 
 	svc := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
