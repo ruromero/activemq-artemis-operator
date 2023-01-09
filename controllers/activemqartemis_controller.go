@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	rtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -388,10 +387,10 @@ func (r *ActiveMQArtemisReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return err
 }
 
-func (r *ActiveMQArtemisReconciler) findCrWithReferenceToResource(resource client.Object) []reconcile.Request {
+func (r *ActiveMQArtemisReconciler) findCrWithReferenceToResource(resource rtclient.Object) []reconcile.Request {
 
 	deployed := &brokerv1beta1.ActiveMQArtemisList{}
-	listOps := &client.ListOptions{
+	listOps := &rtclient.ListOptions{
 		Namespace: resource.GetNamespace(),
 	}
 	requests := make([]reconcile.Request, 0)

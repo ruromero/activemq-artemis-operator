@@ -1925,7 +1925,6 @@ var _ = Describe("artemis controller", func() {
 				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
 				unequalEntries := FindAllFromCapturedLog("Unequal")
-				fmt.Printf("unequal %v\n", unequalEntries)
 				Expect(len(unequalEntries)).Should(BeNumerically("==", 0))
 
 				Expect(k8sClient.Delete(ctx, deployedCrd)).Should(Succeed())
@@ -3676,7 +3675,7 @@ var _ = Describe("artemis controller", func() {
 					}
 				}
 				return count
-			}, timeout, interval).Should(Equal(2))
+			}, timeout, interval).Should(Equal(3))
 
 			By("deleting crd")
 			Expect(k8sClient.Delete(ctx, createdCrd)).Should(Succeed())
@@ -3888,7 +3887,7 @@ var _ = Describe("artemis controller", func() {
 			Expect(createdCrd.Name).Should(Equal(crd.ObjectMeta.Name))
 
 			By("By finding a new config map with broker props")
-			configMap := &corev1.ConfigMap{}
+			configMap := &corev1.Secret{}
 			key := types.NamespacedName{Name: crd.ObjectMeta.Name + "-props", Namespace: crd.ObjectMeta.Namespace}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, key, configMap)).Should(Succeed())
@@ -3985,7 +3984,7 @@ var _ = Describe("artemis controller", func() {
 			By("By eventualy finding a matching config map with broker props")
 			cmResourceVersion := ""
 
-			createdConfigMap := &corev1.ConfigMap{}
+			createdConfigMap := &corev1.Secret{}
 			configMapKey := types.NamespacedName{Name: configMapName, Namespace: defaultNamespace}
 			Eventually(func(g Gomega) {
 
@@ -4052,7 +4051,7 @@ var _ = Describe("artemis controller", func() {
 
 			By("By eventualy finding a matching config map with broker props")
 
-			createdConfigMap := &corev1.ConfigMap{}
+			createdConfigMap := &corev1.Secret{}
 			configMapKey := types.NamespacedName{Name: configMapName, Namespace: defaultNamespace}
 			Eventually(func(g Gomega) {
 
@@ -4091,7 +4090,7 @@ var _ = Describe("artemis controller", func() {
 				UID:        createdCrd.GetUID()}}
 
 			By("Setting matching data")
-			immutableConfigMap.Data["broker.properties"] = createdConfigMap.Data["broker.properties"]
+			immutableConfigMap.Data["broker.properties"] = string(createdConfigMap.Data["broker.properties"])
 
 			By("creating immutable config map")
 			Expect(k8sClient.Create(ctx, immutableConfigMap)).Should(Succeed())
@@ -4121,7 +4120,7 @@ var _ = Describe("artemis controller", func() {
 			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
 			By("verifing immutable still present")
-			Expect(k8sClient.Get(ctx, immutableConfigMapKey, createdConfigMap)).Should(Succeed())
+			Expect(k8sClient.Get(ctx, immutableConfigMapKey, immutableConfigMap)).Should(Succeed())
 
 			// cleanup
 			Expect(k8sClient.Delete(ctx, createdCrd)).Should(Succeed())
@@ -4137,7 +4136,7 @@ var _ = Describe("artemis controller", func() {
 			Expect(k8sClient.Create(ctx, &crd2)).Should(Succeed())
 
 			By("By eventualy finding two config maps with broker props")
-			configMapList := &corev1.ConfigMapList{}
+			configMapList := &corev1.SecretList{}
 			opts := &client.ListOptions{
 				Namespace: defaultNamespace,
 			}
@@ -4149,8 +4148,10 @@ var _ = Describe("artemis controller", func() {
 
 				ret := 0
 				for _, cm := range configMapList.Items {
-					if strings.Contains(cm.ObjectMeta.Name, crd1.Name) || strings.Contains(cm.ObjectMeta.Name, crd2.Name) {
-						ret++
+					if strings.Contains(cm.ObjectMeta.Name, "-props") {
+						if strings.Contains(cm.ObjectMeta.Name, crd1.Name) || strings.Contains(cm.ObjectMeta.Name, crd2.Name) {
+							ret++
+						}
 					}
 				}
 				return ret

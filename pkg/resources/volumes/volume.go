@@ -199,11 +199,13 @@ func MakeVolumeForConfigMap(cfgmapName string) corev1.Volume {
 }
 
 func MakeVolumeForSecret(secretName string) corev1.Volume {
+	defaultMode := corev1.SecretVolumeSourceDefaultMode
 	volume := corev1.Volume{
 		Name: "secret-" + secretName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName: secretName,
+				SecretName:  secretName,
+				DefaultMode: &defaultMode,
 			},
 		},
 	}

@@ -70,6 +70,9 @@ const (
 	TCPLivenessPort                  = 8161
 	jaasConfigSuffix                 = "-jaas-config"
 	loggingConfigSuffix              = "-logging-config"
+
+	cfgMapPathBase = "/amq/extra/configmaps/"
+	secretPathBase = "/amq/extra/secrets/"
 )
 
 var defaultMessageMigration bool = true
@@ -1668,11 +1671,16 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 	}
 
 	reqLogger.Info("Checking out extraMounts", "extra config", customResource.Spec.DeploymentPlan.ExtraMounts)
-	brokerPropertiesConfigMapName := reconciler.addConfigMapForBrokerProperties(customResource)
-	configMapsToCreate := []string{brokerPropertiesConfigMapName}
-	configMapsToCreate = append(configMapsToCreate, customResource.Spec.DeploymentPlan.ExtraMounts.ConfigMaps...)
 
-	extraVolumes, extraVolumeMounts := createExtraConfigmapsAndSecrets(container, configMapsToCreate, customResource.Spec.DeploymentPlan.ExtraMounts.Secrets)
+	configMapsToCreate := customResource.Spec.DeploymentPlan.ExtraMounts.ConfigMaps
+	secretsToCreate := customResource.Spec.DeploymentPlan.ExtraMounts.Secrets
+	resourceName, isSecret := reconciler.addResourceForBrokerProperties(customResource, namer)
+	if isSecret {
+		secretsToCreate = append(secretsToCreate, resourceName)
+	} else {
+		configMapsToCreate = append(configMapsToCreate, resourceName)
+	}
+	extraVolumes, extraVolumeMounts := createExtraConfigmapsAndSecrets(container, configMapsToCreate, secretsToCreate)
 
 	reqLogger.Info("Extra volumes", "volumes", extraVolumes)
 	reqLogger.Info("Extra mounts", "mounts", extraVolumeMounts)
@@ -1869,9 +1877,13 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 
 	// this depends on init container passing --java-opts to artemis create via launch.sh *and* it
 	// not getting munged on the way. We CreateOrAppend to any value from spec.Env
+	var mountPoint = secretPathBase
+	if !isSecret {
+		mountPoint = cfgMapPathBase
+	}
 	javaOpts := corev1.EnvVar{
 		Name:  "JAVA_OPTS",
-		Value: "-Dbroker.properties=/amq/extra/configmaps/" + brokerPropertiesConfigMapName + "/",
+		Value: fmt.Sprintf("-Dbroker.properties=%s%s/", mountPoint, resourceName),
 	}
 	environments.CreateOrAppend(podSpec.InitContainers, &javaOpts)
 
@@ -2103,59 +2115,49 @@ func getConfigAppliedConfigMapName(artemis *brokerv1beta1.ActiveMQArtemis) types
 	}
 }
 
-func (reconciler *ActiveMQArtemisReconcilerImpl) addConfigMapForBrokerProperties(customResource *brokerv1beta1.ActiveMQArtemis) string {
+func (reconciler *ActiveMQArtemisReconcilerImpl) addResourceForBrokerProperties(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers) (string, bool) {
 
 	// fetch and do idempotent transform based on CR
 
-	// deal with upgrade to immutable, only upgrade to mutable on not found
-	immmutable := false
+	// deal with upgrade to immutable secret, only upgrade to mutable on not found
 	alder32Bytes := alder32Of(customResource.Spec.BrokerProperties)
 	shaOfMap := hex.EncodeToString(alder32Bytes)
-	configMapName := types.NamespacedName{
+	resourceName := types.NamespacedName{
 		Namespace: customResource.Namespace,
 		Name:      customResource.Name + "-props-" + shaOfMap,
 	}
 
-	var desired *corev1.ConfigMap
-	obj := reconciler.cloneOfDeployed(reflect.TypeOf(corev1.ConfigMap{}), configMapName.Name)
+	obj := reconciler.cloneOfDeployed(reflect.TypeOf(corev1.ConfigMap{}), resourceName.Name)
 	if obj != nil {
-		desired = obj.(*corev1.ConfigMap)
+		existing := obj.(*corev1.ConfigMap)
 		// found existing (immuable) map with sha in the name
-		immmutable = true
+		clog.V(1).Info("Requesting configMap for broker properties", "name", resourceName.Name)
+		reconciler.trackDesired(existing)
+
+		return resourceName.Name, false
 	}
 
-	if !immmutable {
-		configMapName = getConfigAppliedConfigMapName(customResource)
+	var desired *corev1.Secret
+	resourceName = getConfigAppliedConfigMapName(customResource)
 
-		obj := reconciler.cloneOfDeployed(reflect.TypeOf(corev1.ConfigMap{}), configMapName.Name)
-		if obj != nil {
-			desired = obj.(*corev1.ConfigMap)
-		}
+	obj = reconciler.cloneOfDeployed(reflect.TypeOf(corev1.Secret{}), resourceName.Name)
+	if obj != nil {
+		desired = obj.(*corev1.Secret)
 	}
 
+	data := brokerPropertiesData(customResource.Spec.BrokerProperties)
 	if desired == nil {
-
-		desired = &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "k8s.io.api.core.v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:         configMapName.Name,
-				GenerateName: "",
-				Namespace:    configMapName.Namespace,
-			},
-			Immutable: &immmutable,
-		}
+		secret := secrets.MakeSecret(resourceName, resourceName.Name, data, namer.LabelBuilder.Labels())
+		desired = &secret
+	} else {
+		desired.StringData = data
 	}
 
-	desired.Data = brokerPropertiesData(customResource.Spec.BrokerProperties)
-
-	clog.V(1).Info("Requesting configMap for broker properties", "name", configMapName.Name)
+	clog.V(1).Info("Requesting secret for broker properties", "name", resourceName.Name)
 	reconciler.trackDesired(desired)
 
-	clog.V(1).Info("Requesting mount for broker properties config map")
-	return configMapName.Name
+	clog.V(1).Info("Requesting mount for broker properties secret")
+	return resourceName.Name, true
 }
 
 func alder32StringValue(alder32Bytes []byte) string {
@@ -2360,9 +2362,6 @@ func createExtraConfigmapsAndSecrets(brokerContainer *corev1.Container, configMa
 
 	var extraVolumes []corev1.Volume
 	var extraVolumeMounts []corev1.VolumeMount
-
-	cfgMapPathBase := "/amq/extra/configmaps/"
-	secretPathBase := "/amq/extra/secrets/"
 
 	if len(configMaps) > 0 {
 		for _, cfgmap := range configMaps {
@@ -2912,14 +2911,13 @@ func updateExtraConfigStatus(cr *brokerv1beta1.ActiveMQArtemis, Projection *proj
 
 func getConfigMappedBrokerProperties(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client) (*projection, error) {
 
-	// broker.properties - this should probally be a secret
 	cmName := getConfigAppliedConfigMapName(cr)
-	resource := corev1.ConfigMap{}
+	resource := corev1.Secret{}
 	err := client.Get(context.TODO(), cmName, &resource)
 	if err != nil {
 		return nil, NewUnknownJolokiaError(errors.Wrap(err, "unable to retrieve mutable config map"))
 	}
-	return newProjectionFromStringValues(resource.ObjectMeta, resource.Data), nil
+	return newProjectionFromByteValues(resource.ObjectMeta, resource.Data), nil
 }
 
 func getConfigMappedJaasProperties(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client) (*projection, error) {
