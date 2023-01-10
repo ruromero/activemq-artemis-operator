@@ -23,6 +23,7 @@ package v1beta1
 
 import (
 	"k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -1185,6 +1186,11 @@ func (in *DeploymentPlanType) DeepCopyInto(out *DeploymentPlanType) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.PodDisruptionBudget != nil {
+		in, out := &in.PodDisruptionBudget, &out.PodDisruptionBudget
+		*out = new(policyv1.PodDisruptionBudgetSpec)
+		(*in).DeepCopyInto(*out)
 	}
 }
 

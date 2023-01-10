@@ -62,6 +62,8 @@ import (
 	"strings"
 
 	"os"
+
+	policyv1 "k8s.io/api/policy/v1"
 )
 
 const (
@@ -322,6 +324,35 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) ProcessDeploymentPlan(customRes
 
 	clog.Info("Now sync Message migration", "for cr", customResource.Name)
 	syncMessageMigration(customResource, namer, client, scheme)
+
+	if customResource.Spec.DeploymentPlan.PodDisruptionBudget != nil {
+		reconciler.applyPodDisruptionBudget(customResource, client, currentStatefulSet)
+	}
+}
+
+func (reconciler *ActiveMQArtemisReconcilerImpl) applyPodDisruptionBudget(customResource *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, currentStatefulSet *appsv1.StatefulSet) {
+	pdbSpec := customResource.Spec.DeploymentPlan.PodDisruptionBudget.DeepCopy()
+
+	matchLabels := make(map[string]string)
+	matchLabels["ActiveMQArtemis"] = customResource.Name
+
+	pdbSpec.Selector = &metav1.LabelSelector{
+		MatchLabels: matchLabels,
+	}
+
+	pdb := policyv1.PodDisruptionBudget{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "policy/v1",
+			Kind:       "PodDisruptionBudget",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      customResource.Name + "-pdb",
+			Namespace: customResource.Namespace,
+		},
+		Spec: *pdbSpec,
+	}
+
+	reconciler.trackDesired(&pdb)
 
 }
 
@@ -1422,7 +1453,7 @@ func genOrderedTypesLists() []reflect.Type {
 
 	if orderedTypes == nil {
 		isOpenshift, _ := environments.DetectOpenshift()
-		types := make([]reflect.Type, 5)
+		types := make([]reflect.Type, 6)
 
 		// we want to create/update in this order
 		types[0] = reflect.TypeOf(corev1.Secret{})
@@ -1435,6 +1466,7 @@ func genOrderedTypesLists() []reflect.Type {
 		} else {
 			types[4] = reflect.TypeOf(netv1.Ingress{})
 		}
+		types[5] = reflect.TypeOf(policyv1.PodDisruptionBudget{})
 		orderedTypes = &types
 	}
 	return *orderedTypes

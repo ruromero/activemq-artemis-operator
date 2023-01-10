@@ -792,4 +792,31 @@ spec:
   - port: wconsj
 ```
 
+## Configuring PodDisruptionBudget for broker deployment
+
+The ActiveMQArtemis custom resource offers a PodDisruptionBudget option
+for the broker pods deployed by the operator. When it is specified the operator
+will deploy a PodDisruptionBudget for the broker deployment.
+
+For example
+
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: broker
+  namespace: activemq-artemis-operator
+spec:
+spec:
+  deploymentPlan:
+    size: 2
+    image: placeholder
+    podDisruptionBudget:
+      minAvailable: 1
+```
+
+When deploying the above custom resource the operator will create a PodDisruptionBudget
+object with the **minAvailable** set to 1. The operator also sets the proper selector
+so that the PodDisruptionBudget matches the broker statefulset.
+
 For a complete example please refer to this [artemiscloud example](https://github.com/artemiscloud/artemiscloud-examples/tree/main/operator/prometheus).

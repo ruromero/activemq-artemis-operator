@@ -123,6 +123,7 @@ type ActiveMQArtemisReconciler struct {
 //+kubebuilder:rbac:groups=monitoring.coreos.com,namespace=activemq-artemis-operator,resources=servicemonitors,verbs=get;create
 //+kubebuilder:rbac:groups=apps,namespace=activemq-artemis-operator,resources=deployments/finalizers,verbs=update
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace=activemq-artemis-operator,resources=roles;rolebindings,verbs=create;get;delete
+//+kubebuilder:rbac:groups=policy,namespace=activemq-artemis-operator,resources=poddisruptionbudgets,verbs=create;get;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -216,8 +217,29 @@ func validate(customResource *brokerv1beta1.ActiveMQArtemis, client rtclient.Cli
 		}
 	}
 
+	// validate pod disruption budget
+	if validationCondition.Status == metav1.ConditionTrue && customResource.Spec.DeploymentPlan.PodDisruptionBudget != nil {
+		condition := validatePodDisruption(customResource)
+		if condition != nil {
+			validationCondition = *condition
+		}
+	}
+
 	meta.SetStatusCondition(&customResource.Status.Conditions, validationCondition)
 	return false, nil
+}
+
+func validatePodDisruption(customResource *brokerv1beta1.ActiveMQArtemis) *metav1.Condition {
+	pdb := customResource.Spec.DeploymentPlan.PodDisruptionBudget
+	if pdb.Selector != nil {
+		return &metav1.Condition{
+			Type:    common.ValidConditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  common.ValidConditionPDBNonNilSelectorReason,
+			Message: common.PDBNonNilSelectorMessage,
+		}
+	}
+	return nil
 }
 
 func validateBrokerVersion(customResource *brokerv1beta1.ActiveMQArtemis) *metav1.Condition {

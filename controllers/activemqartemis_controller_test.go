@@ -68,6 +68,7 @@ import (
 	"github.com/Azure/go-amqp"
 	routev1 "github.com/openshift/api/route/v1"
 	netv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 )
 
 //Uncomment this and the "test" import if you want to debug this set of tests
@@ -119,6 +120,119 @@ var _ = Describe("artemis controller", func() {
 		for e := wis.Front(); e != nil; e = e.Next() {
 			e.Value.(watch.Interface).Stop()
 		}
+	})
+
+	Context("pod disruption budget", Label("pod-disruption-budget"), func() {
+
+		It("pod disruption budget validation", func() {
+			minOne := intstr.FromInt(1)
+			matchLabels := make(map[string]string)
+			matchLabels["my-label"] = "my-value"
+
+			mySelector := &metav1.LabelSelector{
+				MatchLabels: matchLabels,
+			}
+			pdb := policyv1.PodDisruptionBudgetSpec{
+				MinAvailable: &minOne,
+				Selector:     mySelector,
+			}
+
+			brokerCr, createdCr := DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
+				candidate.Spec.DeploymentPlan.PodDisruptionBudget = &pdb
+				candidate.Spec.DeploymentPlan.Size = 1
+			})
+
+			brokerKey := types.NamespacedName{
+				Name:      brokerCr.Name,
+				Namespace: defaultNamespace,
+			}
+
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, brokerKey, createdCr)).Should(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(createdCr.Status.Conditions, common.ValidConditionType)).Should(BeFalse())
+
+				pdbCondition := meta.FindStatusCondition(createdCr.Status.Conditions, common.ValidConditionType)
+				g.Expect(pdbCondition).NotTo(BeNil())
+				g.Expect(pdbCondition.Reason).To(Equal(common.ValidConditionPDBNonNilSelectorReason))
+				g.Expect(pdbCondition.Message).To(Equal(common.PDBNonNilSelectorMessage))
+
+			}, timeout, interval).Should(Succeed())
+
+			Expect(k8sClient.Delete(ctx, brokerCr)).Should(Succeed())
+			Eventually(func() bool {
+				return checkCrdDeleted(brokerCr.Name, defaultNamespace, createdCr)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("pod disruption apply number", func() {
+			minOne := intstr.FromInt(1)
+			pdb := policyv1.PodDisruptionBudgetSpec{
+				MinAvailable: &minOne,
+			}
+
+			brokerCr, createdCr := DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
+				candidate.Spec.DeploymentPlan.PodDisruptionBudget = &pdb
+				candidate.Spec.DeploymentPlan.Size = 2
+			})
+
+			pdbKey := types.NamespacedName{
+				Name:      brokerCr.Name + "-pdb",
+				Namespace: defaultNamespace,
+			}
+
+			pdbObject := policyv1.PodDisruptionBudget{}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, pdbKey, &pdbObject)).Should(Succeed())
+				g.Expect(*pdbObject.Spec.MinAvailable).To(BeEquivalentTo(intstr.FromInt(1)))
+				labelValue, ok := pdbObject.Spec.Selector.MatchLabels["ActiveMQArtemis"]
+				g.Expect(ok).To(BeTrue())
+				g.Expect(labelValue).To(Equal(createdCr.Name))
+				if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+					g.Expect(pdbObject.Status.DisruptionsAllowed).To(Equal(int32(1)))
+					g.Expect(pdbObject.Status.CurrentHealthy).To(Equal(int32(2)))
+					g.Expect(pdbObject.Status.DesiredHealthy).To(Equal(int32(1)))
+					g.Expect(pdbObject.Status.ExpectedPods).To(Equal(int32(2)))
+				}
+			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+			Expect(k8sClient.Delete(ctx, brokerCr)).Should(Succeed())
+			Eventually(func() bool {
+				return checkCrdDeleted(brokerCr.Name, defaultNamespace, createdCr)
+			}, existingClusterTimeout, existingClusterInterval).Should(BeTrue())
+
+		})
+
+		It("pod disruption apply percentage", func() {
+			max50cent := intstr.FromString("50%")
+			pdb := policyv1.PodDisruptionBudgetSpec{
+				MaxUnavailable: &max50cent,
+			}
+
+			brokerCr, createdCr := DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
+				candidate.Spec.DeploymentPlan.PodDisruptionBudget = &pdb
+				candidate.Spec.DeploymentPlan.Size = 2
+			})
+
+			pdbKey := types.NamespacedName{
+				Name:      brokerCr.Name + "-pdb",
+				Namespace: defaultNamespace,
+			}
+
+			pdbObject := policyv1.PodDisruptionBudget{}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, pdbKey, &pdbObject)).Should(Succeed())
+				g.Expect(*pdbObject.Spec.MaxUnavailable).To(BeEquivalentTo(max50cent))
+				labelValue, ok := pdbObject.Spec.Selector.MatchLabels["ActiveMQArtemis"]
+				g.Expect(ok).To(BeTrue())
+				g.Expect(labelValue).To(Equal(createdCr.Name))
+
+			}, timeout, interval).Should(Succeed())
+
+			Expect(k8sClient.Delete(ctx, brokerCr)).Should(Succeed())
+			Eventually(func() bool {
+				return checkCrdDeleted(brokerCr.Name, defaultNamespace, createdCr)
+			}, timeout, interval).Should(BeTrue())
+		})
 	})
 
 	Context("broker versions", Label("broker-versions"), func() {

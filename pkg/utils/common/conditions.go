@@ -24,12 +24,14 @@ const (
 	NotReadyConditionReason     = "WaitingForAllConditions"
 	NotReadyConditionMessage    = "Some conditions are not met"
 	ImageVersionConflictMessage = "Version and Images cannot be specified at the same time"
+	PDBNonNilSelectorMessage    = "PodDisruptionBudget's selector should not be specified"
 
 	ValidConditionType                       = "Validation"
 	ValidConditionSuccessReason              = "ValidationSucceded"
 	ValidConditionMissingResourcesReason     = "MissingDependentResources"
 	ValidConditionFailedReason               = "UnableToPerformValidation"
 	ValidConditionImageVersionConflictReason = "VersionAndImagesConflict"
+	ValidConditionPDBNonNilSelectorReason    = "PDBNonNilSelector"
 )
 
 func SetReadyCondition(conditions *[]metav1.Condition) {
