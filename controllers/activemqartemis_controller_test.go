@@ -6650,7 +6650,7 @@ var _ = Describe("artemis controller", func() {
 
 })
 
-func newArtemisSpecWithFastPropes() brokerv1beta1.ActiveMQArtemisSpec {
+func newArtemisSpecWithFastProbes() brokerv1beta1.ActiveMQArtemisSpec {
 	spec := brokerv1beta1.ActiveMQArtemisSpec{}
 
 	// sensible fast defaults for tests against existing cluster
@@ -6677,7 +6677,7 @@ func generateArtemisSpec(namespace string) brokerv1beta1.ActiveMQArtemis {
 			Name:      nameFromTest(),
 			Namespace: namespace,
 		},
-		Spec: newArtemisSpecWithFastPropes(),
+		Spec: newArtemisSpecWithFastProbes(),
 	}
 
 	return toCreate
@@ -6685,7 +6685,7 @@ func generateArtemisSpec(namespace string) brokerv1beta1.ActiveMQArtemis {
 
 func generateOriginalArtemisSpec(namespace string, name string) *brokerv1beta1.ActiveMQArtemis {
 
-	spec := newArtemisSpecWithFastPropes()
+	spec := newArtemisSpecWithFastProbes()
 
 	toCreate := brokerv1beta1.ActiveMQArtemis{
 		TypeMeta: metav1.TypeMeta{
