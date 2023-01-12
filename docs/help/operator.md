@@ -735,3 +735,45 @@ spec:
       secrets:
       - "my-logging-config"
 ```
+
+## Enable broker's metrics plugin
+
+The ActiveMQ Artemis Broker comes with a metrics plugin to expose metrics data. By default it is disabled.
+It can be enabled in the custom resource so the operator makes necessary configuration of the broker
+statefulset to enable tools such as Prometheus and Grafana can collect data within the kubernetes environment.
+
+To enable the metrics plugin you need set **enableMetricsPlugin** to true and expose the console, for example
+
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: ex-aao
+spec:
+  deploymentPlan:
+    size: 1
+    enableMetricsPlugin: true
+    image: placeholder
+  console:
+    expose: true
+```
+
+The operator will expose a containerPort named **wsconj** for the Prometheus to monitor. The following
+is a sample Prometheus ServiceMonitor resource
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: example-app
+  labels:
+    team: prometheus
+spec:
+  selector:
+    matchLabels:
+      application: ex-aao-app
+  endpoints:
+  - port: wconsj
+```
+
+For a complete example please refer to this [artemiscloud example](https://github.com/artemiscloud/artemiscloud-examples/tree/main/operator/prometheus).
