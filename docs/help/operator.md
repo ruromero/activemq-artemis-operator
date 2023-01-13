@@ -738,10 +738,10 @@ spec:
 
 ## Enable broker's metrics plugin
 
-The ActiveMQ Artemis Broker comes with a metrics plugin to expose metrics data. The metrics data can be collected by tools as Prometheus and visualized by tools as Grafana.
-By default, the metric plugin is didabled, to instruct the Operator to enable metrics for each broker Pod in a deployment, you must set the value of the `deploymentPlan.enableMetricsPlugin` property to true in the Custom Resource (CR) instance used to create the deployment. 
-
-To enable the metrics plugin you need set **enableMetricsPlugin** to true and expose the console, for example
+The ActiveMQ Artemis Broker comes with a metrics plugin to expose metrics data. The metrics data can be collected by tools such as Prometheus and visualized by tools such as Grafana.
+By default, the metrics plugin is disabled.
+To instruct the Operator to enable metrics for each broker Pod in a deployment, you must set the value of the `deploymentPlan.enableMetricsPlugin` property to true in the Custom Resource (CR) instance used to create the deployment.
+In addition, you need to expose the console, for example
 
 ```yaml
 apiVersion: broker.amq.io/v1beta1
