@@ -2981,7 +2981,7 @@ func alder32FromData(data []byte) string {
 			}
 		case '\n':
 			{
-				if !skip_comment {
+				if !skip_comment && startOfLine != -1 {
 					keyValuePairs = appendNonEmpty(keyValuePairs, data[startOfLine:i])
 				}
 				skip_comment = false
