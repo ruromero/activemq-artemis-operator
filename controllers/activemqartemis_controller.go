@@ -545,11 +545,11 @@ type inSyncApplyError struct {
 	detail map[string]string
 }
 
-const inSyncWithErrorCause = "some properties resulted in error"
+const inSyncWithErrorCause = "some properties resulted in error on ordinal %s"
 
-func NewInSyncWithError() *inSyncApplyError {
+func NewInSyncWithError(ordinal string) *inSyncApplyError {
 	return &inSyncApplyError{
-		cause:  errors.Errorf(inSyncWithErrorCause),
+		cause:  errors.Errorf(inSyncWithErrorCause, ordinal),
 		detail: map[string]string{},
 	}
 }

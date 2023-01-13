@@ -205,6 +205,7 @@ func MakeVolumeForSecret(secretName string) corev1.Volume {
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName:  secretName,
+				Items:       []corev1.KeyToPath{},
 				DefaultMode: &defaultMode,
 			},
 		},

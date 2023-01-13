@@ -450,7 +450,7 @@ However, when the scaledown operation is complete, the Operator restores the dep
 
 4. During an active scaling event, any further changes that you apply are queued by the Operator and executed only when scaling is complete. For example, suppose that you scale the size of your deployment down from four brokers to one. Then, while scaledown is taking place, you also change the values of the broker administrator user name and password. In this case, the Operator queues the user name and password changes until the deployment is running with one active broker.
 
-5. ll CR changes – apart from changing the size of your deployment, or changing the value of the expose attribute for acceptors, connectors, or the console – cause existing brokers to be restarted. If you have multiple brokers in your deployment, only one broker restarts at a time.
+5. all CR changes – apart from changing the size of your deployment, or changing the value of the expose attribute for acceptors, connectors, or the console – cause existing brokers to be restarted. If you have multiple brokers in your deployment, only one broker restarts at a time.
 
 
 ## Configuring Scheduling, Preemption and Eviction
@@ -696,7 +696,6 @@ metadata:
   name: broker
   namespace: activemq-artemis-operator
 spec:
-spec:
   deploymentPlan:
     size: 1
     image: placeholder
@@ -708,6 +707,26 @@ spec:
 
 Note: you are configuring an array of [envVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#envvar-v1-core) which is a very powerfull concept. Proceed with care, taking due respect to any environment the operator may set and depend on. For full documentation see the [Kubernetes Documentation](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
 
+## Configuring brokerProperties
+
+The CRD brokerProperties attribute allows the direct configuration of the Artemis internal configuration Bean of a broker via key value pairs. It is usefull to override or augment elements of the CR, or to configure broker features that are not exposed via CRD attributes. In cases where the init container is used to augment xml configuration, broker properties can provide an in CR alternative. As a general 'bag of configration' it is very powerful but it must be treated with due respect to all other sources of configuration. For details of what can be configured see the [Artemis configuraton documentation](https://activemq.apache.org/components/artemis/documentation/latest/configuration-index.html#broker-properties)
+The format is an array of strings of the form key=value where the key identifies a (potentially nested) property of the configuration bean.
+The CR Status contains a Condition reflecting the application of the brokerProperties volume mount projection.
+For advanced use cases, it is possible to use a `broker-N.` prefix to provide configuration to a specific instance(0-N) of your deployment plan.
+
+For example, to provide explicit config for the amount of memory messages will consume in a broker, overriding the defaults from container and JVM heap limits, you could use:
+
+```yaml
+...
+spec:
+  deploymentPlan:
+    size: 1
+    image: placeholder
+  brokerProperties:
+    - globalMaxSize=512m
+```
+
+
 ## Configuring Logging for Brokers
 
 By default the operator deploys a broker with a default logging configuration that comes with the [Artemis container image]
@@ -718,7 +737,7 @@ or secret must have the suffix **-logging-config**. There must be one entry in t
 must be **logging.properties** and the value must of the full content of the logging configuration. (The broker is using slf4j with
 log4j2 binding so the content should be log4j2's configuration in Java's properties file format).
 
-Then you need to give the name of the configmap or secret in the broker custom resource. For example
+Then you need to give the name of the configmap or secret in the broker custom resource via **extraMounts**. For example
 
 `for configmap`
 ```yaml

@@ -16,6 +16,7 @@ limitations under the License.
 package common
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -29,6 +30,15 @@ func TestCommon(t *testing.T) {
 
 var _ = Describe("Common Resync Test", func() {
 	Context("Default Resync Period", func() {
-		Expect(GetReconcileResyncPeriod()).To(Equal(30 * time.Second))
+
+		currentPeriod := 30 * time.Second // default
+
+		valueFromEnv, defined := os.LookupEnv("RECONCILE_RESYNC_PERIOD")
+		if defined {
+			currentPeriod, _ = time.ParseDuration(valueFromEnv)
+		}
+
+		Expect(GetReconcileResyncPeriod()).To(Equal(currentPeriod))
+
 	})
 })
