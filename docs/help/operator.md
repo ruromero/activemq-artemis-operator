@@ -666,6 +666,23 @@ spec:
 
 labels Node Selectors are outside the scope of this document, for full documentation see the [Kubernetes Documentation](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
 
+### Annotations
+
+Annotations can be added to the pods by defining them like so:
+
+
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: broker
+  namespace: activemq-artemis-operator
+spec:
+  deploymentPlan:
+    annotations:
+      sidecar.istio.io/inject: "true"
+      promethes-prop: "somevalue"
+```
 
 ### Setting  Environment Variables
 

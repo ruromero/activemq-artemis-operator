@@ -1637,7 +1637,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 		})
 	}
 
-	pts := pods.MakePodTemplateSpec(current, namespacedName, labels)
+	pts := pods.MakePodTemplateSpec(current, namespacedName, labels, customResource.Spec.DeploymentPlan.Annotations)
 	podSpec := &pts.Spec
 
 	// REVISIT: don't know when this is nil

@@ -236,6 +236,8 @@ type DeploymentPlanType struct {
 	//custom Affinity
 	Affinity           corev1.Affinity            `json:"affinity,omitempty"`
 	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+	// Custom annotations to be added to broker pod
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type PodSecurityType struct {

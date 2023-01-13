@@ -11,7 +11,7 @@ import (
 var log = logf.Log.WithName("package pods")
 var NameBuilder namer.NamerData
 
-func MakePodTemplateSpec(current *corev1.PodTemplateSpec, namespacedName types.NamespacedName, labels map[string]string) *corev1.PodTemplateSpec {
+func MakePodTemplateSpec(current *corev1.PodTemplateSpec, namespacedName types.NamespacedName, labels map[string]string, annotations map[string]string) *corev1.PodTemplateSpec {
 
 	var desired *corev1.PodTemplateSpec = current
 	if desired == nil {
@@ -24,6 +24,7 @@ func MakePodTemplateSpec(current *corev1.PodTemplateSpec, namespacedName types.N
 		}
 	}
 	desired.ObjectMeta.Labels = labels
+	desired.ObjectMeta.Annotations = annotations
 
 	return desired
 }

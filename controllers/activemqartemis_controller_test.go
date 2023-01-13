@@ -3024,6 +3024,50 @@ var _ = Describe("artemis controller", func() {
 		})
 	})
 
+	Context("Annotations Test", Label("annotations-test"), func() {
+		It("add some annotations", func() {
+			By("deploy the broker with custom annotations")
+			customAnnotations := make(map[string]string)
+			customAnnotations["sidecar.istio.io/inject"] = "true"
+			customAnnotations["promethes-prop"] = "somevalue"
+
+			brokerCr, createdCr := DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
+				candidate.Spec.DeploymentPlan.Annotations = customAnnotations
+			})
+
+			By("Making sure that the CR gets deployed " + brokerCr.Name)
+			Eventually(func() bool {
+				return getPersistedVersionedCrd(brokerCr.Name, defaultNamespace, createdCr)
+			}, timeout, interval).Should(BeTrue())
+
+			key := types.NamespacedName{Name: namer.CrToSS(createdCr.Name), Namespace: defaultNamespace}
+			createdSs := &appsv1.StatefulSet{}
+
+			By("Checking that StatefulSet is Created with correct annotations")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, key, createdSs)).Should(Succeed())
+				found := 0
+				for k, v := range createdSs.Spec.Template.Annotations {
+					if k == "sidecar.istio.io/inject" && v == "true" {
+						found++
+					} else if k == "promethes-prop" && v == "somevalue" {
+						found++
+					}
+				}
+				g.Expect(found).To(Equal(2))
+
+			}, timeout, interval).Should(Succeed())
+
+			Expect(k8sClient.Delete(ctx, createdCr)).To(Succeed())
+
+			By("check it has gone")
+			Eventually(func() bool {
+				return checkCrdDeleted(createdCr.Name, defaultNamespace, createdCr)
+			}, timeout, interval).Should(BeTrue())
+
+		})
+	})
+
 	Context("Labels Test", func() {
 		It("passing in 2 labels", func() {
 			By("Creating a crd with 2 labels, verifying only on pod template")

@@ -1408,6 +1408,11 @@ spec:
                             type: array
                         type: object
                     type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Custom annotations to be added to broker pod
+                    type: object
                   clustered:
                     description: Whether broker is clustered
                     type: boolean
