@@ -18,30 +18,30 @@ function writeFile() {
   case $resource_kind in
     CustomResourceDefinition)
       if [[ ${resource_name} =~ (activemqartemises) ]]; then
-        createFile "$installDir/010_crd_artemis.yaml"
+        createFile "$installDir/crd_artemis.yaml"
       elif [[ ${resource_name} =~ (activemqartemissecurities) ]]; then
-        createFile "$installDir/020_crd_artemis_security.yaml"
+        createFile "$installDir/crd_artemis_security.yaml"
       elif [[ ${resource_name} =~ (activemqartemisaddresses) ]]; then
-        createFile "$installDir/030_crd_artemis_address.yaml"
+        createFile "$installDir/crd_artemis_address.yaml"
       elif [[ ${resource_name} =~ (activemqartemisscaledowns) ]]; then
-        createFile "$installDir/040_crd_artemis_scaledown.yaml"
+        createFile "$installDir/crd_artemis_scaledown.yaml"
       else
         createFile "$installDir/${resource_name}.yaml"
       fi
       ;;
 
     Deployment)
-      createFile "$installDir/110_operator.yaml"
+      createFile "$installDir/operator.yaml"
       ;;
 
     Role)
       if [[ ${resource_name} =~ (operator) ]]; then
-        createFile "$installDir/060_namespace_role.yaml"
-        createFile "$installDir/060_cluster_role.yaml"
+        createFile "$installDir/namespace_role.yaml"
+        createFile "$installDir/cluster_role.yaml"
         sed -i 's/kind: Role/kind: ClusterRole/' \
-          "$installDir/060_cluster_role.yaml"
+          "$installDir/cluster_role.yaml"
       elif [[ ${resource_name} =~ (leader-election) ]]; then
-        createFile "$installDir/080_election_role.yaml"
+        createFile "$installDir/election_role.yaml"
       else
         createFile "$installDir/${resource_name}.yaml"
       fi
@@ -49,26 +49,26 @@ function writeFile() {
 
     RoleBinding)
       if [[ ${resource_name} =~ (operator) ]]; then
-        createFile "$installDir/070_namespace_role_binding.yaml"
-        createFile "$installDir/070_cluster_role_binding.yaml"
+        createFile "$installDir/namespace_role_binding.yaml"
+        createFile "$installDir/cluster_role_binding.yaml"
         sed -i -e 's/kind: Role/kind: ClusterRole/' \
           -e 's/kind: RoleBinding/kind: ClusterRoleBinding/' \
-          "$installDir/070_cluster_role_binding.yaml"
+          "$installDir/cluster_role_binding.yaml"
         echo '  namespace: activemq-artemis-operator' >> \
-          "$installDir/070_cluster_role_binding.yaml"
+          "$installDir/cluster_role_binding.yaml"
       elif [[ ${resource_name} =~ (leader-election) ]]; then
-        createFile "$installDir/090_election_role_binding.yaml"
+        createFile "$installDir/election_role_binding.yaml"
       else
         createFile "$installDir/${resource_name}.yaml"
       fi
       ;;
 
     ServiceAccount)
-      createFile "$installDir/050_service_account.yaml"
+      createFile "$installDir/service_account.yaml"
       ;;
 
     ConfigMap)
-      createFile "$installDir/100_operator_config.yaml"
+      createFile "$installDir/operator_config.yaml"
       ;;
 
     Namespace)
