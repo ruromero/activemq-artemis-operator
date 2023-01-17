@@ -56,6 +56,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 
 	"strconv"
@@ -2257,7 +2258,7 @@ func brokerPropertiesData(props []string) map[string]string {
 	return contents
 }
 
-func configureAffinity(podSpec *corev1.PodSpec, affinity *corev1.Affinity) {
+func configureAffinity(podSpec *corev1.PodSpec, affinity *v1beta1.AffinityConfig) {
 	if affinity != nil {
 		podSpec.Affinity = &corev1.Affinity{}
 		if affinity.PodAffinity != nil {

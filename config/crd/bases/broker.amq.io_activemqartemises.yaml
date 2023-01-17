@@ -18,7 +18,7 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ActiveMQArtemis is the Schema for the activemqartemises API
+        description: A stateful deployment of one or more brokers
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -36,7 +36,7 @@ spec:
             description: ActiveMQArtemisSpec defines the desired state of ActiveMQArtemis
             properties:
               acceptors:
-                description: Acceptor configuration
+                description: Specifies the acceptors
                 items:
                   properties:
                     amqpMinLargeMessageSize:
@@ -47,7 +47,6 @@ spec:
                       type: string
                     bindToAllInterfaces:
                       description: Whether to let the acceptor to bind to all interfaces
-                        (0.0.0.0)
                       type: boolean
                     connectionsAllowed:
                       description: Max number of connections allowed to make
@@ -71,6 +70,7 @@ spec:
                       description: To indicate which kind of routing type to use
                       type: string
                     name:
+                      description: Name of the acceptor
                       type: string
                     needClientAuth:
                       description: Tells a client connecting to this acceptor that
@@ -129,8 +129,10 @@ spec:
                   type: object
                 type: array
               addressSettings:
+                description: Specifies the address configurations
                 properties:
                   addressSetting:
+                    description: Specifies the address settings
                     items:
                       properties:
                         addressFullPolicy:
@@ -213,7 +215,7 @@ spec:
                         configDeleteDiverts:
                           description: What to do when a divert is no longer in broker.xml.  OFF
                             = will do nothing and divert will remain(default), FORCE
-                            = delete divert.
+                            = delete divert
                           type: string
                         configDeleteQueues:
                           description: What to do when a queue is no longer in broker.xml.  OFF
@@ -453,6 +455,7 @@ spec:
                   type: string
                 type: array
               connectors:
+                description: Specifies the connectors
                 items:
                   properties:
                     enabledCipherSuites:
@@ -527,6 +530,7 @@ spec:
                   type: object
                 type: array
               console:
+                description: Specifies the console configurations
                 properties:
                   expose:
                     description: Whether or not to expose this port
@@ -542,9 +546,10 @@ spec:
                     type: boolean
                 type: object
               deploymentPlan:
+                description: Specifies the deployment plan
                 properties:
                   affinity:
-                    description: custom Affinity
+                    description: Specifies the affinity configurations
                     properties:
                       nodeAffinity:
                         description: Describes node affinity scheduling rules for
@@ -1420,14 +1425,15 @@ spec:
                     description: Whether or not to install the artemis metrics plugin
                     type: boolean
                   extraMounts:
+                    description: Specifies the extra mounts
                     properties:
                       configMaps:
-                        description: Name of ConfigMap
+                        description: Specifies the ConfigMap names
                         items:
                           type: string
                         type: array
                       secrets:
-                        description: Name of Secret
+                        description: Specifies the Secret names
                         items:
                           type: string
                         type: array
@@ -1451,9 +1457,7 @@ spec:
                       and `application` are not allowed
                     type: object
                   livenessProbe:
-                    description: Probe describes a health check to be performed against
-                      a container to determine whether it is alive or ready to receive
-                      traffic.
+                    description: Specifies the liveness probe configurations
                     properties:
                       exec:
                         description: Exec specifies the action to take.
@@ -1609,14 +1613,14 @@ spec:
                   nodeSelector:
                     additionalProperties:
                       type: string
-                    description: custom node selector
+                    description: Specifies the node selector
                     type: object
                   persistenceEnabled:
                     description: If true use persistent volume via persistent volume
                       claim for journal storage
                     type: boolean
                   podDisruptionBudget:
-                    description: PodDisruptionBudgetSpec is a description of a PodDisruptionBudget.
+                    description: Specifies the pod disruption budget
                     properties:
                       maxUnavailable:
                         anyOf:
@@ -1688,6 +1692,7 @@ spec:
                         type: object
                     type: object
                   podSecurity:
+                    description: Specifies the pod security configurations
                     properties:
                       runAsUser:
                         description: runAsUser as defined in PodSecurityContext for
@@ -1699,10 +1704,7 @@ spec:
                         type: string
                     type: object
                   podSecurityContext:
-                    description: PodSecurityContext holds pod-level security attributes
-                      and common container settings. Some fields are also present
-                      in container.securityContext.  Field values of container.securityContext
-                      take precedence over field values of PodSecurityContext.
+                    description: Specifies the pod security context
                     properties:
                       fsGroup:
                         description: "A special supplemental group that applies to
@@ -1872,9 +1874,7 @@ spec:
                         type: object
                     type: object
                   readinessProbe:
-                    description: Probe describes a health check to be performed against
-                      a container to determine whether it is alive or ready to receive
-                      traffic.
+                    description: Specifies the readiness probe configurations
                     properties:
                       exec:
                         description: Exec specifies the action to take.
@@ -2026,8 +2026,8 @@ spec:
                       broker protocol ports
                     type: boolean
                   resources:
-                    description: ResourceRequirements describes the compute resource
-                      requirements.
+                    description: Limits describes the minimum/maximum amount of compute
+                      resources required/allowed
                     properties:
                       limits:
                         additionalProperties:
@@ -2057,14 +2057,17 @@ spec:
                     format: int32
                     type: integer
                   storage:
+                    description: Specifies the storage configurations
                     properties:
                       size:
+                        description: The storage size
                         type: string
                       storageClassName:
                         description: The storageClassName to be used in PVC
                         type: string
                     type: object
                   tolerations:
+                    description: Specifies the tolerations
                     items:
                       description: The pod this Toleration is attached to tolerates
                         any taint that matches the triple <key,value,effect> using
@@ -2212,17 +2215,16 @@ spec:
                   type: object
                 type: array
               upgrades:
-                description: ActiveMQArtemis App product upgrade flags, this is deprecated
-                  in v1beta1, specifying the Version is sufficient
+                description: Specifies the upgrades
                 properties:
                   enabled:
-                    description: Set to true to enable automatic micro version product
-                      upgrades, disabled by default.
+                    description: Set true to enable automatic micro version product
+                      upgrades, it is disabled by default.
                     type: boolean
                   minor:
-                    description: Set to true to enable automatic micro version product
-                      upgrades, disabled by default. Requires spec.upgrades.enabled
-                      true.
+                    description: Set true to enable automatic minor product version
+                      upgrades, it is disabled by default. Requires spec.upgrades.enabled
+                      to be true.
                     type: boolean
                 required:
                 - enabled
@@ -2311,8 +2313,10 @@ spec:
                 items:
                   properties:
                     name:
+                      description: Name
                       type: string
                     resourceVersion:
+                      description: Resource Version
                       type: string
                   required:
                   - name
@@ -2320,7 +2324,7 @@ spec:
                   type: object
                 type: array
               podStatus:
-                description: Pod Status
+                description: The current pods
                 properties:
                   ready:
                     description: Deployments are ready to serve requests

@@ -16,8 +16,7 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ActiveMQArtemisAddress is the Schema for the activemqartemisaddresses
-          API
+        description: Adding and removing addresses via custom resource definitions
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -35,7 +34,7 @@ spec:
             description: ActiveMQArtemisAddressSpec defines the desired state of ActiveMQArtemisAddress
             properties:
               addressName:
-                description: Address Name
+                description: The Address Name
                 type: string
               applyToCrNames:
                 description: Apply to the broker crs in the current namespace. A value
@@ -45,9 +44,10 @@ spec:
                   type: string
                 type: array
               password:
-                description: The user's password
+                description: The password for the user
                 type: string
               queueConfiguration:
+                description: Specify the queue configuration
                 properties:
                   autoCreateAddress:
                     description: Whether auto create address
@@ -141,7 +141,7 @@ spec:
                     type: string
                 type: object
               queueName:
-                description: Queue Name
+                description: The Queue Name
                 type: string
               removeFromBrokerOnDelete:
                 description: Whether or not delete the queue from broker when CR is

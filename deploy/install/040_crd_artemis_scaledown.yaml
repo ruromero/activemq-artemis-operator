@@ -16,7 +16,7 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ActiveMQArtemisScaledown is the Schema for the activemqartemisscaledowns API
+        description: Provides message migration on clustered broker scaledown
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -33,7 +33,7 @@ spec:
                 description: Triggered by main ActiveMQArtemis CRD messageMigration entry
                 type: boolean
               resources:
-                description: ResourceRequirements describes the compute resource requirements.
+                description: Limits describes the minimum/maximum amount of compute resources required/allowed
                 properties:
                   limits:
                     additionalProperties:

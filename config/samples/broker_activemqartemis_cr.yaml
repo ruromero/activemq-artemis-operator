@@ -11,5 +11,5 @@ spec:
     persistenceEnabled: false
     journalType: nio
     messageMigration: false
+    jolokiaAgentEnabled: false
     managementRBACEnabled: true
-
