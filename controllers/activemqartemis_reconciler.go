@@ -56,7 +56,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 
 	"strconv"
@@ -77,11 +76,12 @@ const (
 	cfgMapPathBase = "/amq/extra/configmaps/"
 	secretPathBase = "/amq/extra/secrets/"
 
-	OrdinalPrefix        = "broker-"
-	OrdinalPrefixSep     = "."
-	BrokerPropertiesName = "broker.properties"
-	JaasConfigKey        = "login.config"
-	LoggingConfigKey     = "logging.properties"
+	OrdinalPrefix         = "broker-"
+	OrdinalPrefixSep      = "."
+	BrokerPropertiesName  = "broker.properties"
+	JaasConfigKey         = "login.config"
+	LoggingConfigKey      = "logging.properties"
+	DefaultDeploymentSize = int32(1)
 )
 
 var defaultMessageMigration bool = true
@@ -319,7 +319,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) ProcessDeploymentPlan(customRes
 
 	clog.Info("Processing deployment plan", "plan", deploymentPlan, "broker cr", customResource.Name)
 	// Ensure the StatefulSet size is the same as the spec
-	currentStatefulSet.Spec.Replicas = &deploymentPlan.Size
+	currentStatefulSet.Spec.Replicas = deploymentPlan.Size
 
 	aioSyncCausedUpdateOn(deploymentPlan, currentStatefulSet)
 
@@ -744,20 +744,15 @@ func generateConnectorsString(customResource *brokerv1beta1.ActiveMQArtemis, nam
 	return connectorEntry
 }
 
-func (reconciler *ActiveMQArtemisReconcilerImpl) configureAcceptorsExposure(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, scheme *runtime.Scheme) (bool, error) {
-
-	var i int32 = 0
-	var err error = nil
-	ordinalString := ""
-	causedUpdate := false
-
+func (reconciler *ActiveMQArtemisReconcilerImpl) configureAcceptorsExposure(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, scheme *runtime.Scheme) {
 	originalLabels := namer.LabelBuilder.Labels()
 	namespacedName := types.NamespacedName{
 		Name:      customResource.Name,
 		Namespace: customResource.Namespace,
 	}
-	for ; i < customResource.Spec.DeploymentPlan.Size; i++ {
-		ordinalString = strconv.Itoa(int(i))
+	deploymentSize := getDeploymentSize(customResource)
+	for i := int32(0); i < deploymentSize; i++ {
+		ordinalString := strconv.Itoa(int(i))
 		var serviceRoutelabels = make(map[string]string)
 		for k, v := range originalLabels {
 			serviceRoutelabels[k] = v
@@ -780,8 +775,6 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureAcceptorsExposure(cust
 			}
 		}
 	}
-
-	return causedUpdate, err
 }
 
 func (reconciler *ActiveMQArtemisReconcilerImpl) ExposureDefinitionForCR(namespacedName types.NamespacedName, labels map[string]string, targetServiceName string, targetPortName string, passthroughTLS bool) rtclient.Object {
@@ -811,20 +804,15 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) trackDesired(desired rtclient.O
 	reconciler.requestedResources = append(reconciler.requestedResources, desired)
 }
 
-func (reconciler *ActiveMQArtemisReconcilerImpl) configureConnectorsExposure(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, scheme *runtime.Scheme) (bool, error) {
-
-	var i int32 = 0
-	var err error = nil
-	ordinalString := ""
-	causedUpdate := false
-
+func (reconciler *ActiveMQArtemisReconcilerImpl) configureConnectorsExposure(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, scheme *runtime.Scheme) {
 	originalLabels := namer.LabelBuilder.Labels()
 	namespacedName := types.NamespacedName{
 		Name:      customResource.Name,
 		Namespace: customResource.Namespace,
 	}
-	for ; i < customResource.Spec.DeploymentPlan.Size; i++ {
-		ordinalString = strconv.Itoa(int(i))
+	deploymentSize := getDeploymentSize(customResource)
+	for i := int32(0); i < deploymentSize; i++ {
+		ordinalString := strconv.Itoa(int(i))
 		var serviceRoutelabels = make(map[string]string)
 		for k, v := range originalLabels {
 			serviceRoutelabels[k] = v
@@ -846,14 +834,9 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConnectorsExposure(cus
 			}
 		}
 	}
-
-	return causedUpdate, err
 }
 
 func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, scheme *runtime.Scheme) {
-
-	var i int32 = 0
-	ordinalString := ""
 	console := customResource.Spec.Console
 
 	originalLabels := namer.LabelBuilder.Labels()
@@ -864,8 +847,9 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(custom
 	commonPortName := "wconsj"
 	targetPort := int32(8161)
 	portNumber := int32(8162)
-	for ; i < customResource.Spec.DeploymentPlan.Size; i++ {
-		ordinalString = strconv.Itoa(int(i))
+	deploymentSize := getDeploymentSize(customResource)
+	for i := int32(0); i < deploymentSize; i++ {
+		ordinalString := strconv.Itoa(int(i))
 		var serviceRoutelabels = make(map[string]string)
 		for k, v := range originalLabels {
 			serviceRoutelabels[k] = v
@@ -1417,7 +1401,7 @@ func checkExistingPersistentVolumes(instance *brokerv1beta1.ActiveMQArtemis, cli
 	var log = ctrl.Log.WithName("controller_v1beta1activemqartemis")
 
 	var i int32
-	for i = 0; i < instance.Spec.DeploymentPlan.Size; i++ {
+	for i = 0; i < getDeploymentSize(instance); i++ {
 		ordinalString := strconv.Itoa(int(i))
 		pvcKey := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name + "-" + namer.CrToSS(instance.Name) + "-" + ordinalString}
 		pvc := &corev1.PersistentVolumeClaim{}
@@ -2261,7 +2245,7 @@ func brokerPropertiesData(props []string) map[string]string {
 	return contents
 }
 
-func configureAffinity(podSpec *corev1.PodSpec, affinity *v1beta1.AffinityConfig) {
+func configureAffinity(podSpec *corev1.PodSpec, affinity *brokerv1beta1.AffinityConfig) {
 	if affinity != nil {
 		podSpec.Affinity = &corev1.Affinity{}
 		if affinity.PodAffinity != nil {
@@ -2586,7 +2570,11 @@ func getValidCondition(cr *brokerv1beta1.ActiveMQArtemis) metav1.Condition {
 }
 
 func getDeploymentCondition(cr *brokerv1beta1.ActiveMQArtemis, podStatus olm.DeploymentStatus) metav1.Condition {
-	if cr.Spec.DeploymentPlan.Size == 0 {
+	deploymentSize := DefaultDeploymentSize
+	if cr.Spec.DeploymentPlan.Size != nil {
+		deploymentSize = *cr.Spec.DeploymentPlan.Size
+	}
+	if deploymentSize == 0 {
 		return metav1.Condition{
 			Type:    brokerv1beta1.DeployedConditionType,
 			Status:  metav1.ConditionFalse,
@@ -2594,12 +2582,12 @@ func getDeploymentCondition(cr *brokerv1beta1.ActiveMQArtemis, podStatus olm.Dep
 			Message: brokerv1beta1.DeployedConditionZeroSizeMessage,
 		}
 	}
-	if len(podStatus.Ready) != int(cr.Spec.DeploymentPlan.Size) {
+	if len(podStatus.Ready) != int(deploymentSize) {
 		return metav1.Condition{
 			Type:    brokerv1beta1.DeployedConditionType,
 			Status:  metav1.ConditionFalse,
 			Reason:  brokerv1beta1.DeployedConditionNotReadyReason,
-			Message: fmt.Sprintf("%d/%d pods ready", len(podStatus.Ready), cr.Spec.DeploymentPlan.Size),
+			Message: fmt.Sprintf("%d/%d pods ready", len(podStatus.Ready), deploymentSize),
 		}
 	}
 	return metav1.Condition{
@@ -2869,7 +2857,7 @@ type propertyFile struct {
 func AssertBrokersAvailable(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) ArtemisError {
 	reqLogger := ctrl.Log.WithValues("ActiveMQArtemis Name", cr.Name)
 
-	if cr.Spec.DeploymentPlan.Size == 0 || meta.IsStatusConditionFalse(cr.Status.Conditions, brokerv1beta1.DeployedConditionType) {
+	if getDeploymentSize(cr) == 0 || meta.IsStatusConditionFalse(cr.Status.Conditions, brokerv1beta1.DeployedConditionType) {
 		reqLogger.Info("There are no available brokers")
 		return NewUnknownJolokiaError(errors.New("Broker not available"))
 	}
@@ -3120,4 +3108,11 @@ func unmarshallStatus(jsonStatus string) (brokerStatus, error) {
 func marshallApplyErrors(applyErrors []applyError) string {
 	val, _ := json.Marshal(applyErrors)
 	return string(val)
+}
+
+func getDeploymentSize(cr *brokerv1beta1.ActiveMQArtemis) int32 {
+	if cr.Spec.DeploymentPlan.Size == nil {
+		return DefaultDeploymentSize
+	}
+	return *cr.Spec.DeploymentPlan.Size
 }

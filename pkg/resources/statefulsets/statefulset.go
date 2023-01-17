@@ -40,7 +40,7 @@ type StatefulSetInfo struct {
 	Labels         map[string]string
 }
 
-func MakeStatefulSet(currentStateFulSet *appsv1.StatefulSet, ssName string, svcHeadlessName string, namespacedName types.NamespacedName, annotations map[string]string, labels map[string]string, replicas int32) *appsv1.StatefulSet {
+func MakeStatefulSet(currentStateFulSet *appsv1.StatefulSet, ssName string, svcHeadlessName string, namespacedName types.NamespacedName, annotations map[string]string, labels map[string]string, replicas *int32) *appsv1.StatefulSet {
 
 	if currentStateFulSet == nil {
 		currentStateFulSet = &appsv1.StatefulSet{
@@ -65,7 +65,7 @@ func MakeStatefulSet(currentStateFulSet *appsv1.StatefulSet, ssName string, svcH
 	currentStateFulSet.ObjectMeta.Labels = labels
 	currentStateFulSet.ObjectMeta.Annotations = annotations
 
-	currentStateFulSet.Spec.Replicas = &replicas
+	currentStateFulSet.Spec.Replicas = replicas
 	currentStateFulSet.Spec.Template = *pods.MakePodTemplateSpec(&currentStateFulSet.Spec.Template, namespacedName, labels, nil)
 
 	return currentStateFulSet

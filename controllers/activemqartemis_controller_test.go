@@ -141,7 +141,7 @@ var _ = Describe("artemis controller", func() {
 
 			brokerCr, createdCr := DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
 				candidate.Spec.DeploymentPlan.PodDisruptionBudget = &pdb
-				candidate.Spec.DeploymentPlan.Size = 1
+				candidate.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			})
 
 			brokerKey := types.NamespacedName{
@@ -174,7 +174,7 @@ var _ = Describe("artemis controller", func() {
 
 			brokerCr, createdCr := DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
 				candidate.Spec.DeploymentPlan.PodDisruptionBudget = &pdb
-				candidate.Spec.DeploymentPlan.Size = 2
+				candidate.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 			})
 
 			pdbKey := types.NamespacedName{
@@ -212,7 +212,7 @@ var _ = Describe("artemis controller", func() {
 
 			brokerCr, createdCr := DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
 				candidate.Spec.DeploymentPlan.PodDisruptionBudget = &pdb
-				candidate.Spec.DeploymentPlan.Size = 2
+				candidate.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 			})
 
 			pdbKey := types.NamespacedName{
@@ -972,8 +972,6 @@ var _ = Describe("artemis controller", func() {
 					},
 				},
 			}
-			crd.Spec.DeploymentPlan.Size = 1
-
 			By("Deploying the CRD " + crd.ObjectMeta.Name)
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
@@ -1071,6 +1069,9 @@ var _ = Describe("artemis controller", func() {
 							},
 						},
 					},
+					DeploymentPlan: v2alpha5.DeploymentPlanType{
+						Size: common.Int32ToPtr(0),
+					},
 				},
 			}
 
@@ -1119,6 +1120,9 @@ var _ = Describe("artemis controller", func() {
 						"addressesSettings.#.redeliveryMultiplier=2.3",
 						"addressesSettings.#.redeliveryCollisionAvoidanceFactor=1.2",
 					},
+					DeploymentPlan: brokerv1beta1.DeploymentPlanType{
+						Size: common.Int32ToPtr(0),
+					},
 				},
 			}
 
@@ -1147,7 +1151,7 @@ var _ = Describe("artemis controller", func() {
 		It("checking console target service port name for metrics", Label("console-expose-metrics"), func() {
 			By("Deploying a broker with console exposed")
 			brokerCr, createdBrokerCr := DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
-				candidate.Spec.DeploymentPlan.Size = 2
+				candidate.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 				candidate.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 					InitialDelaySeconds: 1,
 					PeriodSeconds:       1,
@@ -1219,8 +1223,6 @@ var _ = Describe("artemis controller", func() {
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
 				crd := generateArtemisSpec(defaultNamespace)
-				crd.Spec.DeploymentPlan.Size = 1
-
 				crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 					InitialDelaySeconds: 1,
 					PeriodSeconds:       1,
@@ -1356,8 +1358,6 @@ var _ = Describe("artemis controller", func() {
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
 				crd := generateArtemisSpec(defaultNamespace)
-				crd.Spec.DeploymentPlan.Size = 1
-
 				crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 					InitialDelaySeconds: 1,
 					PeriodSeconds:       1,
@@ -1527,8 +1527,6 @@ var _ = Describe("artemis controller", func() {
 		It("deploy ImagePullBackOff update delete ok", func() {
 
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
-
 			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 				InitialDelaySeconds: 1,
 				PeriodSeconds:       1,
@@ -1736,7 +1734,7 @@ var _ = Describe("artemis controller", func() {
 				TimeoutSeconds:      5,
 			}
 
-			crd.Spec.DeploymentPlan.Size = 2
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 			crd.Spec.DeploymentPlan.Clustered = &isClusteredBoolean
 			crd.Spec.Acceptors = []brokerv1beta1.AcceptorType{{
 				Name:                "tcp",
@@ -1885,7 +1883,6 @@ var _ = Describe("artemis controller", func() {
 			boolFalseVal := false
 
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.DeploymentPlan.MessageMigration = &boolTrueVal
 
 			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
@@ -2009,8 +2006,6 @@ var _ = Describe("artemis controller", func() {
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
 				crd := generateArtemisSpec(defaultNamespace)
-				crd.Spec.DeploymentPlan.Size = 1
-
 				crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 					InitialDelaySeconds: 1,
 					PeriodSeconds:       1,
@@ -2053,8 +2048,6 @@ var _ = Describe("artemis controller", func() {
 		It("deploy, delete ss, verify", func() {
 
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
-
 			By("Deploying the CRD " + crd.ObjectMeta.Name)
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
@@ -2116,7 +2109,6 @@ var _ = Describe("artemis controller", func() {
 		It("deploy, verify, undeploy, verify", func() {
 
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.DeploymentPlan.PersistenceEnabled = true
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
@@ -2157,7 +2149,6 @@ var _ = Describe("artemis controller", func() {
 	Context("PVC upgrade owner reference test", Label("pvc-owner-reference-upgrade"), func() {
 		It("faking a broker deployment with owned pvc", func() {
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.DeploymentPlan.PersistenceEnabled = true
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
@@ -2224,7 +2215,6 @@ var _ = Describe("artemis controller", func() {
 			By("Creating a crd with tolerations")
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 				InitialDelaySeconds: 1,
 				PeriodSeconds:       5,
@@ -2327,7 +2317,6 @@ var _ = Describe("artemis controller", func() {
 			By("Creating a crd with tolerations")
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 				InitialDelaySeconds: 2,
 				PeriodSeconds:       5,
@@ -3247,6 +3236,7 @@ var _ = Describe("artemis controller", func() {
 			}
 
 			crd := generateArtemisSpec(nonDefaultNamespace)
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(0)
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
 			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
@@ -3779,6 +3769,8 @@ var _ = Describe("artemis controller", func() {
 			By("By creating a new crd")
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(0)
+
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
 			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
@@ -3858,11 +3850,13 @@ var _ = Describe("artemis controller", func() {
 			By("creating invalid crd with reserved label")
 			invalidCrd := generateArtemisSpec(defaultNamespace)
 			invalidCrd.Spec.DeploymentPlan.Labels = map[string]string{"application": "test"}
+			invalidCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(0)
 			Expect(k8sClient.Create(ctx, &invalidCrd)).Should(Succeed())
 
 			By("creating valid crd")
 			validCrd := generateArtemisSpec(defaultNamespace)
 			validCrd.Spec.DeploymentPlan.Labels = map[string]string{"test": "test"}
+			validCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(0)
 			Expect(k8sClient.Create(ctx, &validCrd)).Should(Succeed())
 
 			By("checking valid CR")
@@ -4326,8 +4320,6 @@ var _ = Describe("artemis controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 
 			crd.Spec.BrokerProperties = []string{"notValid=bla"}
-			crd.Spec.DeploymentPlan.Size = 1
-
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
 			crdRef := types.NamespacedName{
@@ -4786,6 +4778,7 @@ var _ = Describe("artemis controller", func() {
 			By("By creating a crd without  address spec")
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(0)
 
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
@@ -4966,7 +4959,7 @@ var _ = Describe("artemis controller", func() {
 				InitialDelaySeconds: 2,
 				PeriodSeconds:       5,
 			}
-			crd.Spec.DeploymentPlan.Size = 2
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 			crd.Spec.Version = previousVersion
 
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
@@ -5053,7 +5046,7 @@ var _ = Describe("artemis controller", func() {
 
 			// about 10s to 1, 30s for 5 on minikube
 			deploymentSize := 1
-			crd.Spec.DeploymentPlan.Size = int32(deploymentSize)
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(int32(deploymentSize))
 			crd.Spec.DeploymentPlan.PersistenceEnabled = true
 
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
@@ -5101,7 +5094,7 @@ var _ = Describe("artemis controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 
 			crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
+				Size: common.Int32ToPtr(1),
 			}
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
@@ -5182,7 +5175,7 @@ var _ = Describe("artemis controller", func() {
 				crd := generateArtemisSpec(defaultNamespace)
 
 				crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-					Size: 1,
+					Size: common.Int32ToPtr(1),
 				}
 				crd.Spec.Acceptors = []brokerv1beta1.AcceptorType{
 					{
@@ -5348,7 +5341,7 @@ var _ = Describe("artemis controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 
 			crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
+				Size: common.Int32ToPtr(1),
 			}
 			acceptorName := "existing"
 			crd.Spec.Acceptors = []brokerv1beta1.AcceptorType{
@@ -5404,7 +5397,7 @@ var _ = Describe("artemis controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 
 			crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
+				Size: common.Int32ToPtr(1),
 			}
 			connectorName := "existing-connector"
 			crd.Spec.Connectors = []brokerv1beta1.ConnectorType{
@@ -5462,7 +5455,7 @@ var _ = Describe("artemis controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 
 			crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
+				Size: common.Int32ToPtr(1),
 			}
 			crd.Spec.Acceptors = []brokerv1beta1.AcceptorType{
 				{
@@ -5516,7 +5509,7 @@ var _ = Describe("artemis controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 
 			crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
+				Size: common.Int32ToPtr(1),
 			}
 			bindTo := false
 			crd.Spec.Acceptors = []brokerv1beta1.AcceptorType{
@@ -5573,7 +5566,7 @@ var _ = Describe("artemis controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 
 			crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
+				Size: common.Int32ToPtr(1),
 			}
 			bindToAll := true
 			notbindToAll := false
@@ -5648,7 +5641,7 @@ var _ = Describe("artemis controller", func() {
 			cr := generateArtemisSpec(defaultNamespace)
 
 			cr.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
+				Size: common.Int32ToPtr(1),
 			}
 			keyStoreProvider := "SunJCE"
 			cr.Spec.Acceptors = []brokerv1beta1.AcceptorType{
@@ -5699,7 +5692,7 @@ var _ = Describe("artemis controller", func() {
 			cr := generateArtemisSpec(defaultNamespace)
 
 			cr.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
+				Size: common.Int32ToPtr(1),
 			}
 			trustStoreType := "JCEKS"
 			cr.Spec.Acceptors = []brokerv1beta1.AcceptorType{
@@ -5803,7 +5796,7 @@ var _ = Describe("artemis controller", func() {
 			cr := generateArtemisSpec(defaultNamespace)
 
 			cr.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size: 1,
+				Size: common.Int32ToPtr(1),
 			}
 			trustStoreProvider := "SUN"
 			cr.Spec.Acceptors = []brokerv1beta1.AcceptorType{
@@ -5900,7 +5893,7 @@ var _ = Describe("artemis controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 
 			crd.Spec.DeploymentPlan = brokerv1beta1.DeploymentPlanType{
-				Size:               1,
+				Size:               common.Int32ToPtr(1),
 				PersistenceEnabled: true,
 				Storage: brokerv1beta1.StorageType{
 					StorageClassName: "some-storage-class",
@@ -5943,7 +5936,6 @@ var _ = Describe("artemis controller", func() {
 			InitialDelaySeconds: 1,
 			PeriodSeconds:       5,
 		}
-		crd.Spec.DeploymentPlan.Size = 1
 		crd.Spec.DeploymentPlan.RequireLogin = true
 		crd.Spec.BrokerProperties = []string{
 			"securityEnabled=true",
@@ -6042,7 +6034,6 @@ var _ = Describe("artemis controller", func() {
 			InitialDelaySeconds: 1,
 			PeriodSeconds:       5,
 		}
-		crd.Spec.DeploymentPlan.Size = 1
 		crd.Spec.BrokerProperties = []string{
 			"securityEnabled=true",
 			"rejectEmptyValidatedUser=true",
@@ -6095,6 +6086,7 @@ var _ = Describe("artemis controller", func() {
 
 		ctx := context.Background()
 		crd := generateArtemisSpec(defaultNamespace)
+		crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(0)
 
 		credentialsSecret := corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
@@ -6174,7 +6166,6 @@ var _ = Describe("artemis controller", func() {
 			TimeoutSeconds:      5,
 			PeriodSeconds:       5,
 		}
-		crd.Spec.DeploymentPlan.Size = 1
 		crd.Spec.DeploymentPlan.Clustered = &boolFalse
 		crd.Spec.DeploymentPlan.RequireLogin = boolTrue
 		crd.Spec.DeploymentPlan.JolokiaAgentEnabled = false
@@ -6306,7 +6297,6 @@ var _ = Describe("artemis controller", func() {
 			By("Creating a simple broker")
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 				InitialDelaySeconds: 1,
 				PeriodSeconds:       2,
@@ -6353,7 +6343,6 @@ var _ = Describe("artemis controller", func() {
 			InitialDelaySeconds: 1,
 			PeriodSeconds:       5,
 		}
-		crd.Spec.DeploymentPlan.Size = 1
 		crd.Spec.DeploymentPlan.ManagementRBACEnabled = false
 
 		By("Deploying the CRD " + crd.ObjectMeta.Name)
@@ -6413,7 +6402,6 @@ var _ = Describe("artemis controller", func() {
 			TimeoutSeconds:      5,
 			PeriodSeconds:       5,
 		}
-		crd.Spec.DeploymentPlan.Size = 1
 		javaOptsValue := "-verbose:class"
 		crd.Spec.Env = []corev1.EnvVar{
 			{Name: "TZ", Value: "en_IE"},
@@ -6522,7 +6510,7 @@ var _ = Describe("artemis controller", func() {
 		It("ordinal broker properties", func() {
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 3
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(3)
 			crd.Spec.BrokerProperties = []string{
 				"name=BROKER_ORDINAL_0",
 				"broker-1.name=BROKER_ORDINAL_1",
@@ -6578,7 +6566,6 @@ var _ = Describe("artemis controller", func() {
 		It("invalid ordinal prefix broker properties", func() {
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 			crd.Spec.BrokerProperties = []string{
 				"globalMaxSize=512m",
 				"broker-1globalMaxSize=612m",
@@ -6611,7 +6598,7 @@ var _ = Describe("artemis controller", func() {
 		It("mod ordinal broker properties with error and update", func() {
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 2
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 			crd.Spec.BrokerProperties = []string{
 				"globalMaxSize=512m",
 				"broker-1.populateValidatedUser=true",
@@ -6682,7 +6669,6 @@ var _ = Describe("artemis controller", func() {
 				TimeoutSeconds:      5,
 				PeriodSeconds:       5,
 			}
-			crd.Spec.DeploymentPlan.Size = 1
 
 			configMap := &corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
@@ -6773,7 +6759,6 @@ var _ = Describe("artemis controller", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 
 			secret := &corev1.Secret{
 				TypeMeta: metav1.TypeMeta{
@@ -6839,7 +6824,6 @@ var _ = Describe("artemis controller", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 
 			secret := &corev1.Secret{
 				TypeMeta: metav1.TypeMeta{
@@ -6905,7 +6889,6 @@ var _ = Describe("artemis controller", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 
 			loggingConfigMapName := "my-logging-config"
 			loggingData := make(map[string]string)
@@ -7085,7 +7068,6 @@ var _ = Describe("artemis controller", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
 
 			loggingConfigMapName := "my-logging-config-y"
 			loggingData := make(map[string]string)
@@ -7266,7 +7248,6 @@ var _ = Describe("artemis controller", func() {
 				TimeoutSeconds:      5,
 				PeriodSeconds:       5,
 			}
-			crd.Spec.DeploymentPlan.Size = 1
 
 			configMap := &corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
@@ -7444,7 +7425,7 @@ func DeployCustomBroker(targetNamespace string, customFunc func(candidate *broke
 	ctx := context.Background()
 	brokerCrd := generateArtemisSpec(targetNamespace)
 
-	brokerCrd.Spec.DeploymentPlan.Size = 1
+	brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 
 	if customFunc != nil {
 		customFunc(&brokerCrd)

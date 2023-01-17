@@ -10,7 +10,6 @@ import (
 	"github.com/Masterminds/semver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -18,13 +17,10 @@ import (
 const (
 	RouteKind              = "Route"
 	OpenShiftAPIServerKind = "OpenShiftAPIServer"
+	DEFAULT_RESYNC_PERIOD  = 30 * time.Second
 )
 
-var clog = ctrl.Log.WithName("common")
-
 var theManager manager.Manager
-
-const DEFAULT_RESYNC_PERIOD = 30 * time.Second
 
 var resyncPeriod time.Duration = DEFAULT_RESYNC_PERIOD
 
@@ -171,4 +167,8 @@ func ResolveBrokerVersion(existingVersions map[string]*semver.Version, expected 
 		}
 	}
 	return nil
+}
+
+func Int32ToPtr(v int32) *int32 {
+	return &v
 }

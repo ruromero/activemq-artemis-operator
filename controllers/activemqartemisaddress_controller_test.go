@@ -39,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 	appsv1 "k8s.io/api/apps/v1"
@@ -188,7 +189,7 @@ var _ = Describe("Address controller tests", func() {
 
 			brokerName := brokerCrd.Name
 
-			brokerCrd.Spec.DeploymentPlan.Size = 5
+			brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(5)
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
@@ -199,7 +200,7 @@ var _ = Describe("Address controller tests", func() {
 				Eventually(func(g Gomega) {
 
 					getPersistedVersionedCrd(brokerCrd.ObjectMeta.Name, defaultNamespace, createdBrokerCrd)
-					g.Expect(len(createdBrokerCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(brokerCrd.Spec.DeploymentPlan.Size))
+					g.Expect(len(createdBrokerCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(*brokerCrd.Spec.DeploymentPlan.Size))
 
 				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
@@ -250,7 +251,7 @@ var _ = Describe("Address controller tests", func() {
 				Eventually(func(g Gomega) {
 
 					getPersistedVersionedCrd(brokerCrd.ObjectMeta.Name, defaultNamespace, createdBrokerCrd)
-					g.Expect(len(createdBrokerCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(brokerCrd.Spec.DeploymentPlan.Size))
+					g.Expect(len(createdBrokerCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(*brokerCrd.Spec.DeploymentPlan.Size))
 
 				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
@@ -263,8 +264,8 @@ var _ = Describe("Address controller tests", func() {
 				}
 				restClient, err := apiutil.RESTClientForGVK(gvk, false, restConfig, serializer.NewCodecFactory(scheme.Scheme))
 				Expect(err).To(BeNil())
-
-				for ipod := brokerCrd.Spec.DeploymentPlan.Size - 1; ipod >= 0; ipod-- {
+				deploymentSize := getDeploymentSize(&brokerCrd)
+				for ipod := deploymentSize - 1; ipod >= 0; ipod-- {
 					podOrdinal := strconv.FormatInt(int64(ipod), 10)
 					podName := namer.CrToSS(brokerCrd.Name) + "-" + podOrdinal
 
@@ -303,8 +304,8 @@ var _ = Describe("Address controller tests", func() {
 						By("Checking for output on " + podName)
 						g.Expect(capturedOut.Len() > 0)
 						content := capturedOut.String()
-
-						for ipod := brokerCrd.Spec.DeploymentPlan.Size - 1; ipod >= 0; ipod-- {
+						deploymentSize := getDeploymentSize(&brokerCrd)
+						for ipod := deploymentSize - 1; ipod >= 0; ipod-- {
 							queueName := fmt.Sprintf("myQueue%d", ipod)
 							By("finding Q " + queueName)
 							g.Expect(content).Should(ContainSubstring(queueName))
@@ -328,7 +329,7 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 2
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 
 			By("By deploying address cr for a2 for this broker in advance")
 
@@ -397,7 +398,7 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			applyRule := "merge_all"
 			dla := "DLA"
 			dla1 := "DLQ.XxxxxxXXxxXdata"
@@ -495,7 +496,7 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			By("By deploying address cr in advance")
@@ -569,7 +570,7 @@ var _ = Describe("Address controller tests", func() {
 				InitialDelaySeconds: 5,
 				PeriodSeconds:       10,
 			}
-			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
@@ -587,7 +588,8 @@ var _ = Describe("Address controller tests", func() {
 				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
 				By("Verfying address is present")
-				for i := int32(0); i < crd.Spec.DeploymentPlan.Size; i++ {
+				deploymentSize := getDeploymentSize(&crd)
+				for i := int32(0); i < deploymentSize; i++ {
 					Eventually(func(g Gomega) {
 						pod := &corev1.Pod{}
 						podName := namer.CrToSS(crd.Name) + "-" + strconv.FormatInt(int64(i), 10)
@@ -611,7 +613,7 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			By("By deploying address cr before artermis cr")
@@ -666,7 +668,7 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
@@ -732,11 +734,11 @@ var _ = Describe("Address controller tests", func() {
 			}
 
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 2
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			otherCrd := generateArtemisSpec(otherNamespace)
-			otherCrd.Spec.DeploymentPlan.Size = 2
+			otherCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 			otherCrd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
@@ -827,15 +829,15 @@ var _ = Describe("Address controller tests", func() {
 
 			ctx := context.Background()
 			crd0 := generateOriginalArtemisSpec(defaultNamespace, "broker")
-			crd0.Spec.DeploymentPlan.Size = 1
+			crd0.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd0.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			crd1 := generateOriginalArtemisSpec(defaultNamespace, "broker1")
-			crd1.Spec.DeploymentPlan.Size = 1
+			crd1.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd1.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			crd2 := generateOriginalArtemisSpec(defaultNamespace, "broker2")
-			crd2.Spec.DeploymentPlan.Size = 1
+			crd2.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd2.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {

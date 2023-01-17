@@ -119,7 +119,7 @@ type AddressSettingType struct {
 type DeploymentPlanType struct {
 	Image                 string                      `json:"image,omitempty"`
 	InitImage             string                      `json:"initImage,omitempty"`
-	Size                  int32                       `json:"size,omitempty"`
+	Size                  *int32                      `json:"size,omitempty"`
 	RequireLogin          bool                        `json:"requireLogin,omitempty"`
 	PersistenceEnabled    bool                        `json:"persistenceEnabled,omitempty"`
 	JournalType           string                      `json:"journalType,omitempty"`

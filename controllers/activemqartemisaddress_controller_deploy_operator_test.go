@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -63,7 +64,7 @@ var _ = Describe("Address controller DO", Label("do"), func() {
 
 			brokerName := brokerCrd.Name
 
-			brokerCrd.Spec.DeploymentPlan.Size = 5
+			brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(5)
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
@@ -201,7 +202,7 @@ var _ = Describe("Address controller DO", Label("do"), func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 2
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 
 			By("By deploying address cr for a2 for this broker in advance")
 
@@ -270,7 +271,7 @@ var _ = Describe("Address controller DO", Label("do"), func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			applyRule := "merge_all"
 			dla := "DLA"
 			dla1 := "DLQ.XxxxxxXXxxXdata"
@@ -368,7 +369,7 @@ var _ = Describe("Address controller DO", Label("do"), func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			By("By deploying address cr in advance")
@@ -421,7 +422,7 @@ var _ = Describe("Address controller DO", Label("do"), func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			By("By deploying address cr before artermis cr")
@@ -476,7 +477,7 @@ var _ = Describe("Address controller DO", Label("do"), func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
-			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
@@ -531,15 +532,15 @@ var _ = Describe("Address controller DO", Label("do"), func() {
 
 			ctx := context.Background()
 			crd0 := generateOriginalArtemisSpec(defaultNamespace, "broker")
-			crd0.Spec.DeploymentPlan.Size = 1
+			crd0.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd0.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			crd1 := generateOriginalArtemisSpec(defaultNamespace, "broker1")
-			crd1.Spec.DeploymentPlan.Size = 1
+			crd1.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd1.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			crd2 := generateOriginalArtemisSpec(defaultNamespace, "broker2")
-			crd2.Spec.DeploymentPlan.Size = 1
+			crd2.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			crd2.Spec.DeploymentPlan.JolokiaAgentEnabled = true
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {

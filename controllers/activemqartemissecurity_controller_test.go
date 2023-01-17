@@ -160,7 +160,7 @@ var _ = Describe("security controller", func() {
 				brokerCrdToDeploy.Spec.DeploymentPlan.MessageMigration = &boolTrue
 				brokerCrdToDeploy.Spec.DeploymentPlan.PersistenceEnabled = true
 				brokerCrdToDeploy.Spec.DeploymentPlan.RequireLogin = true
-				brokerCrdToDeploy.Spec.DeploymentPlan.Size = 1
+				brokerCrdToDeploy.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			})
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
@@ -750,7 +750,7 @@ var _ = Describe("security controller", func() {
 
 			By("Deploying broker")
 			brokerCrd := generateArtemisSpec(defaultNamespace)
-			brokerCrd.Spec.DeploymentPlan.Size = 1
+			brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			// make is speedy for real cluster checks
 			brokerCrd.Spec.DeploymentPlan.ReadinessProbe = &v1.Probe{
 				InitialDelaySeconds: 1,
@@ -826,7 +826,7 @@ var _ = Describe("security controller", func() {
 
 			By("Deploying broker")
 			brokerCrd := generateArtemisSpec(defaultNamespace)
-			brokerCrd.Spec.DeploymentPlan.Size = 1
+			brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			Expect(k8sClient.Create(ctx, &brokerCrd)).Should(Succeed())
 
 			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
@@ -959,6 +959,7 @@ var _ = Describe("security controller", func() {
 		By("Creating Broker CR")
 		ctx := context.Background()
 		brokerCrd := generateArtemisSpec(defaultNamespace)
+		brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(0)
 
 		Expect(k8sClient.Create(ctx, &brokerCrd)).Should(Succeed())
 

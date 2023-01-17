@@ -4,8 +4,6 @@ metadata:
   name: artemis-broker-resources
 spec:
   deploymentPlan:
-    size: 1
-    image: placeholder
     resources:
       limits:
         cpu: "500m"

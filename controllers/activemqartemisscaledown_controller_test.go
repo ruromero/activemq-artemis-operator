@@ -36,6 +36,7 @@ import (
 
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/environments"
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/remotecommand"
@@ -62,7 +63,7 @@ var _ = Describe("Scale down controller", func() {
 
 				booleanTrue := true
 				brokerCrd.Spec.DeploymentPlan.Clustered = &booleanTrue
-				brokerCrd.Spec.DeploymentPlan.Size = 2
+				brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 				brokerCrd.Spec.DeploymentPlan.PersistenceEnabled = true
 				brokerCrd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 					InitialDelaySeconds: 1,
@@ -136,7 +137,7 @@ var _ = Describe("Scale down controller", func() {
 				Eventually(func(g Gomega) {
 
 					getPersistedVersionedCrd(brokerCrd.ObjectMeta.Name, defaultNamespace, createdBrokerCrd)
-					createdBrokerCrd.Spec.DeploymentPlan.Size = 1
+					createdBrokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 					// not checking return from update as it will error on repeat as there is no change
 					// which is expected
 					k8sClient.Update(ctx, createdBrokerCrd)
@@ -242,7 +243,7 @@ var _ = Describe("Scale down controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 			clustered := true
 			crd.Spec.DeploymentPlan.Clustered = &clustered
-			crd.Spec.DeploymentPlan.Size = 2
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 			crd.Spec.DeploymentPlan.PersistenceEnabled = true
 			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 				InitialDelaySeconds: 1,
@@ -326,7 +327,7 @@ var _ = Describe("Scale down controller", func() {
 			By("Scaling down to 1")
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				createdCrd.Spec.DeploymentPlan.Size = 1
+				createdCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 				g.Expect(k8sClient.Update(ctx, createdCrd)).Should(Succeed())
 				By("Scale down to ss-0 update complete")
 			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())

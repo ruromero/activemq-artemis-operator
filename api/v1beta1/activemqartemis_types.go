@@ -291,7 +291,7 @@ type DeploymentPlanType struct {
 	InitImage string `json:"initImage,omitempty"`
 	// The number of broker pods to deploy
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Size",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:podCount"}
-	Size int32 `json:"size,omitempty"`
+	Size *int32 `json:"size,omitempty"`
 	// If true require user password login credentials for broker protocol ports
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Require Login",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	RequireLogin bool `json:"requireLogin,omitempty"`
@@ -596,7 +596,7 @@ type ExternalConfigStatus struct {
 //+operator-sdk:csv:customresourcedefinitions:resources={{"StatefulSet", "apps/v1"}}
 
 // A stateful deployment of one or more brokers
-//+operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis"
+// +operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis"
 type ActiveMQArtemis struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

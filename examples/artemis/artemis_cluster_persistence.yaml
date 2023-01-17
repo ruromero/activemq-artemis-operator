@@ -5,7 +5,6 @@ metadata:
 spec:
   deploymentPlan:
     size: 2
-    image: placeholder
     persistenceEnabled: true
     # messageMigration requires 2+ brokers
     messageMigration: true
