@@ -6465,502 +6465,649 @@ var _ = Describe("artemis controller", func() {
 		}, timeout, interval).Should(BeTrue())
 	})
 
-	It("ordinal broker properties", func() {
-		ctx := context.Background()
-		crd := generateArtemisSpec(defaultNamespace)
-		crd.Spec.DeploymentPlan.Size = 3
-		crd.Spec.BrokerProperties = []string{
-			"name=BROKER_ORDINAL_0",
-			"broker-1.name=BROKER_ORDINAL_1",
-		}
-
-		By("Deploying the CRD " + crd.ObjectMeta.Name)
-		Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
-
-		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
-			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
-
-			By("verifying started")
-			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
-			Eventually(func(g Gomega) {
-
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(3))
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
-
-				// setting name from non default amq-broker causes JMX error and unknown is expected
-				g.Expect(meta.IsStatusConditionPresentAndEqual(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType, metav1.ConditionUnknown)).Should(BeTrue())
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-
-			By("verifying ordinal config via logs")
-
-			podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
-			Eventually(func(g Gomega) {
-				stdOutContent := LogsOfPod(podWithOrdinal, crd.Name, defaultNamespace, g)
-				g.Expect(stdOutContent).Should(ContainSubstring("BROKER_ORDINAL_0"))
-				g.Expect(stdOutContent).Should(ContainSubstring("broker-0 does not exist"))
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-
-			podWithOrdinal = namer.CrToSS(crd.Name) + "-1"
-			Eventually(func(g Gomega) {
-				stdOutContent := LogsOfPod(podWithOrdinal, crd.Name, defaultNamespace, g)
-				g.Expect(stdOutContent).Should(ContainSubstring("BROKER_ORDINAL_1"))
-				g.Expect(stdOutContent).ShouldNot(ContainSubstring("broker-1 does not exist"))
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-
-			podWithOrdinal = namer.CrToSS(crd.Name) + "-2"
-			Eventually(func(g Gomega) {
-				stdOutContent := LogsOfPod(podWithOrdinal, crd.Name, defaultNamespace, g)
-				g.Expect(stdOutContent).Should(ContainSubstring("BROKER_ORDINAL_0"))
-				g.Expect(stdOutContent).Should(ContainSubstring("broker-2 does not exist"))
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-		}
-
-		By("By checking it has gone")
-		Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
-	})
-
-	It("invalid ordinal prefix broker properties", func() {
-		ctx := context.Background()
-		crd := generateArtemisSpec(defaultNamespace)
-		crd.Spec.DeploymentPlan.Size = 1
-		crd.Spec.BrokerProperties = []string{
-			"globalMaxSize=512m",
-			"broker-1globalMaxSize=612m",
-		}
-
-		By("Deploying the CRD " + crd.ObjectMeta.Name)
-		Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
-
-		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
-			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
-
-			By("verifying started")
-			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
-			Eventually(func(g Gomega) {
-
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
-
-				condition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
-				g.Expect(condition.Reason).Should(Equal(brokerv1beta1.ConfigAppliedConditionSynchedWithErrorReason))
-				g.Expect(condition.Message).Should(ContainSubstring("612m"))
-
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-		}
-
-		By("By checking it has gone")
-		Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
-	})
-
-	It("mod ordinal broker properties with error and update", func() {
-		ctx := context.Background()
-		crd := generateArtemisSpec(defaultNamespace)
-		crd.Spec.DeploymentPlan.Size = 2
-		crd.Spec.BrokerProperties = []string{
-			"globalMaxSize=512m",
-			"broker-1.populateValidatedUser=true",
-			"broker-1.nonGlobalNonExistSholdError=7",
-		}
-
-		By("Deploying the CRD " + crd.ObjectMeta.Name)
-		Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+	Context("config projection", Label("slow"), func() {
+
+		It("ordinal broker properties", func() {
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = 3
+			crd.Spec.BrokerProperties = []string{
+				"name=BROKER_ORDINAL_0",
+				"broker-1.name=BROKER_ORDINAL_1",
+			}
+
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+				createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+
+				By("verifying started")
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				Eventually(func(g Gomega) {
+
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(3))
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+
+					// setting name from non default amq-broker causes JMX error and unknown is expected
+					g.Expect(meta.IsStatusConditionPresentAndEqual(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType, metav1.ConditionUnknown)).Should(BeTrue())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				By("verifying ordinal config via logs")
+
+				podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
+				Eventually(func(g Gomega) {
+					stdOutContent := LogsOfPod(podWithOrdinal, crd.Name, defaultNamespace, g)
+					g.Expect(stdOutContent).Should(ContainSubstring("BROKER_ORDINAL_0"))
+					g.Expect(stdOutContent).Should(ContainSubstring("broker-0 does not exist"))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				podWithOrdinal = namer.CrToSS(crd.Name) + "-1"
+				Eventually(func(g Gomega) {
+					stdOutContent := LogsOfPod(podWithOrdinal, crd.Name, defaultNamespace, g)
+					g.Expect(stdOutContent).Should(ContainSubstring("BROKER_ORDINAL_1"))
+					g.Expect(stdOutContent).ShouldNot(ContainSubstring("broker-1 does not exist"))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				podWithOrdinal = namer.CrToSS(crd.Name) + "-2"
+				Eventually(func(g Gomega) {
+					stdOutContent := LogsOfPod(podWithOrdinal, crd.Name, defaultNamespace, g)
+					g.Expect(stdOutContent).Should(ContainSubstring("BROKER_ORDINAL_0"))
+					g.Expect(stdOutContent).Should(ContainSubstring("broker-2 does not exist"))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+			}
+
+			By("By checking it has gone")
+			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		})
+
+		It("invalid ordinal prefix broker properties", func() {
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = 1
+			crd.Spec.BrokerProperties = []string{
+				"globalMaxSize=512m",
+				"broker-1globalMaxSize=612m",
+			}
+
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+				createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+
+				By("verifying started")
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				Eventually(func(g Gomega) {
+
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
+
+					condition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
+					g.Expect(condition.Reason).Should(Equal(brokerv1beta1.ConfigAppliedConditionSynchedWithErrorReason))
+					g.Expect(condition.Message).Should(ContainSubstring("612m"))
+
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+			}
+
+			By("By checking it has gone")
+			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		})
+
+		It("mod ordinal broker properties with error and update", func() {
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = 2
+			crd.Spec.BrokerProperties = []string{
+				"globalMaxSize=512m",
+				"broker-1.populateValidatedUser=true",
+				"broker-1.nonGlobalNonExistSholdError=7",
+			}
+
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
-		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
-			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+				createdCrd := &brokerv1beta1.ActiveMQArtemis{}
 
-			By("verifying started")
-			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
-			Eventually(func(g Gomega) {
+				By("verifying started")
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				Eventually(func(g Gomega) {
 
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(2))
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(2))
 
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeFalse())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeFalse())
 
-				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
 
-				condition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
-				g.Expect(condition.Reason).Should(Equal(brokerv1beta1.ConfigAppliedConditionSynchedWithErrorReason))
-				g.Expect(condition.Message).Should(ContainSubstring("broker-1.broker.properties"))
+					condition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
+					g.Expect(condition.Reason).Should(Equal(brokerv1beta1.ConfigAppliedConditionSynchedWithErrorReason))
+					g.Expect(condition.Message).Should(ContainSubstring("broker-1.broker.properties"))
 
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
-			// update to verify config applied
+				// update to verify config applied
 
-			Eventually(func(g Gomega) {
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
 
-				createdCrd.Spec.BrokerProperties = []string{
-					"globalMaxSize=512m",
-					"broker-1.populateValidatedUser=true",
-					"broker-1.globalMaxSize=612m",
-				}
+					createdCrd.Spec.BrokerProperties = []string{
+						"globalMaxSize=512m",
+						"broker-1.populateValidatedUser=true",
+						"broker-1.globalMaxSize=612m",
+					}
 
-				g.Expect(k8sClient.Update(ctx, createdCrd)).Should(Succeed())
-			}, timeout, interval).Should(Succeed())
+					g.Expect(k8sClient.Update(ctx, createdCrd)).Should(Succeed())
+				}, timeout, interval).Should(Succeed())
 
-			Eventually(func(g Gomega) {
+				Eventually(func(g Gomega) {
 
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(2))
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(2))
 
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
 
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
 
-			}, existingClusterTimeout, existingClusterInterval*5).Should(Succeed())
-		}
+				}, existingClusterTimeout, existingClusterInterval*5).Should(Succeed())
+			}
 
-		By("By checking it has gone")
-		Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
-	})
+			By("By checking it has gone")
+			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		})
 
-	It("extraMount.configMap projection update", func() {
+		It("extraMount.configMap projection update", func() {
 
-		ctx := context.Background()
-		crd := generateArtemisSpec(defaultNamespace)
-		crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-			InitialDelaySeconds: 2,
-			TimeoutSeconds:      5,
-			PeriodSeconds:       5,
-		}
-		crd.Spec.DeploymentPlan.Size = 1
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
+				InitialDelaySeconds: 2,
+				TimeoutSeconds:      5,
+				PeriodSeconds:       5,
+			}
+			crd.Spec.DeploymentPlan.Size = 1
 
-		configMap := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "k8s.io.api.core.v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:         "jaas-bits",
-				GenerateName: "",
-				Namespace:    crd.ObjectMeta.Namespace,
-			},
-			// mutable
-		}
+			configMap := &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: "k8s.io.api.core.v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:         "jaas-bits",
+					GenerateName: "",
+					Namespace:    crd.ObjectMeta.Namespace,
+				},
+				// mutable
+			}
 
-		configMap.Data = map[string]string{"a.props": "a=a1"}
+			configMap.Data = map[string]string{"_a.props": "a=a1"}
 
-		crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{configMap.Name}
+			crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{configMap.Name}
 
-		By("Deploying the configMap " + configMap.ObjectMeta.Name)
-		Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
+			By("Deploying the configMap " + configMap.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
 
-		By("Deploying the CRD " + crd.ObjectMeta.Name)
-		Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
-		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
-			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+				createdCrd := &brokerv1beta1.ActiveMQArtemis{}
 
-			By("verifying started")
-			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
-			Eventually(func(g Gomega) {
+				By("verifying started")
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				Eventually(func(g Gomega) {
 
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
 
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
-			By("verifying content of configmap props")
-			podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
-			command := []string{"cat", "/amq/extra/configmaps/jaas-bits/a.props"}
-			statCommand := []string{"stat", "/amq/extra/configmaps/jaas-bits/"}
+				By("verifying content of configmap props")
+				podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
+				command := []string{"cat", "/amq/extra/configmaps/jaas-bits/_a.props"}
+				statCommand := []string{"stat", "/amq/extra/configmaps/jaas-bits/"}
 
-			Eventually(func(g Gomega) {
-				stdOutContent := ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, command, g)
-				g.Expect(stdOutContent).Should(ContainSubstring("a1"))
+				Eventually(func(g Gomega) {
+					stdOutContent := ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, command, g)
+					g.Expect(stdOutContent).Should(ContainSubstring("a1"))
 
-				stdOutContent = ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, statCommand, g)
-				if verbose {
-					fmt.Printf("\na1 - Stat:\n" + stdOutContent)
-				}
+					stdOutContent = ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, statCommand, g)
+					if verbose {
+						fmt.Printf("\na1 - Stat:\n" + stdOutContent)
+					}
 
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
-			By("updating config map")
-			createdConfigMap := &corev1.ConfigMap{}
-			configMapKey := types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}
-			Eventually(func(g Gomega) {
+				By("updating config map")
+				createdConfigMap := &corev1.ConfigMap{}
+				configMapKey := types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}
+				Eventually(func(g Gomega) {
 
-				g.Expect(k8sClient.Get(ctx, configMapKey, createdConfigMap)).Should(Succeed())
-				createdConfigMap.Data = map[string]string{"a.props": "a=a2"}
+					g.Expect(k8sClient.Get(ctx, configMapKey, createdConfigMap)).Should(Succeed())
+					createdConfigMap.Data = map[string]string{"_a.props": "a=a2"}
 
-				g.Expect(k8sClient.Update(ctx, createdConfigMap)).Should(Succeed())
+					g.Expect(k8sClient.Update(ctx, createdConfigMap)).Should(Succeed())
 
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
-			By("verifying updated content of configmap props")
+				By("verifying updated content of configmap props")
 
-			Eventually(func(g Gomega) {
-				stdOutContent := ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, command, g)
-				g.Expect(stdOutContent).Should(ContainSubstring("a2"))
+				Eventually(func(g Gomega) {
+					stdOutContent := ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, command, g)
+					g.Expect(stdOutContent).Should(ContainSubstring("a2"))
 
-				stdOutContent = ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, statCommand, g)
-				if verbose {
-					fmt.Printf("\na2 - Stat:\n" + stdOutContent)
-				}
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+					stdOutContent = ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, statCommand, g)
+					if verbose {
+						fmt.Printf("\na2 - Stat:\n" + stdOutContent)
+					}
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
-		}
+			}
 
-		By("By checking it has gone")
-		Expect(k8sClient.Delete(ctx, configMap)).To(Succeed())
-		Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
-	})
+			By("By checking it has gone")
+			Expect(k8sClient.Delete(ctx, configMap)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		})
 
-	It("extraMount.configMap x-jaas-config update status", func() {
+		It("extraMount.secret x-jaas-config single realm update status", func() {
 
-		ctx := context.Background()
-		crd := generateArtemisSpec(defaultNamespace)
-		crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-			InitialDelaySeconds: 2,
-			TimeoutSeconds:      5,
-			PeriodSeconds:       5,
-		}
-		crd.Spec.DeploymentPlan.Size = 1
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = 1
 
-		loggingConfigMapName := "my-logging-config"
-		loggingData := make(map[string]string)
-		loggingData["logging.properties"] = `appender.stdout.name = STDOUT
+			loggingConfigMapName := "my-logging-config"
+			loggingData := make(map[string]string)
+			loggingData["logging.properties"] = `appender.stdout.name = STDOUT
 		appender.stdout.type = Console
 		rootLogger = info, STDOUT
 		logger.activemq.name=org.apache.activemq.artemis.spi.core.security.jaas
         logger.activemq.level=TRACE
 `
 
-		loggingConfigMap := configmaps.MakeConfigMap(defaultNamespace, loggingConfigMapName, loggingData)
-		Eventually(func(g Gomega) {
-			g.Expect(k8sClient.Create(ctx, loggingConfigMap, &client.CreateOptions{})).Should(Succeed())
-		}, timeout, interval).Should(Succeed())
+			loggingConfigMap := configmaps.MakeConfigMap(defaultNamespace, loggingConfigMapName, loggingData)
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Create(ctx, loggingConfigMap, &client.CreateOptions{})).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
 
-		configMap := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "k8s.io.api.core.v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "x-jaas-config",
-				Namespace: crd.ObjectMeta.Namespace,
-			},
-			// mutable
-		}
+			secret := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "k8s.io.api.core.v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "x-jaas-config",
+					Namespace: crd.ObjectMeta.Namespace,
+				},
+				// mutable
+			}
 
-		crd.Spec.AdminUser = "admin"
-		crd.Spec.AdminPassword = "admin"
+			userPropsKey := "users.properties"
 
-		userPropsKey := "users.properties"
+			loginPropsKey := "login.config"
+			secret.StringData = map[string]string{loginPropsKey: `
+		    // a full login.config, property files with unique names to match keys
+		    activemq {
+			    org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule sufficient
+					reload=true
+					debug=true
+					org.apache.activemq.jaas.properties.user="users.properties"
+					org.apache.activemq.jaas.properties.role="roles.properties";
 
-		loginPropsKey := "login.config"
-		configMap.Data = map[string]string{loginPropsKey: `activemq {
-			org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule required
-			reload=true
-			debug=true
-			org.apache.activemq.jaas.properties.user="users.properties"
-			org.apache.activemq.jaas.properties.role="roles.properties";
+				// ensure the operator can connect to the broker by referencing the existing properties config
+				// operatorAuth = plain
+				org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule sufficient
+					reload=false
+					org.apache.activemq.jaas.properties.user="artemis-users.properties"
+					org.apache.activemq.jaas.properties.role="artemis-roles.properties"
+					baseDir="/home/jboss/amq-broker/etc";
+
 			};`,
-			userPropsKey: `admin=admin
+				userPropsKey: `
 			tom=tom
 			peter=peter`,
-			"roles.properties": `admin=admin,amq,joe`,
-		}
+				"roles.properties": `admin=joe`, // this is a cheat to allow joe, when added as a user, to access the DLQ
+			}
 
-		// extra bits - not read by the broker - won't be in brokerStatus
-		configMap.Data["a.props"] = "a=a1"
+			// extra bits - prefixed with '_' not read by the broker - won't be in brokerStatus
+			secret.StringData["_a.props"] = "a=a1"
 
-		crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{configMap.Name, loggingConfigMapName}
+			crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{loggingConfigMapName}
+			crd.Spec.DeploymentPlan.ExtraMounts.Secrets = []string{secret.Name}
 
-		By("Deploying the configMap " + configMap.ObjectMeta.Name)
-		Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
+			By("Deploying the jaas secret " + secret.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 
-		By("Deploying the CRD " + crd.ObjectMeta.Name)
-		Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
-		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
-			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
-			var originalResourceVersion string
-			var updatedResourceVersion string
+				createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+				var originalResourceVersion string
+				var updatedResourceVersion string
 
-			By("verifying via status")
-			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				By("verifying via status")
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				Eventually(func(g Gomega) {
+
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
+
+					ConfigAppliedCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
+					g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionSynchedReason))
+
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeTrue())
+
+					ConfigAppliedCondition = meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)
+					g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionSynchedReason))
+
+					g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
+					g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("x"))
+
+					originalResourceVersion = createdCrd.Status.ExternalConfigs[0].ResourceVersion
+
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				By("updating custom map with new user joe")
+				createdSecret := &corev1.Secret{}
+				secretName := types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}
+				Eventually(func(g Gomega) {
+
+					g.Expect(k8sClient.Get(ctx, secretName, createdSecret)).Should(Succeed())
+
+					createdSecret.Data[userPropsKey] = []byte(`tom=tom
+				peter=peter
+				joe=joe`)
+
+					g.Expect(k8sClient.Update(ctx, createdSecret)).Should(Succeed())
+
+					g.Expect(k8sClient.Get(ctx, secretName, createdSecret)).Should(Succeed())
+					updatedResourceVersion = createdSecret.ResourceVersion
+					g.Expect(updatedResourceVersion).ShouldNot(Equal(originalResourceVersion))
+
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				By("forcing a new login to reload custom user")
+
+				podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
+				command := []string{"amq-broker/bin/artemis", "producer", "--user", "joe", "--password", "joe", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--destination", "queue://DLQ", "--verbose"}
+
+				Eventually(func(g Gomega) {
+					stdOutContent := ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, command, g)
+					g.Expect(stdOutContent).Should(ContainSubstring("Produced: 1 messages"))
+				}, existingClusterTimeout, existingClusterInterval*2).Should(Succeed())
+
+				By("verifying updated content via status in sync")
+
+				Eventually(func(g Gomega) {
+
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+
+					g.Expect(createdCrd.Status.ExternalConfigs[0].ResourceVersion).Should(BeEquivalentTo(updatedResourceVersion))
+					g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
+					g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("x"))
+
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeTrue())
+
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				By("verify extra config status after projection update of non referenced key, the only status update is extraConfig")
+				originalResourceVersion = updatedResourceVersion
+				Eventually(func(g Gomega) {
+
+					g.Expect(k8sClient.Get(ctx, secretName, createdSecret)).Should(Succeed())
+
+					createdSecret.Data["_a.props"] = []byte(`a=a2`)
+
+					g.Expect(k8sClient.Update(ctx, createdSecret)).Should(Succeed())
+					g.Expect(k8sClient.Get(ctx, secretName, createdSecret)).Should(Succeed())
+					updatedResourceVersion = createdSecret.ResourceVersion
+					g.Expect(updatedResourceVersion).ShouldNot(Equal(originalResourceVersion))
+
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				Eventually(func(g Gomega) {
+
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+
+					g.Expect(createdCrd.Status.ExternalConfigs[0].ResourceVersion).Should(BeEquivalentTo(updatedResourceVersion))
+					g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
+					g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("x"))
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeTrue())
+
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+			}
+
+			Expect(k8sClient.Delete(ctx, loggingConfigMap)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		})
+
+		It("extraMount.secret y-jaas-config mgmt realm ok connect and status check", func() {
+
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = 1
+
+			loggingConfigMapName := "my-logging-config-y"
+			loggingData := make(map[string]string)
+			loggingData["logging.properties"] = `appender.stdout.name = STDOUT
+		appender.stdout.type = Console
+		rootLogger = info, STDOUT
+		logger.activemq.name=org.apache.activemq.artemis.spi.core.security.jaas
+        logger.activemq.level=TRACE
+`
+
+			loggingConfigMap := configmaps.MakeConfigMap(defaultNamespace, loggingConfigMapName, loggingData)
 			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Create(ctx, loggingConfigMap, &client.CreateOptions{})).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
 
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+			secret := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "k8s.io.api.core.v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "y-jaas-config",
+					Namespace: crd.ObjectMeta.Namespace,
+				},
+			}
 
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+			userPropsKey := "users.properties"
 
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
+			loginPropsKey := "login.config"
+			secret.StringData = map[string]string{loginPropsKey: `
+		    // a full login.config
+		    activemq {
+			    org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule required
+					reload=true
+					debug=true
+					org.apache.activemq.jaas.properties.user="users.properties"
+					org.apache.activemq.jaas.properties.role="roles.properties";
+			};
 
-				ConfigAppliedCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
-				g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionSynchedReason))
+			console {
 
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeTrue())
+				// ensure the operator can connect to the mgmt console by referencing the existing properties config
+				// operatorAuth = plain
+				// hawtio.realm = console
+				org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule required
+					reload=true
+					debug=true
+					org.apache.activemq.jaas.properties.user="artemis-users.properties"
+					org.apache.activemq.jaas.properties.role="artemis-roles.properties"
+					baseDir="/home/jboss/amq-broker/etc";
 
-				ConfigAppliedCondition = meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)
-				g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionSynchedReason))
+			};`,
+				userPropsKey:       `tom=tom`,
+				"roles.properties": `admin=tom`,
+			}
 
-				g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
-				g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("x"))
+			crd.Spec.Env = []corev1.EnvVar{
+				{Name: "JAVA_ARGS_APPEND", Value: "-Dhawtio.realm=console"},
+			}
 
-				originalResourceVersion = createdCrd.Status.ExternalConfigs[0].ResourceVersion
+			crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{loggingConfigMapName}
+			crd.Spec.DeploymentPlan.ExtraMounts.Secrets = []string{secret.Name}
 
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+			By("Deploying the jaas secret " + secret.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
 
-			By("updating custom map with new user joe")
-			createdConfigMap := &corev1.ConfigMap{}
-			configMapKey := types.NamespacedName{Name: configMap.Name, Namespace: configMap.Namespace}
-			Eventually(func(g Gomega) {
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
-				g.Expect(k8sClient.Get(ctx, configMapKey, createdConfigMap)).Should(Succeed())
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
-				createdConfigMap.Data[userPropsKey] = createdConfigMap.Data[userPropsKey] + `
-				joe=joe`
+				createdCrd := &brokerv1beta1.ActiveMQArtemis{}
 
-				g.Expect(k8sClient.Update(ctx, createdConfigMap)).Should(Succeed())
+				By("verifying ready status")
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				Eventually(func(g Gomega) {
 
-				g.Expect(k8sClient.Get(ctx, configMapKey, createdConfigMap)).Should(Succeed())
-				updatedResourceVersion = createdConfigMap.ResourceVersion
-				g.Expect(updatedResourceVersion).ShouldNot(Equal(originalResourceVersion))
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
 
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
 
-			By("verifying updated content via status out of sync")
+					// secret won't be visible till activemq realm is exercised
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeFalse())
 
-			Eventually(func(g Gomega) {
+					fmt.Printf("\nSTATUS: %v\n", createdCrd.Status)
 
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
-				g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
-				g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("x"))
+				By("forcing a new login to exercise activemq realm")
 
-				g.Expect(createdCrd.Status.ExternalConfigs[0].ResourceVersion).Should(BeEquivalentTo(updatedResourceVersion))
+				podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
+				command := []string{"amq-broker/bin/artemis", "producer", "--user", "tom", "--password", "tom", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--destination", "queue://DLQ", "--verbose"}
 
-				// reload=true but it is done on demand, so will require a login attempt to trigger
-				// however the jolokia auth request will be sufficient... but that result is cached
-				// we can use that to validate out of sync
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeFalse())
+				Eventually(func(g Gomega) {
+					stdOutContent := ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, command, g)
+					g.Expect(stdOutContent).Should(ContainSubstring("Produced: 1 messages"))
+				}, existingClusterTimeout, existingClusterInterval*2).Should(Succeed())
 
-				ConfigAppliedCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)
-				g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionOutOfSyncReason))
-				g.Expect(ConfigAppliedCondition.Message).To(ContainSubstring(userPropsKey))
+				By("verifying via status")
+				Eventually(func(g Gomega) {
 
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
 
-			By("forcing a new login to reload custom user")
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
 
-			podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
-			command := []string{"amq-broker/bin/artemis", "producer", "--user", "joe", "--password", "joe", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--destination", "queue://DLQ", "--verbose"}
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)).Should(BeTrue())
 
-			Eventually(func(g Gomega) {
-				stdOutContent := ExecOnPod(podWithOrdinal, crd.Name, defaultNamespace, command, g)
-				g.Expect(stdOutContent).Should(ContainSubstring("Produced: 1 messages"))
-			}, existingClusterTimeout, existingClusterInterval*2).Should(Succeed())
+					ConfigAppliedCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.ConfigAppliedConditionType)
+					g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionSynchedReason))
 
-			By("verifying updated content via status in sync")
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeTrue())
 
-			Eventually(func(g Gomega) {
+					ConfigAppliedCondition = meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)
+					g.Expect(ConfigAppliedCondition.Reason).To(Equal(brokerv1beta1.ConfigAppliedConditionSynchedReason))
 
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+					g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
+					g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("y"))
 
-				g.Expect(createdCrd.Status.ExternalConfigs[0].ResourceVersion).Should(BeEquivalentTo(updatedResourceVersion))
-				g.Expect(len(createdCrd.Status.ExternalConfigs)).Should(BeEquivalentTo(1))
-				g.Expect(createdCrd.Status.ExternalConfigs[0].Name).Should(ContainSubstring("x"))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeTrue())
+			}
 
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-		}
+			Expect(k8sClient.Delete(ctx, loggingConfigMap)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		})
 
-		Expect(k8sClient.Delete(ctx, loggingConfigMap)).To(Succeed())
-		Expect(k8sClient.Delete(ctx, configMap)).To(Succeed())
-		Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		It("extraMount.configMap logging config manually", func() {
+
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
+				InitialDelaySeconds: 2,
+				TimeoutSeconds:      5,
+				PeriodSeconds:       5,
+			}
+			crd.Spec.DeploymentPlan.Size = 1
+
+			configMap := &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: "k8s.io.api.core.v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:         crd.Name + "-loggingconfg", // note extramounts "-logging-confg" postfix awareness trumps this
+					GenerateName: "",
+					Namespace:    crd.ObjectMeta.Namespace,
+				},
+				// mutable
+			}
+
+			customLogFilePropertiesFileName := "customLogging.properties"
+			configMap.Data = map[string]string{
+				customLogFilePropertiesFileName: "appender.stdout.name = STDOUT\nappender.stdout.type = Console\nrootLogger = INFO, STDOUT",
+			}
+
+			crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{configMap.Name}
+			crd.Spec.Env = []corev1.EnvVar{
+				{Name: "JAVA_ARGS_APPEND", Value: "-Dlog4j2.configurationFile=file:/amq/extra/configmaps/" + configMap.Name + "/" + customLogFilePropertiesFileName},
+			}
+
+			By("Deploying the configMap " + configMap.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
+
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+
+				createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+
+				By("verifying started")
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				Eventually(func(g Gomega) {
+
+					g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+					g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				By("verifying logging via custom map")
+				podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
+
+				Eventually(func(g Gomega) {
+					stdOutContent := LogsOfPod(podWithOrdinal, crd.Name, defaultNamespace, g)
+					if verbose {
+						fmt.Printf("\nLOG of Pod:\n" + stdOutContent)
+					}
+					g.Expect(stdOutContent).ShouldNot(ContainSubstring("INFO"))
+					g.Expect(stdOutContent).ShouldNot(ContainSubstring("broker-0 does not exist"))
+
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+			}
+
+			By("By checking it has gone")
+			Expect(k8sClient.Delete(ctx, configMap)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		})
+
 	})
-
-	It("extraMount.configMap logging config manually", func() {
-
-		ctx := context.Background()
-		crd := generateArtemisSpec(defaultNamespace)
-		crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
-			InitialDelaySeconds: 2,
-			TimeoutSeconds:      5,
-			PeriodSeconds:       5,
-		}
-		crd.Spec.DeploymentPlan.Size = 1
-
-		configMap := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "k8s.io.api.core.v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:         crd.Name + "-loggingconfg", // note extramounts "-logging-confg" postfix awareness trumps this
-				GenerateName: "",
-				Namespace:    crd.ObjectMeta.Namespace,
-			},
-			// mutable
-		}
-
-		customLogFilePropertiesFileName := "customLogging.properties"
-		configMap.Data = map[string]string{
-			customLogFilePropertiesFileName: "appender.stdout.name = STDOUT\nappender.stdout.type = Console\nrootLogger = INFO, STDOUT",
-		}
-
-		crd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{configMap.Name}
-		crd.Spec.Env = []corev1.EnvVar{
-			{Name: "JAVA_ARGS_APPEND", Value: "-Dlog4j2.configurationFile=file:/amq/extra/configmaps/" + configMap.Name + "/" + customLogFilePropertiesFileName},
-		}
-
-		By("Deploying the configMap " + configMap.ObjectMeta.Name)
-		Expect(k8sClient.Create(ctx, configMap)).Should(Succeed())
-
-		By("Deploying the CRD " + crd.ObjectMeta.Name)
-		Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
-
-		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
-
-			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
-
-			By("verifying started")
-			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
-			Eventually(func(g Gomega) {
-
-				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				g.Expect(len(createdCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
-
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-
-			By("verifying logging via custom map")
-			podWithOrdinal := namer.CrToSS(crd.Name) + "-0"
-
-			Eventually(func(g Gomega) {
-				stdOutContent := LogsOfPod(podWithOrdinal, crd.Name, defaultNamespace, g)
-				if verbose {
-					fmt.Printf("\nLOG of Pod:\n" + stdOutContent)
-				}
-				g.Expect(stdOutContent).ShouldNot(ContainSubstring("INFO"))
-				g.Expect(stdOutContent).ShouldNot(ContainSubstring("broker-0 does not exist"))
-
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-		}
-
-		By("By checking it has gone")
-		Expect(k8sClient.Delete(ctx, configMap)).To(Succeed())
-		Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
-	})
-
 })
 
 func newArtemisSpecWithFastProbes() brokerv1beta1.ActiveMQArtemisSpec {
@@ -7053,6 +7200,7 @@ func nameFromTest() string {
 	name = strings.ReplaceAll(name, ")", "")
 	name = strings.ReplaceAll(name, "/", "")
 	name = strings.ReplaceAll(name, "_", "")
+	name = strings.ReplaceAll(name, "-", "")
 
 	// track the test count as there may be many crs per test
 	testCount++

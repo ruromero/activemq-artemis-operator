@@ -2462,10 +2462,7 @@ func createExtraConfigmapsAndSecrets(brokerContainer *corev1.Container, configMa
 			if _, isBrokerProperties := brokerPropsData[BrokerPropertiesName]; isBrokerProperties && len(brokerPropsData) > 1 {
 				// place ordinal data in subpath
 				for key := range brokerPropsData {
-					prefixIndex := strings.Index(key, OrdinalPrefix)
-					separatorIndex := strings.Index(key, OrdinalPrefixSep)
-
-					if prefixIndex == 0 && separatorIndex > len(OrdinalPrefix) {
+					if hasOrdinal, separatorIndex := extractOrdinalPrefixSeperatorIndex(key); hasOrdinal {
 						subPath := key[:separatorIndex]
 						secretVol.VolumeSource.Secret.Items = append(secretVol.VolumeSource.Secret.Items, corev1.KeyToPath{Key: key, Path: fmt.Sprintf("%s/%s", subPath, key)})
 					} else {
@@ -2480,6 +2477,17 @@ func createExtraConfigmapsAndSecrets(brokerContainer *corev1.Container, configMa
 	}
 
 	return extraVolumes, extraVolumeMounts
+}
+
+func extractOrdinalPrefixSeperatorIndex(key string) (bool, int) {
+
+	prefixIndex := strings.Index(key, OrdinalPrefix)
+	separatorIndex := strings.Index(key, OrdinalPrefixSep)
+
+	if prefixIndex == 0 && separatorIndex > len(OrdinalPrefix) {
+		return true, separatorIndex
+	}
+	return false, -1
 }
 
 func (reconciler *ActiveMQArtemisReconcilerImpl) NewStatefulSetForCR(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, currentStateFullSet *appsv1.StatefulSet, client rtclient.Client) (*appsv1.StatefulSet, error) {
@@ -2882,12 +2890,16 @@ func AssertJaasPropertiesStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclie
 		return NewUnknownJolokiaError(err)
 	}
 
-	updateExtraConfigStatus(cr, Projection)
-
-	return checkStatus(cr, client, Projection, func(BrokerStatus brokerStatus, FileName string) (propertiesStatus, bool) {
+	statusError := checkStatus(cr, client, Projection, func(BrokerStatus brokerStatus, FileName string) (propertiesStatus, bool) {
 		current, present := BrokerStatus.ServerStatus.Jaas.PropertiesStatus[FileName]
 		return current, present
 	})
+
+	if statusError == nil {
+		updateExtraConfigStatus(cr, Projection)
+	}
+
+	return statusError
 }
 
 func checkStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, Projection *projection, extractStatus func(BrokerStatus brokerStatus, FileName string) (propertiesStatus, bool)) ArtemisError {
@@ -2913,7 +2925,7 @@ func checkStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, Proj
 		currentJson, err := jk.Artemis.GetStatus()
 
 		if err != nil {
-			reqLogger.Info("unknown status reported from Jolokia.", "IP", jk.IP, "Ordinal", jk.Ordinal)
+			reqLogger.Info("unknown status reported from Jolokia.", "IP", jk.IP, "Ordinal", jk.Ordinal, "error", err)
 			return NewUnknownJolokiaError(err)
 		}
 
@@ -2927,12 +2939,18 @@ func checkStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, Proj
 
 		var current propertiesStatus
 		var present bool
+		missingKeys := []string{}
+
 		for name, file := range Projection.Files {
 
 			current, present = extractStatus(brokerStatus, name)
 
 			if !present {
 				// with ordinal prefix or extras in the map this can be the case
+				isForOrdinal, _ := extractOrdinalPrefixSeperatorIndex(name)
+				if !(name == "login.config" || strings.HasPrefix(name, "_") || isForOrdinal) {
+					missingKeys = append(missingKeys, name)
+				}
 				continue
 			}
 
@@ -2947,6 +2965,13 @@ func checkStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, Proj
 				reqLogger.Info("status out of sync for "+name, "expected", file, "current", current)
 				return NewStatusOutOfSyncErrorWith(name, file.Alder32, current.Alder32)
 			}
+		}
+
+		if len(missingKeys) > 0 {
+			message := fmt.Sprintf("Status out of sync - missing status entry for keys: %v", missingKeys)
+			err = errors.New(message)
+			reqLogger.Info(message, "status", brokerStatus, "tracked", Projection)
+			return NewStatusOutOfSyncError(err)
 		}
 
 		// all in sync, check for apply errors

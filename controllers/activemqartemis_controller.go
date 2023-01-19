@@ -418,6 +418,19 @@ func UpdateCRStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, n
 		return err
 	}
 
+	if len(cr.Status.ExternalConfigs) != len(current.Status.ExternalConfigs) {
+		return resources.UpdateStatus(client, cr)
+	}
+	if len(cr.Status.ExternalConfigs) >= 0 {
+		for _, cfg := range cr.Status.ExternalConfigs {
+			for _, curCfg := range current.Status.ExternalConfigs {
+				if curCfg.Name == cfg.Name && curCfg.ResourceVersion != cfg.ResourceVersion {
+					return resources.UpdateStatus(client, cr)
+				}
+			}
+		}
+	}
+
 	if !reflect.DeepEqual(current.Status.PodStatus, cr.Status.PodStatus) {
 		return resources.UpdateStatus(client, cr)
 	}
