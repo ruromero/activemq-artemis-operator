@@ -33,7 +33,7 @@ spec:
                 description: Triggered by main ActiveMQArtemis CRD messageMigration entry
                 type: boolean
               resources:
-                description: Limits describes the minimum/maximum amount of compute resources required/allowed
+                description: Specifies the minimum/maximum amount of compute resources required/allowed
                 properties:
                   limits:
                     additionalProperties:

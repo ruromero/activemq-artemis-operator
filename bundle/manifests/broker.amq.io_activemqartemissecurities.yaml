@@ -392,11 +392,11 @@ spec:
                       type: object
                     type: array
                   keycloakLoginModules:
-                    description: Specifies the keycloak login modules
+                    description: Specifies the Keycloak login modules
                     items:
                       properties:
                         configuration:
-                          description: Specifies the keycloak module configuration
+                          description: Specifies the Keycloak module configuration
                           properties:
                             allowAnyHostName:
                               description: If to allow any host name
@@ -449,8 +449,8 @@ spec:
                               items:
                                 properties:
                                   key:
-                                    description: The regular expression to which the
-                                      Redirect URI is to be matched
+                                    description: The regular expression to match the
+                                      Redirect URI
                                     type: string
                                   value:
                                     description: The replacement value
@@ -504,8 +504,8 @@ spec:
                               items:
                                 properties:
                                   key:
-                                    description: The regular expression to which the
-                                      Redirect URI is to be matched
+                                    description: The regular expression to match the
+                                      Redirect URI
                                     type: string
                                   value:
                                     description: The replacement value
@@ -701,10 +701,10 @@ spec:
                             items:
                               properties:
                                 method:
-                                  description: The method of the access entry
+                                  description: Specifies the access entry method
                                   type: string
                                 roles:
-                                  description: The roles of the access entry
+                                  description: Specifies the access entry roles
                                   items:
                                     type: string
                                   type: array
@@ -719,10 +719,10 @@ spec:
                                   items:
                                     properties:
                                       method:
-                                        description: The method of the access entry
+                                        description: Specifies the access entry method
                                         type: string
                                       roles:
-                                        description: The roles of the access entry
+                                        description: Specifies the access entry roles
                                         items:
                                           type: string
                                         type: array
@@ -738,7 +738,7 @@ spec:
                             type: array
                         type: object
                       connector:
-                        description: Specify the connector configurations
+                        description: Specify connector configurations
                         properties:
                           authenticatorType:
                             description: The management authentication type

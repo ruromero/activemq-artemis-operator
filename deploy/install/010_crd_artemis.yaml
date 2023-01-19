@@ -43,7 +43,7 @@ spec:
             description: ActiveMQArtemisSpec defines the desired state of ActiveMQArtemis
             properties:
               acceptors:
-                description: Specifies the acceptors
+                description: Specifies the acceptor configuration
                 items:
                   properties:
                     amqpMinLargeMessageSize:
@@ -74,7 +74,7 @@ spec:
                       description: To indicate which kind of routing type to use
                       type: string
                     name:
-                      description: Name of the acceptor
+                      description: The acceptor name
                       type: string
                     needClientAuth:
                       description: Tells a client connecting to this acceptor that 2-way SSL is required. This property takes precedence over wantClientAuth.
@@ -365,7 +365,7 @@ spec:
                   type: string
                 type: array
               connectors:
-                description: Specifies the connectors
+                description: Specifies connectors and connector configuration
                 items:
                   properties:
                     enabledCipherSuites:
@@ -427,7 +427,7 @@ spec:
                   type: object
                 type: array
               console:
-                description: Specifies the console configurations
+                description: Specifies the console configuration
                 properties:
                   expose:
                     description: Whether or not to expose this port
@@ -446,7 +446,7 @@ spec:
                 description: Specifies the deployment plan
                 properties:
                   affinity:
-                    description: Specifies the affinity configurations
+                    description: Specifies affinity configuration
                     properties:
                       nodeAffinity:
                         description: Describes node affinity scheduling rules for the pod.
@@ -918,15 +918,15 @@ spec:
                     description: Whether or not to install the artemis metrics plugin
                     type: boolean
                   extraMounts:
-                    description: Specifies the extra mounts
+                    description: Specifies extra mounts
                     properties:
                       configMaps:
-                        description: Specifies the ConfigMap names
+                        description: Specifies ConfigMap names
                         items:
                           type: string
                         type: array
                       secrets:
-                        description: Specifies the Secret names
+                        description: Specifies Secret names
                         items:
                           type: string
                         type: array
@@ -949,7 +949,7 @@ spec:
                     description: Assign labels to a broker pod, the keys `ActiveMQArtemis` and `application` are not allowed
                     type: object
                   livenessProbe:
-                    description: Specifies the liveness probe configurations
+                    description: Specifies the liveness probe configuration
                     properties:
                       exec:
                         description: Exec specifies the action to take.
@@ -1210,7 +1210,7 @@ spec:
                         type: object
                     type: object
                   readinessProbe:
-                    description: Specifies the readiness probe configurations
+                    description: Specifies the readiness probe configuration
                     properties:
                       exec:
                         description: Exec specifies the action to take.
@@ -1315,7 +1315,7 @@ spec:
                     description: If true require user password login credentials for broker protocol ports
                     type: boolean
                   resources:
-                    description: Limits describes the minimum/maximum amount of compute resources required/allowed
+                    description: Specifies the minimum/maximum amount of compute resources required/allowed
                     properties:
                       limits:
                         additionalProperties:

@@ -40,13 +40,13 @@ type ActiveMQArtemisSpec struct {
 	// Specifies the deployment plan
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Deployment Plan"
 	DeploymentPlan DeploymentPlanType `json:"deploymentPlan,omitempty"`
-	// Specifies the acceptors
+	// Specifies the acceptor configuration
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Acceptors"
 	Acceptors []AcceptorType `json:"acceptors,omitempty"`
-	// Specifies the connectors
+	// Specifies connectors and connector configuration
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Connectors"
 	Connectors []ConnectorType `json:"connectors,omitempty"`
-	// Specifies the console configurations
+	// Specifies the console configuration
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Console Configurations"
 	Console ConsoleType `json:"console,omitempty"`
 	// The version of the broker deployment.
@@ -304,7 +304,7 @@ type DeploymentPlanType struct {
 	//If true migrate messages on scaledown
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MessageMigration",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	MessageMigration *bool `json:"messageMigration,omitempty"`
-	// Limits describes the minimum/maximum amount of compute resources required/allowed
+	// Specifies the minimum/maximum amount of compute resources required/allowed
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Resource Requirements",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:resourceRequirements"}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 	// Specifies the storage configurations
@@ -316,7 +316,7 @@ type DeploymentPlanType struct {
 	// If true enable the management role based access control
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ManagementRBACEnabled",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	ManagementRBACEnabled bool `json:"managementRBACEnabled,omitempty"`
-	// Specifies the extra mounts
+	// Specifies extra mounts
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Extra Mounts"
 	ExtraMounts ExtraMountsType `json:"extraMounts,omitempty"`
 	// Whether broker is clustered
@@ -325,10 +325,10 @@ type DeploymentPlanType struct {
 	// Specifies the pod security configurations
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Pod Security Configurations"
 	PodSecurity PodSecurityType `json:"podSecurity,omitempty"`
-	// Specifies the liveness probe configurations
+	// Specifies the liveness probe configuration
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Liveness Probe Configurations"
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
-	// Specifies the readiness probe configurations
+	// Specifies the readiness probe configuration
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Readiness Probe Configurations"
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 	// Whether or not to install the artemis metrics plugin
@@ -343,7 +343,7 @@ type DeploymentPlanType struct {
 	// Specifies the node selector
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Node Selector",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:selector"}
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-	// Specifies the affinity configurations
+	// Specifies affinity configuration
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Affinity Configurations"
 	Affinity AffinityConfig `json:"affinity,omitempty"`
 	// Specifies the pod security context
@@ -383,10 +383,10 @@ type PodSecurityType struct {
 }
 
 type ExtraMountsType struct {
-	// Specifies the ConfigMap names
+	// Specifies ConfigMap names
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ConfigMap Names"
 	ConfigMaps []string `json:"configMaps,omitempty"`
-	// Specifies the Secret names
+	// Specifies Secret names
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Secret Names"
 	Secrets []string `json:"secrets,omitempty"`
 }
@@ -401,7 +401,7 @@ type StorageType struct {
 }
 
 type AcceptorType struct {
-	// Name of the acceptor
+	// The acceptor name
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Name",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Name string `json:"name"`
 	// Port number

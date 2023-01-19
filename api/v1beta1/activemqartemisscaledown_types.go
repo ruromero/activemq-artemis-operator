@@ -32,7 +32,7 @@ type ActiveMQArtemisScaledownSpec struct {
 	// Triggered by main ActiveMQArtemis CRD messageMigration entry
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Temporary",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	LocalOnly bool `json:"localOnly"`
-	// Limits describes the minimum/maximum amount of compute resources required/allowed
+	// Specifies the minimum/maximum amount of compute resources required/allowed
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Resource Requirements",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:resourceRequirements"}
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
 }

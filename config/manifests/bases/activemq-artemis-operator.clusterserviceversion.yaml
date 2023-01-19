@@ -17,7 +17,7 @@ spec:
       kind: ActiveMQArtemisScaledown
       name: activemqartemisscaledowns.broker.amq.io
       version: v1beta1
-    - description: Adding and removing addresses via custom resource definitions
+    - description: Adding and removing addresses using custom resource definitions
       displayName: ActiveMQ Artemis Address
       kind: ActiveMQArtemisAddress
       name: activemqartemisaddresses.broker.amq.io
@@ -230,7 +230,7 @@ spec:
         name: ""
         version: apps/v1
       specDescriptors:
-      - description: Specifies the acceptors
+      - description: Specifies the acceptor configuration
         displayName: Acceptors
         path: acceptors
       - description: AMQP Minimum Large Message Size
@@ -279,7 +279,7 @@ spec:
         path: acceptors[0].multicastPrefix
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Name of the acceptor
+      - description: The acceptor name
         displayName: Name
         path: acceptors[0].name
         x-descriptors:
@@ -762,7 +762,7 @@ spec:
           broker configuration bean.
         displayName: Broker Properties
         path: brokerProperties
-      - description: Specifies the connectors
+      - description: Specifies connectors and connector configuration
         displayName: Connectors
         path: connectors
       - description: Comma separated list of cipher suites used for SSL communication.
@@ -859,7 +859,7 @@ spec:
         path: connectors[0].wantClientAuth
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
-      - description: Specifies the console configurations
+      - description: Specifies the console configuration
         displayName: Console Configurations
         path: console
       - description: Whether or not to expose this port
@@ -885,7 +885,7 @@ spec:
       - description: Specifies the deployment plan
         displayName: Deployment Plan
         path: deploymentPlan
-      - description: Specifies the affinity configurations
+      - description: Specifies affinity configuration
         displayName: Affinity Configurations
         path: deploymentPlan.affinity
       - description: Describes node affinity scheduling rules for the pod.
@@ -918,13 +918,13 @@ spec:
         path: deploymentPlan.enableMetricsPlugin
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
-      - description: Specifies the extra mounts
+      - description: Specifies extra mounts
         displayName: Extra Mounts
         path: deploymentPlan.extraMounts
-      - description: Specifies the ConfigMap names
+      - description: Specifies ConfigMap names
         displayName: ConfigMap Names
         path: deploymentPlan.extraMounts.configMaps
-      - description: Specifies the Secret names
+      - description: Specifies Secret names
         displayName: Secret Names
         path: deploymentPlan.extraMounts.secrets
       - description: The image used for the broker deployment
@@ -951,7 +951,7 @@ spec:
           `application` are not allowed
         displayName: Labels
         path: deploymentPlan.labels
-      - description: Specifies the liveness probe configurations
+      - description: Specifies the liveness probe configuration
         displayName: Liveness Probe Configurations
         path: deploymentPlan.livenessProbe
       - description: If true enable the management role based access control
@@ -994,7 +994,7 @@ spec:
       - description: Specifies the pod security context
         displayName: PodSecurityContext
         path: deploymentPlan.podSecurityContext
-      - description: Specifies the readiness probe configurations
+      - description: Specifies the readiness probe configuration
         displayName: Readiness Probe Configurations
         path: deploymentPlan.readinessProbe
       - description: If true require user password login credentials for broker protocol
@@ -1003,8 +1003,7 @@ spec:
         path: deploymentPlan.requireLogin
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
-      - description: Limits describes the minimum/maximum amount of compute resources
-          required/allowed
+      - description: Specifies the minimum/maximum amount of compute resources required/allowed
         displayName: Resource Requirements
         path: deploymentPlan.resources
         x-descriptors:
@@ -1143,10 +1142,10 @@ spec:
         path: loginModules.guestLoginModules[0].name
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Specifies the keycloak login modules
+      - description: Specifies the Keycloak login modules
         displayName: Keycloak Login Modules
         path: loginModules.keycloakLoginModules
-      - description: Specifies the keycloak module configuration
+      - description: Specifies the Keycloak module configuration
         displayName: Keycloa Module Configuration
         path: loginModules.keycloakLoginModules[0].configuration
       - description: If to allow any host name
@@ -1223,7 +1222,7 @@ spec:
       - description: Specify the credentials
         displayName: Credentials
         path: loginModules.keycloakLoginModules[0].configuration.credentials
-      - description: The regular expression to which the Redirect URI is to be matched
+      - description: The regular expression to match the Redirect URI
         displayName: Key
         path: loginModules.keycloakLoginModules[0].configuration.credentials[0].key
         x-descriptors:
@@ -1300,7 +1299,7 @@ spec:
       - description: Specify the redirect rewrite rules
         displayName: Redirect Rewrite Rules
         path: loginModules.keycloakLoginModules[0].configuration.redirectRewriteRules
-      - description: The regular expression to which the Redirect URI is to be matched
+      - description: The regular expression to match the Redirect URI
         displayName: Key
         path: loginModules.keycloakLoginModules[0].configuration.redirectRewriteRules[0].key
         x-descriptors:
@@ -1519,12 +1518,12 @@ spec:
       - description: Specify the default accesses
         displayName: Default Accesses
         path: securitySettings.management.authorisation.defaultAccess
-      - description: The method of the access entry
+      - description: Specifies the access entry method
         displayName: Method
         path: securitySettings.management.authorisation.defaultAccess[0].method
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: The roles of the access entry
+      - description: Specifies the access entry roles
         displayName: Roles
         path: securitySettings.management.authorisation.defaultAccess[0].roles
       - description: Specify the role accesses
@@ -1533,12 +1532,12 @@ spec:
       - description: Specify the default accesses
         displayName: Default Accesses
         path: securitySettings.management.authorisation.roleAccess[0].accessList
-      - description: The method of the access entry
+      - description: Specifies the access entry method
         displayName: Method
         path: securitySettings.management.authorisation.roleAccess[0].accessList[0].method
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: The roles of the access entry
+      - description: Specifies the access entry roles
         displayName: Roles
         path: securitySettings.management.authorisation.roleAccess[0].accessList[0].roles
       - description: The domain of the role access
@@ -1551,7 +1550,7 @@ spec:
         path: securitySettings.management.authorisation.roleAccess[0].key
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: Specify the connector configurations
+      - description: Specify connector configurations
         displayName: Connector Configurations
         path: securitySettings.management.connector
       - description: The management authentication type

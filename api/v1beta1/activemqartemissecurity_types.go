@@ -49,7 +49,7 @@ type LoginModulesType struct {
 	// Specifies the guest login modules
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Guest Login Modules"
 	GuestLoginModules []GuestLoginModuleType `json:"guestLoginModules,omitempty"`
-	// Specifies the keycloak login modules
+	// Specifies the Keycloak login modules
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Keycloak Login Modules"
 	KeycloakLoginModules []KeycloakLoginModuleType `json:"keycloakLoginModules,omitempty"`
 }
@@ -94,7 +94,7 @@ type KeycloakLoginModuleType struct {
 	// Type of KeycloakLoginModule directAccess or bearerToken
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Module Type",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ModuleType *string `json:"moduleType,omitempty"`
-	// Specifies the keycloak module configuration
+	// Specifies the Keycloak module configuration
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Keycloa Module Configuration"
 	Configuration KeycloakModuleConfigurationType `json:"configuration,omitempty"`
 }
@@ -226,7 +226,7 @@ type KeycloakModuleConfigurationType struct {
 }
 
 type KeyValueType struct {
-	// The regular expression to which the Redirect URI is to be matched
+	// The regular expression to match the Redirect URI
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Key",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Key string `json:"key,omitempty"`
 	// The replacement value
@@ -298,7 +298,7 @@ type ManagementSecuritySettingsType struct {
 	// The roles allowed to login hawtio
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Hawtio Roles"
 	HawtioRoles []string `json:"hawtioRoles,omitempty"`
-	// Specify the connector configurations
+	// Specify connector configurations
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Connector Configurations"
 	Connector ConnectorConfigType `json:"connector,omitempty"`
 	// Specify the authorisation configurations
@@ -373,10 +373,10 @@ type AllowedListEntryType struct {
 }
 
 type DefaultAccessType struct {
-	// The method of the access entry
+	// Specifies the access entry method
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Method",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Method *string `json:"method,omitempty"`
-	// The roles of the access entry
+	// Specifies the access entry roles
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Roles"
 	Roles []string `json:"roles,omitempty"`
 }
