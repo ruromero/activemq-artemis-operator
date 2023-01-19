@@ -2570,10 +2570,7 @@ func getValidCondition(cr *brokerv1beta1.ActiveMQArtemis) metav1.Condition {
 }
 
 func getDeploymentCondition(cr *brokerv1beta1.ActiveMQArtemis, podStatus olm.DeploymentStatus) metav1.Condition {
-	deploymentSize := DefaultDeploymentSize
-	if cr.Spec.DeploymentPlan.Size != nil {
-		deploymentSize = *cr.Spec.DeploymentPlan.Size
-	}
+	deploymentSize := getDeploymentSize(cr)
 	if deploymentSize == 0 {
 		return metav1.Condition{
 			Type:    brokerv1beta1.DeployedConditionType,
