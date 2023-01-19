@@ -32,10 +32,10 @@ type ActiveMQArtemisSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// User name for standard broker user. It is required for connecting to the broker and the web console. If left empty, it will be generated.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AdminUser",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Admin User",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	AdminUser string `json:"adminUser,omitempty"`
 	// Password for standard broker user. It is required for connecting to the broker and the web console. If left empty, it will be generated.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AdminPassword",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:password"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Admin Password",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:password"}
 	AdminPassword string `json:"adminPassword,omitempty"`
 	// Specifies the deployment plan
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Deployment Plan"
@@ -68,7 +68,7 @@ type ActiveMQArtemisSpec struct {
 
 type AddressSettingsType struct {
 	// How to merge the address settings to broker configuration
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ApplyRule",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Apply Rule",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ApplyRule *string `json:"applyRule,omitempty"`
 	// Specifies the address settings
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Address Settings"
@@ -77,40 +77,40 @@ type AddressSettingsType struct {
 
 type AddressSettingType struct {
 	// the address to send dead messages to
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DeadLetterAddress",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Dead Letter Address",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	DeadLetterAddress *string `json:"deadLetterAddress,omitempty"`
 	// whether or not to automatically create the dead-letter-address and/or a corresponding queue on that address when a message found to be undeliverable
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoCreateDeadLetterResources",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoCreateDeadLetterResources *bool `json:"autoCreateDeadLetterResources,omitempty"`
 	// the prefix to use for auto-created dead letter queues
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DeadLetterQueuePrefix",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Dead Letter Queue Prefix",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	DeadLetterQueuePrefix *string `json:"deadLetterQueuePrefix,omitempty"`
 	// the suffix to use for auto-created dead letter queues
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DeadLetterQueueSuffix",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Dead Letter Queue Suffix",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	DeadLetterQueueSuffix *string `json:"deadLetterQueueSuffix,omitempty"`
 	// the address to send expired messages to
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ExpiryAddress",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Expiry Address",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ExpiryAddress *string `json:"expiryAddress,omitempty"`
 	// whether or not to automatically create the expiry-address and/or a corresponding queue on that address when a message is sent to a matching queue
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoCreateExpiryResources",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Create Expiry Resources",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoCreateExpiryResources *bool `json:"autoCreateExpiryResources,omitempty"`
 	// the prefix to use for auto-created expiry queues
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ExpiryQueuePrefix",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Expiry Queue Prefix",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ExpiryQueuePrefix *string `json:"expiryQueuePrefix,omitempty"`
 	// the suffix to use for auto-created expiry queues
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ExpiryQueueSuffix",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Expiry Queue Suffix",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ExpiryQueueSuffix *string `json:"expiryQueueSuffix,omitempty"`
 	// Overrides the expiration time for messages using the default value for expiration time. "-1" disables this setting.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ExpiryDelay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Expiry Delay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	ExpiryDelay *int32 `json:"expiryDelay,omitempty"`
 	// Overrides the expiration time for messages using a lower value. "-1" disables this setting.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MinExpiryDelay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Min Expiry Delay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	MinExpiryDelay *int32 `json:"minExpiryDelay,omitempty"`
 	// Overrides the expiration time for messages using a higher value. "-1" disables this setting.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MaxExpiryDelay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Max Expiry Delay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	MaxExpiryDelay *int32 `json:"maxExpiryDelay,omitempty"`
 	// the time (in ms) to wait before redelivering a cancelled message.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="RedeliveryDelay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Redelivery Delay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	RedeliveryDelay *int32 `json:"redeliveryDelay,omitempty"`
 
 	// dropping these two fields due to historicatl incorrect conversion from *float32 to *string
@@ -122,145 +122,145 @@ type AddressSettingType struct {
 	//RedeliveryCollisionAvoidanceFactor *string
 
 	// Maximum value for the redelivery-delay
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MaxRedeliveryDelay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Max Redelivery Delay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	MaxRedeliveryDelay *int32 `json:"maxRedeliveryDelay,omitempty"`
 	// how many times to attempt to deliver a message before sending to dead letter address
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MaxDeliveryAttempts",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Max Delivery Attempts",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	MaxDeliveryAttempts *int32 `json:"maxDeliveryAttempts,omitempty"`
 	// the maximum size in bytes for an address. -1 means no limits. This is used in PAGING, BLOCK and FAIL policies. Supports byte notation like K, Mb, GB, etc.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MaxSizeBytes",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Max Size Bytes",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	MaxSizeBytes *string `json:"maxSizeBytes,omitempty"`
 	// used with the address full BLOCK policy, the maximum size in bytes an address can reach before messages start getting rejected. Works in combination with max-size-bytes for AMQP protocol only.  Default = -1 (no limit).
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MaxSizeBytesRejectThreshold",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Max Size Bytes Reject Threshold",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	MaxSizeBytesRejectThreshold *int32 `json:"maxSizeBytesRejectThreshold,omitempty"`
 	// The page size in bytes to use for an address. Supports byte notation like K, Mb, GB, etc.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="PageSizeBytes",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Page Size Bytes",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	PageSizeBytes *string `json:"pageSizeBytes,omitempty"`
 	// Number of paging files to cache in memory to avoid IO during paging navigation
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="PageMaxCacheSize",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Page Max Cache Size",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	PageMaxCacheSize *int32 `json:"pageMaxCacheSize,omitempty"`
 	// what happens when an address where maxSizeBytes is specified becomes full
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AddressFullPolicy",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Address Full Policy",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	AddressFullPolicy *string `json:"addressFullPolicy,omitempty"`
 	// how many days to keep message counter history for this address
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MessageCounterHistoryDayLimit",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Message Counter History Day Limit",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	MessageCounterHistoryDayLimit *int32 `json:"messageCounterHistoryDayLimit,omitempty"`
 	// This is deprecated please use default-last-value-queue instead.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="LastValueQueue",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Last Value Queue",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	LastValueQueue *bool `json:"lastValueQueue,omitempty"`
 	// whether to treat the queues under the address as a last value queues by default
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultLastValueQueue",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Last Value Queue",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	DefaultLastValueQueue *bool `json:"defaultLastValueQueue,omitempty"`
 	// the property to use as the key for a last value queue by default
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultLastValueKey",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Last Value Key",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	DefaultLastValueKey *string `json:"defaultLastValueKey,omitempty"`
 	// whether the queue should be non-destructive by default
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultNonDestructive",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Non Destructive",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	DefaultNonDestructive *bool `json:"defaultNonDestructive,omitempty"`
 	// whether to treat the queues under the address as exclusive queues by default
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultExclusiveQueue",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Exclusive Queue",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	DefaultExclusiveQueue *bool `json:"defaultExclusiveQueue,omitempty"`
 	// whether to rebalance groups when a consumer is added
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultGroupRebalance",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Group Rebalance",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	DefaultGroupRebalance *bool `json:"defaultGroupRebalance,omitempty"`
 	// whether to pause dispatch when rebalancing groups
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultGroupRebalancePauseDispatch",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Group Rebalance Pause Dispatch",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	DefaultGroupRebalancePauseDispatch *bool `json:"defaultGroupRebalancePauseDispatch,omitempty"`
 	// number of buckets to use for grouping, -1 (default) is unlimited and uses the raw group, 0 disables message groups.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultGroupBuckets",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Group Buckets",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	DefaultGroupBuckets *int32 `json:"defaultGroupBuckets,omitempty"`
 	// key used to mark a message is first in a group for a consumer
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultGroupFirstKey",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Group First Key",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	DefaultGroupFirstKey *string `json:"defaultGroupFirstKey,omitempty"`
 	// the default number of consumers needed before dispatch can start for queues under the address.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultConsumersBeforeDispatch",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Consumers Before Dispatch",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	DefaultConsumersBeforeDispatch *int32 `json:"defaultConsumersBeforeDispatch,omitempty"`
 	// the default delay (in milliseconds) to wait before dispatching if number of consumers before dispatch is not met for queues under the address.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultDelayBeforeDispatch",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Delay Before Dispatch",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	DefaultDelayBeforeDispatch *int32 `json:"defaultDelayBeforeDispatch,omitempty"`
 	// how long (in ms) to wait after the last consumer is closed on a queue before redistributing messages.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="RedistributionDelay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Redistribution Delay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	RedistributionDelay *int32 `json:"redistributionDelay,omitempty"`
 	// if there are no queues matching this address, whether to forward message to DLA (if it exists for this address)
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="SendToDlaOnNoRoute",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Send To DLA On No Route",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	SendToDlaOnNoRoute *bool `json:"sendToDlaOnNoRoute,omitempty"`
 	// The minimum rate of message consumption allowed before a consumer is considered "slow." Measured in messages-per-second.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="SlowConsumerThreshold",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Slow Consumer Threshold",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	SlowConsumerThreshold *int32 `json:"slowConsumerThreshold,omitempty"`
 	// what happens when a slow consumer is identified
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="SlowConsumerPolicy",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Slow Consumer Policy",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	SlowConsumerPolicy *string `json:"slowConsumerPolicy,omitempty"`
 	// How often to check for slow consumers on a particular queue. Measured in seconds.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="SlowConsumerCheckPeriod",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Slow Consumer Check Period",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	SlowConsumerCheckPeriod *int32 `json:"slowConsumerCheckPeriod,omitempty"`
 	// DEPRECATED. whether or not to automatically create JMS queues when a producer sends or a consumer connects to a queue
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoCreateJmsQueues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Create Jms Queues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoCreateJmsQueues *bool `json:"autoCreateJmsQueues,omitempty"`
 	// DEPRECATED. whether or not to delete auto-created JMS queues when the queue has 0 consumers and 0 messages
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoDeleteJmsQueues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Delete Jms Queues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoDeleteJmsQueues *bool `json:"autoDeleteJmsQueues,omitempty"`
 	// DEPRECATED. whether or not to automatically create JMS topics when a producer sends or a consumer subscribes to a topic
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoCreateJmsTopics",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Create Jms Topics",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoCreateJmsTopics *bool `json:"autoCreateJmsTopics,omitempty"`
 	// DEPRECATED. whether or not to delete auto-created JMS topics when the last subscription is closed
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoDeleteJmsTopics",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Delete Jms Topics",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoDeleteJmsTopics *bool `json:"autoDeleteJmsTopics,omitempty"`
 	// whether or not to automatically create a queue when a client sends a message to or attempts to consume a message from a queue
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoCreateQueues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Create Queues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoCreateQueues *bool `json:"autoCreateQueues,omitempty"`
 	// whether or not to delete auto-created queues when the queue has 0 consumers and 0 messages
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoDeleteQueues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Delete Queues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoDeleteQueues *bool `json:"autoDeleteQueues,omitempty"`
 	// whether or not to delete created queues when the queue has 0 consumers and 0 messages
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoDeleteCreatedQueues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Delete Created Queues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoDeleteCreatedQueues *bool `json:"autoDeleteCreatedQueues,omitempty"`
 	// how long to wait (in milliseconds) before deleting auto-created queues after the queue has 0 consumers.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoDeleteQueuesDelay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Delete Queues Delay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	AutoDeleteQueuesDelay *int32 `json:"autoDeleteQueuesDelay,omitempty"`
 	// the message count the queue must be at or below before it can be evaluated to be auto deleted, 0 waits until empty queue (default) and -1 disables this check.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoDeleteQueuesMessageCount",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Delete Queues Message Count",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	AutoDeleteQueuesMessageCount *int32 `json:"autoDeleteQueuesMessageCount,omitempty"`
 	//What to do when a queue is no longer in broker.xml.  OFF = will do nothing queues will remain, FORCE = delete queues even if messages remaining.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ConfigDeleteQueues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Config Delete Queues",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ConfigDeleteQueues *string `json:"configDeleteQueues,omitempty"`
 	// whether or not to automatically create addresses when a client sends a message to or attempts to consume a message from a queue mapped to an address that doesnt exist
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoCreateAddresses",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Create Addresses",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoCreateAddresses *bool `json:"autoCreateAddresses,omitempty"`
 	// whether or not to delete auto-created addresses when it no longer has any queues
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoDeleteAddresses",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Delete Addresses",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	AutoDeleteAddresses *bool `json:"autoDeleteAddresses,omitempty"`
 	// how long to wait (in milliseconds) before deleting auto-created addresses after they no longer have any queues
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AutoDeleteAddressesDelay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Auto Delete Addresses Delay",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	AutoDeleteAddressesDelay *int32 `json:"autoDeleteAddressesDelay,omitempty"`
 	// What to do when an address is no longer in broker.xml.  OFF = will do nothing addresses will remain, FORCE = delete address and its queues even if messages remaining.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ConfigDeleteAddresses",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Config Delete Addresses",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ConfigDeleteAddresses *string `json:"configDeleteAddresses,omitempty"`
 	// how many message a management resource can browse
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ManagementBrowsePageSize",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Management Browse Page Size",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	ManagementBrowsePageSize *int32 `json:"managementBrowsePageSize,omitempty"`
 	// purge the contents of the queue once there are no consumers
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultPurgeOnNoConsumers",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Purge On No Consumers",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	DefaultPurgeOnNoConsumers *bool `json:"defaultPurgeOnNoConsumers,omitempty"`
 	// the maximum number of consumers allowed on this queue at any one time
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultMaxConsumers",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Max Consumers",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	DefaultMaxConsumers *int32 `json:"defaultMaxConsumers,omitempty"`
 	// the routing-type used on auto-created queues
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultQueueRoutingType",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Queue Routing Type",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	DefaultQueueRoutingType *string `json:"defaultQueueRoutingType,omitempty"`
 	// the routing-type used on auto-created addresses
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultAddressRoutingType",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Address Routing Type",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	DefaultAddressRoutingType *string `json:"defaultAddressRoutingType,omitempty"`
 	// the default window size for a consumer
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultConsumerWindowSize",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Consumer Window Size",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	DefaultConsumerWindowSize *int32 `json:"defaultConsumerWindowSize,omitempty"`
 	// the default ring-size value for any matching queue which doesnt have ring-size explicitly defined
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DefaultRingSize",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Default Ring Size",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	DefaultRingSize *int32 `json:"defaultRingSize,omitempty"`
 	// the number of messages to preserve for future queues created on the matching address
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="RetroactiveMessageCount",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Retroactive Message Count",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	RetroactiveMessageCount *int32 `json:"retroactiveMessageCount,omitempty"`
 	// whether or not to enable metrics for metrics plugins on the matching address
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="EnableMetrics",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enable Metrics",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	EnableMetrics *bool `json:"enableMetrics,omitempty"`
 	// pattern for matching settings against addresses; can use wildards
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Match",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
@@ -269,16 +269,16 @@ type AddressSettingType struct {
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Max Management Message Size Limit",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	ManagementMessageAttributeSizeLimit *int32 `json:"managementMessageAttributeSizeLimit,omitempty"`
 	// Unit used in specifying slow consumer threshold, default is MESSAGE_PER_SECOND
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="SlowConsumer Threshold Measurement Unit",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Slow Consumer Threshold Measurement Unit",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	SlowConsumerThresholdMeasurementUnit *string `json:"slowConsumerThresholdMeasurementUnit,omitempty"`
 	// Whether or not set the timestamp of arrival on messages. default false
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enable Ingress Timestamp",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	EnableIngressTimestamp *bool `json:"enableIngressTimestamp,omitempty"`
 	// What to do when a divert is no longer in broker.xml.  OFF = will do nothing and divert will remain(default), FORCE = delete divert
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ConfigDeleteDiverts",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Config Delete Diverts",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ConfigDeleteDiverts *string `json:"configDeleteDiverts,omitempty"`
 	// the maximum number of messages allowed on the address (default -1).  This is used in PAGING, BLOCK and FAIL policies. It does not support notations and it is a simple number of messages allowed.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MaxSizeMessages",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Max Size Messages",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	MaxSizeMessages *int64 `json:"maxSizeMessages,omitempty"`
 }
 
@@ -287,22 +287,22 @@ type DeploymentPlanType struct {
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Image",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Image string `json:"image,omitempty"`
 	// The init container image used to configure broker
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="InitImage",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Init Image",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	InitImage string `json:"initImage,omitempty"`
 	// The number of broker pods to deploy
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Size",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:podCount"}
 	Size int32 `json:"size,omitempty"`
 	// If true require user password login credentials for broker protocol ports
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="RequireLogin",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Require Login",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	RequireLogin bool `json:"requireLogin,omitempty"`
 	// If true use persistent volume via persistent volume claim for journal storage
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="PersistenceEnabled",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Persistence Enabled",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	PersistenceEnabled bool `json:"persistenceEnabled,omitempty"`
 	// If aio use ASYNCIO, if nio use NIO for journal IO
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="JournalType",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Journal Type",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	JournalType string `json:"journalType,omitempty"`
 	//If true migrate messages on scaledown
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="MessageMigration",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Message Migration",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	MessageMigration *bool `json:"messageMigration,omitempty"`
 	// Specifies the minimum/maximum amount of compute resources required/allowed
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Resource Requirements",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:resourceRequirements"}
@@ -311,10 +311,10 @@ type DeploymentPlanType struct {
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Configurations"
 	Storage StorageType `json:"storage,omitempty"`
 	// If true enable the Jolokia JVM Agent
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="JolokiaAgentEnabled",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Jolokia Agent Enabled",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	JolokiaAgentEnabled bool `json:"jolokiaAgentEnabled,omitempty"`
 	// If true enable the management role based access control
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ManagementRBACEnabled",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Management RBAC Enabled",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	ManagementRBACEnabled bool `json:"managementRBACEnabled,omitempty"`
 	// Specifies extra mounts
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Extra Mounts"
@@ -332,7 +332,7 @@ type DeploymentPlanType struct {
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Readiness Probe Configurations"
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 	// Whether or not to install the artemis metrics plugin
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="EnableMetricsPlugin",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enable Metrics Plugin",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	EnableMetricsPlugin *bool `json:"enableMetricsPlugin,omitempty"`
 	// Specifies the tolerations
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Tolerations"
@@ -347,13 +347,13 @@ type DeploymentPlanType struct {
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Affinity Configurations"
 	Affinity AffinityConfig `json:"affinity,omitempty"`
 	// Specifies the pod security context
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="PodSecurityContext"
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Pod Security Context"
 	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
 	// Custom annotations to be added to broker pod
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Annotations"
 	Annotations map[string]string `json:"annotations,omitempty"`
 	// Specifies the pod disruption budget
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="PodDisruptionBudget"
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Pod Disruption Budget"
 	PodDisruptionBudget *policyv1.PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
 }
 
@@ -375,10 +375,10 @@ type AffinityConfig struct {
 
 type PodSecurityType struct {
 	// ServiceAccount Name of the pod
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ServiceAccount Name",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Service Account Name",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 	// runAsUser as defined in PodSecurityContext for the pod
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="RunAsUser",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Run As User",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
 	RunAsUser *int64 `json:"runAsUser,omitempty"`
 }
 
