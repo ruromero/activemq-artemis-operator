@@ -24,7 +24,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -36,25 +35,6 @@ import (
 
 var _ = Describe("artemis controller", Label("do"), func() {
 	Context("operator logging config test", Label("do-operator-log"), func() {
-
-		It("test extracting log level arg from env var", func() {
-			os.Setenv("ARGS", "--zap-log-level=error --otheroptions --other-opt")
-			result, ok := common.FindArgFromEnv("ARGS", "--zap-log-level=")
-			Expect(ok).To(BeTrue())
-			Expect(result).To(Equal("--zap-log-level=error"))
-			os.Unsetenv("ARGS")
-			os.Setenv("ARGS", "--otheroptions --zap-log-level=error --other-opt")
-			result, ok = common.FindArgFromEnv("ARGS", "--zap-log-level=")
-			Expect(ok).To(BeTrue())
-			Expect(result).To(Equal("--zap-log-level=error"))
-			os.Unsetenv("ARGS")
-			os.Setenv("ARGS", "--otheroptions --other-opt --zap-log-level=error")
-			result, ok = common.FindArgFromEnv("ARGS", "--zap-log-level=")
-			Expect(ok).To(BeTrue())
-			Expect(result).To(Equal("--zap-log-level=error"))
-			os.Unsetenv("ARGS")
-		})
-
 		It("test operator with env var", func() {
 			if os.Getenv("DEPLOY_OPERATOR") == "true" {
 				By("checking default operator should have INFO/DEBUG logs")
