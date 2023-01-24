@@ -4494,7 +4494,7 @@ var _ = Describe("artemis controller", func() {
 						loggingPropValue = env.Value
 					}
 				}
-				g.Expect(strings.HasSuffix(loggingPropValue, expectedLoggingPropValue)).To(BeTrue())
+				g.Expect(loggingPropValue).To(ContainSubstring(expectedLoggingPropValue))
 
 				mountPathFound := false
 				for _, mount := range brokerContainer.VolumeMounts {
@@ -4570,7 +4570,7 @@ var _ = Describe("artemis controller", func() {
 						loggingPropValue = env.Value
 					}
 				}
-				g.Expect(strings.HasSuffix(loggingPropValue, expectedLoggingPropValue)).To(BeTrue())
+				g.Expect(loggingPropValue).To(ContainSubstring(expectedLoggingPropValue))
 
 				mountPathFound := false
 				for _, mount := range brokerContainer.VolumeMounts {
@@ -4890,7 +4890,7 @@ var _ = Describe("artemis controller", func() {
 			sort.Strings(versions)
 			Expect(versions[len(versions)-1]).Should(Equal(version.LatestVersion))
 
-			previousVersion := versions[len(versions)-2]
+			previousVersion := versions[len(versions)-4]
 			Expect(previousVersion).ShouldNot(Equal(version.LatestVersion))
 
 			previousCompactVersion := version.CompactVersionFromVersion[previousVersion]

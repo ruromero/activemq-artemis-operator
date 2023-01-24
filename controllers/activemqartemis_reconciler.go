@@ -1912,17 +1912,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 
 	clog.Info("Total volumes ", "volumes", podSpec.Volumes)
 
-	// this depends on init container passing --java-opts to artemis create via launch.sh *and* it
-	// not getting munged on the way. We CreateOrAppend to any value from spec.Env
-	var mountPoint = secretPathBase
-	if !isSecret {
-		mountPoint = cfgMapPathBase
-	}
-	javaOpts := corev1.EnvVar{
-		Name:  "JAVA_OPTS",
-		Value: brokerPropertiesConfigSystemPropValue(mountPoint, resourceName, brokerPropertiesMapData),
-	}
-	environments.CreateOrAppend(podSpec.InitContainers, &javaOpts)
+	configureBrokerPropertiesMount(podSpec, resourceName, isSecret, brokerPropertiesMapData)
 
 	var initArgs []string = []string{"-c"}
 
@@ -1989,12 +1979,44 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 	return pts, nil
 }
 
-func brokerPropertiesConfigSystemPropValue(mountPoint, resourceName string, brokerPropertiesData map[string]string) string {
+func configureBrokerPropertiesMount(podSpec *corev1.PodSpec, resourceName string, isSecret bool, brokerPropertiesMapData map[string]string) {
+
+	// this depends on init container passing --java-opts to artemis create via launch.sh *and* it
+	// not getting munged on the way. We CreateOrAppend to any value from spec.Env
+	var mountPoint = secretPathBase
+	if !isSecret {
+		mountPoint = cfgMapPathBase
+	}
+
+	javaOpts := corev1.EnvVar{
+		Name:  "JAVA_OPTS",
+		Value: brokerPropertiesConfigFileSystemPropValue(mountPoint, resourceName, brokerPropertiesMapData),
+	}
+	environments.CreateOrAppend(podSpec.InitContainers, &javaOpts)
+
+	// older versions won't use with JAVA_ARGS_APPEND and these will prevale over JAVA_OPTS
+	javaArgsAppend := corev1.EnvVar{
+		Name:  "JAVA_ARGS_APPEND",
+		Value: brokerPropertiesConfigFolderSystemPropValue(mountPoint, resourceName, brokerPropertiesMapData),
+	}
+	environments.CreateOrAppend(podSpec.Containers, &javaArgsAppend)
+}
+
+func brokerPropertiesConfigFolderSystemPropValue(mountPoint, resourceName string, brokerPropertiesData map[string]string) string {
 	if len(brokerPropertiesData) == 1 {
 		// single entry, no ordinal subpath - broker will log if arg is not found for the watcher so make conditional
-		return fmt.Sprintf("-Dbroker.properties=%s%s/", mountPoint, resourceName)
+		return fmt.Sprintf("-D%s=%s%s/", BrokerPropertiesName, mountPoint, resourceName)
 	} else {
-		return fmt.Sprintf("-Dbroker.properties=%s%s/,%s%s/%s${STATEFUL_SET_ORDINAL}/", mountPoint, resourceName, mountPoint, resourceName, OrdinalPrefix)
+		return fmt.Sprintf("-D%s=%s%s/,%s%s/%s${STATEFUL_SET_ORDINAL}/", BrokerPropertiesName, mountPoint, resourceName, mountPoint, resourceName, OrdinalPrefix)
+	}
+}
+
+func brokerPropertiesConfigFileSystemPropValue(mountPoint, resourceName string, brokerPropertiesData map[string]string) string {
+	if len(brokerPropertiesData) == 1 {
+		// single entry, no ordinal subpath - broker will log if arg is not found for the watcher so make conditional
+		return fmt.Sprintf("-D%s=%s%s/%s", BrokerPropertiesName, mountPoint, resourceName, BrokerPropertiesName)
+	} else {
+		return fmt.Sprintf("-D%s=%s%s/%s,%s%s/%s${STATEFUL_SET_ORDINAL}/%s", BrokerPropertiesName, mountPoint, resourceName, BrokerPropertiesName, mountPoint, resourceName, OrdinalPrefix, BrokerPropertiesName)
 	}
 }
 
