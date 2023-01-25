@@ -105,20 +105,20 @@ var (
 	securityReconciler *ActiveMQArtemisSecurityReconciler
 
 	crdRes = []string{
-		"../deploy/install/crd_artemis.yaml",
-		"../deploy/install/crd_artemis_security.yaml",
-		"../deploy/install/crd_artemis_address.yaml",
-		"../deploy/install/crd_artemis_scaledown.yaml",
+		"../deploy/install/010_crd_artemis.yaml",
+		"../deploy/install/020_crd_artemis_security.yaml",
+		"../deploy/install/030_crd_artemis_address.yaml",
+		"../deploy/install/040_crd_artemis_scaledown.yaml",
 	}
 
 	oprRes = []string{
-		"../deploy/install/service_account.yaml",
-		"../deploy/install/namespace_role.yaml",
-		"../deploy/install/namespace_role_binding.yaml",
-		"../deploy/install/election_role.yaml",
-		"../deploy/install/election_role_binding.yaml",
-		"../deploy/install/operator_config.yaml",
-		"../deploy/install/operator.yaml",
+		"../deploy/install/050_service_account.yaml",
+		"../deploy/install/060_namespace_role.yaml",
+		"../deploy/install/070_namespace_role_binding.yaml",
+		"../deploy/install/080_election_role.yaml",
+		"../deploy/install/090_election_role_binding.yaml",
+		"../deploy/install/100_operator_config.yaml",
+		"../deploy/install/110_operator.yaml",
 	}
 	managerChannel chan struct{}
 
