@@ -107,7 +107,7 @@ metadata:
 You can also edit the operator deployment using the Kubernetes dashboard or the Kubernetes command-line tool, for example
 
 ```shell script
-$ sed 's/--zap-log-level=debug/--zap-log-level=error/' deploy/ install/110_operator.yaml | kubectl apply -f -
+$ sed 's/--zap-log-level=debug/--zap-log-level=error/' deploy/operator.yaml | kubectl apply -f -
 ```
 
 However if you install the operator from OperatorHub you don't have control over the resources which are deployed by olm
