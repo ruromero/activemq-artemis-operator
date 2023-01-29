@@ -49,6 +49,10 @@ import (
 // The Deployeyed Operator (DO) watches a single NameSpace called "default"
 var _ = Describe("Address controller DO", Label("do"), func() {
 
+	BeforeEach(func() {
+		BeforeEachSpec()
+	})
+
 	Context("Address test", func() {
 
 		It("Deploy CR with size 5 (pods)", Label("slow"), func() {

@@ -34,6 +34,10 @@ import (
 
 var _ = Describe("tests regarding controller manager", func() {
 
+	BeforeEach(func() {
+		BeforeEachSpec()
+	})
+
 	Context("operator namespaces test", func() {
 
 		It("test resolving watching namespace", func() {

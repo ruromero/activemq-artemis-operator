@@ -54,8 +54,6 @@ IMG ?= $(OPERATOR_IMAGE_REPO):$(OPERATOR_VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.22
 
-TEST_ARGS ?= ""
-
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -120,15 +118,23 @@ vet: ## Run go vet against code.
 test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test  ./... $(TEST_ARGS) -ginkgo.fail-fast -coverprofile cover.out
 
-test-mk: manifests generate fmt vet envtest ## Run tests against minikube with local operator.
-	USE_EXISTING_CLUSTER=true RECONCILE_RESYNC_PERIOD=5s go test  ./... $(TEST_ARGS) -test.timeout=50m -ginkgo.slow-spec-threshold=30s -ginkgo.fail-fast -ginkgo.label-filter="!do" -coverprofile cover-mk.out
+## Run tests against minikube with local operator.
+test-mk test-mk-v: TEST_ARGS += -test.timeout=50m -ginkgo.label-filter='!do'
+test-mk test-mk-v: TEST_VARS = USE_EXISTING_CLUSTER=true RECONCILE_RESYNC_PERIOD=5s
 
-test-mk-do: manifests generate fmt vet envtest generate-deploy ## Run tests against minikube with deployed operator(do)
-	DEPLOY_OPERATOR=true USE_EXISTING_CLUSTER=true go test  ./controllers/... -test.timeout=40m -ginkgo.slow-spec-threshold=30s -ginkgo.fail-fast -ginkgo.v -ginkgo.label-filter="do"
+## Run tests against minikube with deployed operator(do)
+test-mk-do test-mk-do-v: TEST_ARGS += -test.timeout=40m -ginkgo.label-filter='do'
+test-mk-do test-mk-do-v: TEST_VARS = DEPLOY_OPERATOR=true USE_EXISTING_CLUSTER=true
 
-# useful for CI smoke
-test-mk-do-fast: manifests generate fmt vet envtest generate-deploy ## Run tests against minikube with deployed operator(do) and exclude slow
-	DEPLOY_OPERATOR=true USE_EXISTING_CLUSTER=true ENABLE_WEBHOOKS=false go test  ./controllers/... -test.timeout=40m -ginkgo.slow-spec-threshold=30s -ginkgo.fail-fast -ginkgo.v -ginkgo.label-filter="do && !slow"
+## Run tests against minikube with deployed operator(do) and exclude slow, useful for CI smoke
+test-mk-do-fast test-mk-do-fast-v: TEST_ARGS += -test.timeout=40m -ginkgo.label-filter='do && !slow"'
+test-mk-do-fast test-mk-do-fast-v: TEST_VARS = DEPLOY_OPERATOR=true ENABLE_WEBHOOKS=false USE_EXISTING_CLUSTER=true
+
+test-mk-v test-mk-do-v test-mk-do-fast-v: TEST_ARGS += -v
+test-mk test-mk-v test-mk-do test-mk-do-v test-mk-do-fast test-mk-do-fast-v: TEST_ARGS += -ginkgo.slow-spec-threshold=30s -ginkgo.fail-fast -coverprofile cover-mk.out
+
+test-mk test-mk-v test-mk-do test-mk-do-v test-mk-do-fast test-mk-do-fast-v: manifests generate fmt vet envtest 
+	for PACKAGE in $$(go list ./...); do $(TEST_VARS) go test $${PACKAGE} $(TEST_ARGS); done;
 
 ##@ Build
 

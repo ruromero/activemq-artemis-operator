@@ -87,6 +87,8 @@ var _ = Describe("artemis controller", func() {
 	wis := list.New()
 	BeforeEach(func() {
 
+		BeforeEachSpec()
+
 		if verbose {
 			fmt.Println("Time with MicroSeconds: ", time.Now().Format("2006-01-02 15:04:05.000000"), " test:", CurrentSpecReport())
 		}
@@ -1055,7 +1057,7 @@ var _ = Describe("artemis controller", func() {
 					APIVersion: v2alpha5.GroupVersion.Identifier(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      nameFromTest(),
+					Name:      NextSpecResourceName(),
 					Namespace: defaultNamespace,
 				},
 				Spec: v2alpha5.ActiveMQArtemisSpec{
@@ -1109,7 +1111,7 @@ var _ = Describe("artemis controller", func() {
 					APIVersion: brokerv1beta1.GroupVersion.Identifier(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      nameFromTest(),
+					Name:      NextSpecResourceName(),
 					Namespace: defaultNamespace,
 				},
 				Spec: brokerv1beta1.ActiveMQArtemisSpec{
@@ -5808,7 +5810,7 @@ var _ = Describe("artemis controller", func() {
 					APIVersion: brokerv2alpha4.GroupVersion.Identifier(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      nameFromTest(),
+					Name:      NextSpecResourceName(),
 					Namespace: defaultNamespace,
 				},
 				Spec: spec,
@@ -6091,7 +6093,7 @@ var _ = Describe("artemis controller", func() {
 
 		By("Creating broker with custom probe that relies on security")
 		ctx := context.Background()
-		randString := nameFromTest()
+		randString := NextSpecResourceName()
 		crd := generateOriginalArtemisSpec(defaultNamespace, "br-"+randString)
 
 		crd.Spec.DeploymentPlan.ReadinessProbe = nil
@@ -7134,7 +7136,7 @@ func generateArtemisSpec(namespace string) brokerv1beta1.ActiveMQArtemis {
 			APIVersion: brokerv1beta1.GroupVersion.Identifier(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      nameFromTest(),
+			Name:      NextSpecResourceName(),
 			Namespace: namespace,
 		},
 		Spec: newArtemisSpecWithFastProbes(),
@@ -7192,33 +7194,6 @@ func randStringWithPrefix(prefix string) string {
 	return b.String()
 }
 
-func nameFromTest() string {
-	name := strings.ToLower(strings.ReplaceAll(CurrentSpecReport().LeafNodeText, " ", ""))
-	name = strings.ReplaceAll(name, ",", "")
-	name = strings.ReplaceAll(name, ".", "")
-	name = strings.ReplaceAll(name, "(", "")
-	name = strings.ReplaceAll(name, ")", "")
-	name = strings.ReplaceAll(name, "/", "")
-	name = strings.ReplaceAll(name, "_", "")
-	name = strings.ReplaceAll(name, "-", "")
-
-	// track the test count as there may be many crs per test
-	testCount++
-	name += "-" + strconv.FormatInt(testCount, 10)
-
-	// 63 char limit on service names in kube - reduce to 30 by dropping chars
-	limit := 25
-	if len(name) > limit {
-		for _, letter := range chars {
-			name = strings.ReplaceAll(name, string(letter), "")
-			if len(name) <= limit {
-				break
-			}
-		}
-	}
-	return name
-}
-
 func randString() string {
 	return randStringWithPrefix("br-")
 }
@@ -7269,7 +7244,7 @@ func DeployCustomBroker(targetNamespace string, customFunc func(candidate *broke
 func DeploySecret(targetNamespace string, customFunc func(candidate *corev1.Secret)) (*corev1.Secret, *corev1.Secret) {
 	ctx := context.Background()
 
-	secretName := nameFromTest()
+	secretName := NextSpecResourceName()
 	secretDefinition := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",

@@ -43,6 +43,10 @@ import (
 
 var _ = Describe("Scale down controller", func() {
 
+	BeforeEach(func() {
+		BeforeEachSpec()
+	})
+
 	Context("Scale down test", func() {
 		It("deploy plan 2 clustered", func() {
 
@@ -51,7 +55,7 @@ var _ = Describe("Scale down controller", func() {
 			// 	see suite_test.go: os.Setenv("OPERATOR_WATCH_NAMESPACE", "SomeValueToCauesEqualitytoFailInIsLocalSoDrainControllerSortsCreds")
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
-				brokerName := nameFromTest()
+				brokerName := NextSpecResourceName()
 				ctx := context.Background()
 
 				brokerCrd := generateOriginalArtemisSpec(defaultNamespace, brokerName)

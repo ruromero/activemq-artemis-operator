@@ -25,7 +25,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -84,10 +87,12 @@ const (
 	namespace1              = "namespace1"
 	namespace2              = "namespace2"
 	namespace3              = "namespace3"
+	specShortNameLimit      = 25
 )
 
 var (
-	testCount  int64
+	resCount   int64
+	specCount  int64
 	currentDir string
 	k8sClient  client.Client
 	restConfig *rest.Config
@@ -689,4 +694,64 @@ func FindAllFromCapturedLog(pattern string) []string {
 
 func StopCapturingLog() {
 	logBuffer = nil
+}
+
+func BeforeEachSpec() {
+	specCount++
+
+	//Print running spec
+	fmt.Println("\n\033[32mRunning Spec " +
+		strconv.FormatInt(specCount, 10) + ": " +
+		CurrentSpecReport().FullText() + " " +
+		"\033[33m[" + CurrentSpecShortName() + "]\033[0m\n" +
+		CurrentSpecReport().LeafNodeLocation.FileName + ":" +
+		strconv.Itoa(CurrentSpecReport().LeafNodeLocation.LineNumber))
+}
+
+func CurrentSpecShortName() string {
+
+	name := path.Base(CurrentSpecReport().LeafNodeLocation.FileName)
+	name = strings.ReplaceAll(name, "activemqartemis", "aa")
+	name = strings.ReplaceAll(name, "deploy_operator", "do")
+	name = strings.ReplaceAll(name, "_test", "")
+	name = strings.ReplaceAll(name, ".go", "")
+	name = strings.ReplaceAll(name, "_", "-")
+
+	lineNumber := strconv.Itoa(CurrentSpecReport().LeafNodeLocation.LineNumber)
+
+	nameLimit := specShortNameLimit - len(lineNumber)
+
+	if len(name) > nameLimit {
+		nameTokens := strings.Split(name, "-")
+		name = nameTokens[0]
+		for i := 1; i < len(nameTokens) && len(name) < nameLimit; i++ {
+			if len(nameTokens[i]) > 3 {
+				name += "-" + nameTokens[i][0:3]
+			} else if len(nameTokens[i]) > 0 {
+				name += "-" + nameTokens[i]
+			}
+		}
+	}
+
+	if len(name) > nameLimit {
+		name = name[0:nameLimit]
+	}
+
+	name += lineNumber
+
+	return name
+}
+
+// The spec resource names are based on current spec short name which has
+// max 25 characters (see specShortNameLimit) because the maximum service
+// name length is 63 characters.
+func NextSpecResourceName() string {
+	// The resCount is converted to a letter(97+resCount%25) and appened
+	// to the current spec short name to generate a unique resource name.
+	// The rune type is an alias for int32 and it is used to distinguish
+	// character values from integer values.
+	name := CurrentSpecShortName() + string(rune(97+resCount%25))
+	resCount++
+
+	return name
 }

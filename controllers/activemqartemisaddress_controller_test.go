@@ -49,6 +49,10 @@ import (
 
 var _ = Describe("Address controller tests", func() {
 
+	BeforeEach(func() {
+		BeforeEachSpec()
+	})
+
 	Context("address queue config defaults", Label("queue-config-defaults"), func() {
 		if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 			queueName := "myqueue"
@@ -1054,7 +1058,7 @@ func DeployAddress(candidate *brokerv1beta1.ActiveMQArtemisAddress) {
 func DeployCustomAddress(targetNamespace string, customFunc func(candidate *brokerv1beta1.ActiveMQArtemisAddress)) (*brokerv1beta1.ActiveMQArtemisAddress, *brokerv1beta1.ActiveMQArtemisAddress) {
 
 	ctx := context.Background()
-	addressCr := GenerateAddressSpec(nameFromTest(), targetNamespace, "myAddress", "myQueue", false, true)
+	addressCr := GenerateAddressSpec(NextSpecResourceName(), targetNamespace, "myAddress", "myQueue", false, true)
 
 	if customFunc != nil {
 		customFunc(addressCr)

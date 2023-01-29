@@ -34,6 +34,11 @@ import (
 )
 
 var _ = Describe("artemis controller", Label("do"), func() {
+
+	BeforeEach(func() {
+		BeforeEachSpec()
+	})
+
 	Context("operator logging config test", Label("do-operator-log"), func() {
 		It("test operator with env var", func() {
 			if os.Getenv("DEPLOY_OPERATOR") == "true" {
