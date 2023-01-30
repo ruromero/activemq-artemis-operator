@@ -127,7 +127,7 @@ test-mk-do test-mk-do-v: TEST_ARGS += -test.timeout=40m -ginkgo.label-filter='do
 test-mk-do test-mk-do-v: TEST_VARS = DEPLOY_OPERATOR=true USE_EXISTING_CLUSTER=true
 
 ## Run tests against minikube with deployed operator(do) and exclude slow, useful for CI smoke
-test-mk-do-fast test-mk-do-fast-v: TEST_ARGS += -test.timeout=40m -ginkgo.label-filter='do && !slow"'
+test-mk-do-fast test-mk-do-fast-v: TEST_ARGS += -test.timeout=40m -ginkgo.label-filter='do && !slow'
 test-mk-do-fast test-mk-do-fast-v: TEST_VARS = DEPLOY_OPERATOR=true ENABLE_WEBHOOKS=false USE_EXISTING_CLUSTER=true
 
 test-mk-v test-mk-do-v test-mk-do-fast-v: TEST_ARGS += -v
