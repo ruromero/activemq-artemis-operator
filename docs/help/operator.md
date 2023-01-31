@@ -759,7 +759,7 @@ Note: you are configuring an array of [envVar](https://kubernetes.io/docs/refere
 The CRD brokerProperties attribute allows the direct configuration of the Artemis internal configuration Bean of a broker via key value pairs. It is usefull to override or augment elements of the CR, or to configure broker features that are not exposed via CRD attributes. In cases where the init container is used to augment xml configuration, broker properties can provide an in CR alternative. As a general 'bag of configration' it is very powerful but it must be treated with due respect to all other sources of configuration. For details of what can be configured see the [Artemis configuraton documentation](https://activemq.apache.org/components/artemis/documentation/latest/configuration-index.html#broker-properties)
 The format is an array of strings of the form key=value where the key identifies a (potentially nested) property of the configuration bean.
 The CR Status contains a Condition reflecting the application of the brokerProperties volume mount projection.
-For advanced use cases, it is possible to use a `broker-N.` prefix to provide configuration to a specific instance(0-N) of your deployment plan.
+For advanced use cases, with a broker version >= 2.27.1, it is possible to use a `broker-N.` prefix to provide configuration to a specific instance(0-N) of your deployment plan.
 
 For example, to provide explicit config for the amount of memory messages will consume in a broker, overriding the defaults from container and JVM heap limits, you could use:
 

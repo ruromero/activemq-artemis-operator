@@ -1992,8 +1992,9 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 func brokerPropertiesConfigSystemPropValue(mountPoint, resourceName string, brokerPropertiesData map[string]string) string {
 	if len(brokerPropertiesData) == 1 {
 		// single entry, no ordinal subpath - broker will log if arg is not found for the watcher so make conditional
-		return fmt.Sprintf("-Dbroker.properties=%s%s/", mountPoint, resourceName)
+		return fmt.Sprintf("-Dbroker.properties=%s%s/%s", mountPoint, resourceName, BrokerPropertiesName)
 	} else {
+		// directory works on broker image versions >= 2.27.1
 		return fmt.Sprintf("-Dbroker.properties=%s%s/,%s%s/%s${STATEFUL_SET_ORDINAL}/", mountPoint, resourceName, mountPoint, resourceName, OrdinalPrefix)
 	}
 }
