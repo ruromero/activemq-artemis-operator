@@ -6987,10 +6987,12 @@ var _ = Describe("artemis controller", func() {
 
 					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
 
-					// secret won't be visible till activemq realm is exercised
-					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)).Should(BeFalse())
+					// secret status won't be visible till activemq realm is exercised, ready true but with unknown condition
+					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+					g.Expect(meta.IsStatusConditionPresentAndEqual(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType, metav1.ConditionUnknown)).Should(BeTrue())
 
-					fmt.Printf("\nSTATUS: %v\n", createdCrd.Status)
+					ConfigAppliedCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType)
+					g.Expect(ConfigAppliedCondition.Message).To(ContainSubstring("missing"))
 
 				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 

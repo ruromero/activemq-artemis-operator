@@ -464,6 +464,10 @@ type statusOutOfSyncError struct {
 	cause string
 }
 
+type statusOutOfSyncMissingKeyError struct {
+	cause string
+}
+
 func NewUnknownJolokiaError(err error) unknownJolokiaError {
 	return unknownJolokiaError{
 		err,
@@ -507,6 +511,18 @@ func (e statusOutOfSyncError) Error() string {
 }
 
 func (e statusOutOfSyncError) Requeue() bool {
+	return true
+}
+
+func NewStatusOutOfSyncMissingKeyError(err error) statusOutOfSyncMissingKeyError {
+	return statusOutOfSyncMissingKeyError{err.Error()}
+}
+
+func (e statusOutOfSyncMissingKeyError) Error() string {
+	return e.cause
+}
+
+func (e statusOutOfSyncMissingKeyError) Requeue() bool {
 	return true
 }
 

@@ -2827,6 +2827,13 @@ func trapErrorAsCondition(err ArtemisError, conditionType string) metav1.Conditi
 			Reason:  brokerv1beta1.ConfigAppliedConditionOutOfSyncReason,
 			Message: err.Error(),
 		}
+	case statusOutOfSyncMissingKeyError:
+		condition = metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionUnknown,
+			Reason:  brokerv1beta1.ConfigAppliedConditionOutOfSyncReason,
+			Message: err.Error(),
+		}
 	case inSyncApplyError:
 		condition = metav1.Condition{
 			Type:    conditionType,
@@ -2972,7 +2979,7 @@ func checkStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, Proj
 			message := fmt.Sprintf("Status out of sync - missing status entry for keys: %v", missingKeys)
 			err = errors.New(message)
 			reqLogger.Info(message, "status", brokerStatus, "tracked", Projection)
-			return NewStatusOutOfSyncError(err)
+			return NewStatusOutOfSyncMissingKeyError(err)
 		}
 
 		// all in sync, check for apply errors
