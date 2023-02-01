@@ -281,8 +281,12 @@ func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client r
 			Condition = AssertConfigMapContainsKey(configMap, LoggingConfigKey)
 			instanceCounts[loggingConfigSuffix]++
 		} else if strings.HasSuffix(cm, jaasConfigSuffix) {
-			Condition = AssertConfigMapContainsKey(configMap, LoginConfigKey)
-			instanceCounts[jaasConfigSuffix]++
+			Condition = &metav1.Condition{
+				Type:    common.ValidConditionType,
+				Status:  metav1.ConditionFalse,
+				Reason:  common.ValidConditionFailedExtraMountReason,
+				Message: fmt.Sprintf("extramount %v with suffix %v must be a secret", cm, jaasConfigSuffix),
+			}
 		}
 		if Condition != nil {
 			return Condition, nil
@@ -306,7 +310,7 @@ func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client r
 			Condition = AssertSecretContainsKey(secret, LoggingConfigKey)
 			instanceCounts[loggingConfigSuffix]++
 		} else if strings.HasSuffix(s, jaasConfigSuffix) {
-			Condition = AssertSecretContainsKey(secret, LoginConfigKey)
+			Condition = AssertSecretContainsKey(secret, JaasConfigKey)
 			instanceCounts[jaasConfigSuffix]++
 		}
 		if Condition != nil {
@@ -328,7 +332,7 @@ func AssertInstanceCounts(instanceCounts map[string]int) *metav1.Condition {
 				Type:    common.ValidConditionType,
 				Status:  metav1.ConditionFalse,
 				Reason:  common.ValidConditionFailedExtraMountReason,
-				Message: fmt.Sprintf("extramount with prefix %v can only be supplied once", key),
+				Message: fmt.Sprintf("extramount with suffix %v can only be supplied once", key),
 			}
 		}
 	}

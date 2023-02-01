@@ -346,10 +346,10 @@ func TestGetJaasConfigExtraMountPath(t *testing.T) {
 			DeploymentPlan: brokerv1beta1.DeploymentPlanType{
 				ExtraMounts: brokerv1beta1.ExtraMountsType{
 					ConfigMaps: []string{
-						"test-config-jaas-config",
 						"some-cm",
 					},
 					Secrets: []string{
+						"test-config-jaas-config",
 						"other",
 					},
 				},
@@ -357,7 +357,7 @@ func TestGetJaasConfigExtraMountPath(t *testing.T) {
 		},
 	}
 	path, found := getJaasConfigExtraMountPath(cr)
-	assert.Equal(t, path, "/amq/extra/configmaps/test-config-jaas-config/login.config")
+	assert.Equal(t, path, "/amq/extra/secrets/test-config-jaas-config/login.config")
 	assert.True(t, found)
 
 	cr = &brokerv1beta1.ActiveMQArtemis{
@@ -407,10 +407,10 @@ func TestNewPodTemplateSpecForCR_IncludesDebugArgs(t *testing.T) {
 			DeploymentPlan: brokerv1beta1.DeploymentPlanType{
 				ExtraMounts: brokerv1beta1.ExtraMountsType{
 					ConfigMaps: []string{
-						"test-config-jaas-config",
 						"some-cm",
 					},
 					Secrets: []string{
+						"test-config-jaas-config",
 						"other",
 					},
 				},
@@ -424,7 +424,7 @@ func TestNewPodTemplateSpecForCR_IncludesDebugArgs(t *testing.T) {
 	assert.NotNil(t, newSpec)
 	expectedEnv := v1.EnvVar{
 		Name:  "DEBUG_ARGS",
-		Value: "-Djava.security.auth.login.config=/amq/extra/configmaps/test-config-jaas-config/login.config",
+		Value: "-Djava.security.auth.login.config=/amq/extra/secrets/test-config-jaas-config/login.config",
 	}
 	assert.Contains(t, newSpec.Spec.Containers[0].Env, expectedEnv)
 }
@@ -444,10 +444,10 @@ func TestNewPodTemplateSpecForCR_AppendsDebugArgs(t *testing.T) {
 			DeploymentPlan: brokerv1beta1.DeploymentPlanType{
 				ExtraMounts: brokerv1beta1.ExtraMountsType{
 					ConfigMaps: []string{
-						"test-config-jaas-config",
 						"some-cm",
 					},
 					Secrets: []string{
+						"test-config-jaas-config",
 						"other",
 					},
 				},
@@ -461,7 +461,7 @@ func TestNewPodTemplateSpecForCR_AppendsDebugArgs(t *testing.T) {
 	assert.NotNil(t, newSpec)
 	expectedEnv := v1.EnvVar{
 		Name:  "DEBUG_ARGS",
-		Value: "-Dtest.arg=foo -Djava.security.auth.login.config=/amq/extra/configmaps/test-config-jaas-config/login.config",
+		Value: "-Dtest.arg=foo -Djava.security.auth.login.config=/amq/extra/secrets/test-config-jaas-config/login.config",
 	}
 	assert.Contains(t, newSpec.Spec.Containers[0].Env, expectedEnv)
 }

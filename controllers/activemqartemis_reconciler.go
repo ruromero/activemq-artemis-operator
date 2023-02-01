@@ -80,7 +80,7 @@ const (
 	OrdinalPrefix        = "broker-"
 	OrdinalPrefixSep     = "."
 	BrokerPropertiesName = "broker.properties"
-	LoginConfigKey       = "login.config"
+	JaasConfigKey        = "login.config"
 	LoggingConfigKey     = "logging.properties"
 )
 
@@ -2958,7 +2958,7 @@ func checkStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, Proj
 			if !present {
 				// with ordinal prefix or extras in the map this can be the case
 				isForOrdinal, _ := extractOrdinalPrefixSeperatorIndex(name)
-				if !(name == LoginConfigKey || strings.HasPrefix(name, "_") || isForOrdinal) {
+				if !(name == JaasConfigKey || strings.HasPrefix(name, "_") || isForOrdinal) {
 					missingKeys = append(missingKeys, name)
 				}
 				continue
@@ -3047,42 +3047,18 @@ func getConfigMappedBrokerProperties(cr *brokerv1beta1.ActiveMQArtemis, client r
 
 func getConfigMappedJaasProperties(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client) (*projection, error) {
 	var instance *projection
-	// extra mounts
-	if t, name, found := getConfigExtraMount(cr, jaasConfigSuffix); found {
-
-		switch t {
-		case "secrets":
-			{
-				resource := corev1.Secret{}
-				err := client.Get(context.TODO(), types.NamespacedName{Namespace: cr.Namespace, Name: name}, &resource)
-				if err != nil {
-					return nil, NewUnknownJolokiaError(errors.Wrap(err, "unable to retrieve mutable secret to hash"))
-				}
-				instance = newProjectionFromByteValues(resource.ObjectMeta, resource.Data)
-			}
-		case "configmaps":
-			{
-				resource := corev1.ConfigMap{}
-				err := client.Get(context.TODO(), types.NamespacedName{Namespace: cr.Namespace, Name: name}, &resource)
-				if err != nil {
-					return nil, NewUnknownJolokiaError(errors.Wrap(err, "unable to retrieve mutable configMap to hash"))
-				}
-				instance = newProjectionFromStringValues(resource.ObjectMeta, resource.Data)
-			}
+	if _, name, found := getConfigExtraMount(cr, jaasConfigSuffix); found {
+		resource := corev1.Secret{}
+		err := client.Get(context.TODO(), types.NamespacedName{Namespace: cr.Namespace, Name: name}, &resource)
+		if err != nil {
+			return nil, NewUnknownJolokiaError(errors.Wrap(err, "unable to retrieve mutable secret to hash"))
 		}
+		instance = newProjectionFromByteValues(resource.ObjectMeta, resource.Data)
 	}
 	return instance, nil
 }
 
 func newProjectionFromByteValues(resourceMeta metav1.ObjectMeta, configKeyValue map[string][]byte) *projection {
-	projection := projection{Name: resourceMeta.Name, ResourceVersion: resourceMeta.ResourceVersion, Generation: resourceMeta.Generation, Files: map[string]propertyFile{}}
-	for prop_file_name, data := range configKeyValue {
-		projection.Files[prop_file_name] = propertyFile{Alder32: alder32FromData([]byte(data))}
-	}
-	return &projection
-}
-
-func newProjectionFromStringValues(resourceMeta metav1.ObjectMeta, configKeyValue map[string]string) *projection {
 	projection := projection{Name: resourceMeta.Name, ResourceVersion: resourceMeta.ResourceVersion, Generation: resourceMeta.Generation, Files: map[string]propertyFile{}}
 	for prop_file_name, data := range configKeyValue {
 		projection.Files[prop_file_name] = propertyFile{Alder32: alder32FromData([]byte(data))}
