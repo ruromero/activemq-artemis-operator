@@ -3899,7 +3899,7 @@ var _ = Describe("artemis controller", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, deployedCrdKey, &deployedCrd)).Should(Succeed())
 				g.Expect(meta.IsStatusConditionFalse(deployedCrd.Status.Conditions, common.ValidConditionType)).Should(BeTrue())
-				g.Expect(meta.FindStatusCondition(deployedCrd.Status.Conditions, common.ValidConditionType).Reason).Should(Equal(brokerv1beta1.ValidConditionFailedReservedLabelReason))
+				g.Expect(meta.FindStatusCondition(deployedCrd.Status.Conditions, common.ValidConditionType).Reason).Should(Equal(common.ValidConditionFailedReservedLabelReason))
 				g.Expect(meta.FindStatusCondition(deployedCrd.Status.Conditions, common.ValidConditionType).Message).Should(ContainSubstring("application"))
 				g.Expect(meta.IsStatusConditionFalse(deployedCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
 			}, timeout, interval).Should(Succeed())
@@ -4389,8 +4389,8 @@ var _ = Describe("artemis controller", func() {
 				validCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, common.ValidConditionType)
 				g.Expect(validCondition).NotTo(BeNil())
 				g.Expect(validCondition.Status).To(Equal(metav1.ConditionFalse))
-				g.Expect(validCondition.Reason).To(Equal(common.ValidConditionFailedReason))
-				g.Expect(validCondition.Message).To(Equal(fmt.Sprintf("Logging configmap %v must have key logging.properties", configMap.Name)))
+				g.Expect(validCondition.Reason).To(Equal(common.ValidConditionFailedExtraMountReason))
+				g.Expect(validCondition.Message).To(ContainSubstring("must have key logging.properties"))
 			}, timeout, interval).Should(Succeed())
 
 			By("deleting the logging configmap")
@@ -4407,7 +4407,7 @@ var _ = Describe("artemis controller", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		It("logging secret validation", func() {
+		It("logging secret and configmap validation", func() {
 
 			By("By creatinging a new secret with wrong key")
 			ctx := context.Background()
@@ -4416,7 +4416,8 @@ var _ = Describe("artemis controller", func() {
 			loggingData := make(map[string]string)
 			// it requires the key to be logging.properties
 			loggingData["logging-configuration"] = "someproperty=somevalue"
-			loggingSecret := secrets.NewSecret(types.NamespacedName{Name: loggingSecretName, Namespace: defaultNamespace}, loggingSecretName, loggingData, nil)
+			loggingSecretKey := types.NamespacedName{Name: loggingSecretName, Namespace: defaultNamespace}
+			loggingSecret := secrets.NewSecret(loggingSecretKey, loggingSecretName, loggingData, nil)
 			Eventually(func() bool {
 				err := k8sClient.Create(ctx, loggingSecret, &client.CreateOptions{})
 				return err == nil
@@ -4428,30 +4429,79 @@ var _ = Describe("artemis controller", func() {
 			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
 
 			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			crdKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
 			Eventually(func() bool { return getPersistedVersionedCrd(crd.ObjectMeta.Name, defaultNamespace, createdCrd) }, timeout, interval).Should(BeTrue())
 			Expect(createdCrd.Name).Should(Equal(crd.ObjectMeta.Name))
 
 			Eventually(func(g Gomega) {
-				g.Expect(getPersistedVersionedCrd(crd.Name, defaultNamespace, createdCrd)).To(BeTrue())
+				g.Expect(k8sClient.Get(ctx, crdKey, createdCrd)).To(Succeed())
 				validCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, common.ValidConditionType)
 				g.Expect(validCondition).NotTo(BeNil())
 				g.Expect(validCondition.Status).To(Equal(metav1.ConditionFalse))
-				g.Expect(validCondition.Reason).To(Equal(common.ValidConditionFailedReason))
-				g.Expect(validCondition.Message).To(Equal(fmt.Sprintf("Logging secret %v must have key logging.properties", loggingSecret.Name)))
+				g.Expect(validCondition.Reason).To(Equal(common.ValidConditionFailedExtraMountReason))
+				g.Expect(validCondition.Message).To(ContainSubstring("must have key logging.properties"))
+
+			}, timeout, interval).Should(Succeed())
+
+			By("still invalid, referencing two configs, secret and config map")
+			loggingConfigMapName := "my-logging-config"
+
+			loggingData = make(map[string]string)
+			loggingData[LoggingConfigKey] = "someproperty=somevalue"
+			loggingConfigMap := configmaps.MakeConfigMap(defaultNamespace, loggingConfigMapName, loggingData)
+			By("creating valid config map")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Create(ctx, loggingConfigMap, &client.CreateOptions{})).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			By("CR, invalid with double ref")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, crdKey, createdCrd)).To(Succeed())
+				createdCrd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{loggingConfigMapName}
+				g.Expect(k8sClient.Update(ctx, createdCrd)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			By("fixing secret")
+			Eventually(func(g Gomega) {
+				createdSecret := &corev1.Secret{}
+				g.Expect(k8sClient.Get(ctx, loggingSecretKey, createdSecret)).Should(Succeed())
+				createdSecret.Data[LoggingConfigKey] = []byte(`someText`)
+				g.Expect(k8sClient.Update(ctx, createdSecret)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			By("verifying validation status reflects need for single instance")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, crdKey, createdCrd)).To(Succeed())
+				validCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, common.ValidConditionType)
+				g.Expect(validCondition).NotTo(BeNil())
+				g.Expect(validCondition.Status).To(Equal(metav1.ConditionFalse))
+				g.Expect(validCondition.Reason).To(Equal(common.ValidConditionFailedExtraMountReason))
+				g.Expect(validCondition.Message).To(ContainSubstring("once"))
+
+			}, timeout, interval).Should(Succeed())
+
+			By("Updating CR to make valid")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, crdKey, createdCrd)).To(Succeed())
+				createdCrd.Spec.DeploymentPlan.ExtraMounts.ConfigMaps = []string{}
+				g.Expect(k8sClient.Update(ctx, createdCrd)).Should(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			By("verifying valid status and resource version")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, crdKey, createdCrd)).To(Succeed())
+				validCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, common.ValidConditionType)
+				g.Expect(validCondition).NotTo(BeNil())
+				g.Expect(validCondition.Status).To(Equal(metav1.ConditionTrue))
+
+				g.Expect(validCondition.ObservedGeneration).Should(Equal(createdCrd.Generation))
+
 			}, timeout, interval).Should(Succeed())
 
 			By("deleting the logging configmap")
 			Expect(k8sClient.Delete(ctx, loggingSecret)).Should(Succeed())
-
+			Expect(k8sClient.Delete(ctx, loggingConfigMap)).Should(Succeed())
 			Expect(k8sClient.Delete(ctx, createdCrd)).Should(Succeed())
-
-			By("check it has gone")
-			Eventually(func() bool {
-				return checkCrdDeleted(loggingSecretName, crd.Namespace, loggingSecret)
-			}, timeout, interval).Should(BeTrue())
-			Eventually(func() bool {
-				return checkCrdDeleted(crd.ObjectMeta.Name, defaultNamespace, createdCrd)
-			}, timeout, interval).Should(BeTrue())
 		})
 
 		It("Expect vol mount for logging configmap deployed", func() {
@@ -4462,7 +4512,7 @@ var _ = Describe("artemis controller", func() {
 			loggingConfigMapName := "my-logging-config"
 
 			loggingData := make(map[string]string)
-			loggingData["logging.properties"] = "someproperty=somevalue"
+			loggingData[LoggingConfigKey] = "someproperty=somevalue"
 			configMap := configmaps.MakeConfigMap(defaultNamespace, loggingConfigMapName, loggingData)
 			Eventually(func() bool {
 				err := k8sClient.Create(ctx, configMap, &client.CreateOptions{})
@@ -4538,7 +4588,7 @@ var _ = Describe("artemis controller", func() {
 			loggingSecretName := "my-secret-logging-config"
 
 			loggingData := make(map[string]string)
-			loggingData["logging.properties"] = "someproperty=somevalue"
+			loggingData[LoggingConfigKey] = "someproperty=somevalue"
 			secret := secrets.NewSecret(types.NamespacedName{Name: loggingSecretName, Namespace: defaultNamespace}, loggingSecretName, loggingData, nil)
 			Eventually(func() bool {
 				err := k8sClient.Create(ctx, secret, &client.CreateOptions{})
@@ -6719,6 +6769,138 @@ var _ = Describe("artemis controller", func() {
 			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
 		})
 
+		It("extraMount.secret jaas-config validation", func() {
+
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = 1
+
+			secret := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "k8s.io.api.core.v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "v-jaas-config",
+					Namespace: crd.ObjectMeta.Namespace,
+				},
+			}
+
+			secret.StringData = map[string]string{"some": "stuff"}
+
+			crd.Spec.DeploymentPlan.ExtraMounts.Secrets = []string{secret.Name}
+
+			By("Deploying the jaas secret " + secret.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			By("verifying invalid via status")
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+			Eventually(func(g Gomega) {
+
+				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+
+				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+
+				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, common.ValidConditionType)).Should(BeTrue())
+
+				validationCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, common.ValidConditionType)
+				g.Expect(validationCondition.Reason).To(Equal(common.ValidConditionFailedExtraMountReason))
+				g.Expect(validationCondition.Message).To(ContainSubstring(LoginConfigKey))
+
+			}, timeout, interval).Should(Succeed())
+
+			By("update secret map")
+			createdSecret := &corev1.Secret{}
+			secretName := types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}
+			Eventually(func(g Gomega) {
+
+				g.Expect(k8sClient.Get(ctx, secretName, createdSecret)).Should(Succeed())
+				createdSecret.Data[LoginConfigKey] = []byte(`someText`)
+				g.Expect(k8sClient.Update(ctx, createdSecret)).Should(Succeed())
+
+			}, timeout, interval).Should(Succeed())
+
+			By("verifying now valid")
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+				g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ValidConditionType)).Should(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		})
+
+		It("extraMount jaas-config once validation", func() {
+
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crd.Spec.DeploymentPlan.Size = 1
+
+			secret := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "k8s.io.api.core.v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "v2-jaas-config",
+					Namespace: crd.ObjectMeta.Namespace,
+				},
+			}
+
+			secret.StringData = map[string]string{LoginConfigKey: "stuff"}
+
+			secret2 := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "k8s.io.api.core.v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "v3-jaas-config",
+					Namespace: crd.ObjectMeta.Namespace,
+				},
+			}
+
+			secret2.StringData = map[string]string{LoginConfigKey: "stuff"}
+
+			crd.Spec.DeploymentPlan.ExtraMounts.Secrets = []string{secret.Name, secret2.Name}
+
+			By("Deploying the jaas secret " + secret.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, secret)).Should(Succeed())
+
+			By("Deploying the jaas secret two " + secret2.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, secret2)).Should(Succeed())
+
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			By("verifying invalid via status")
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+			Eventually(func(g Gomega) {
+
+				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
+
+				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
+				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
+
+				g.Expect(meta.IsStatusConditionFalse(createdCrd.Status.Conditions, common.ValidConditionType)).Should(BeTrue())
+
+				validationCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, common.ValidConditionType)
+				g.Expect(validationCondition.Reason).To(Equal(common.ValidConditionFailedExtraMountReason))
+				g.Expect(validationCondition.Message).To(ContainSubstring("once"))
+
+			}, timeout, interval).Should(Succeed())
+
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, secret2)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
+		})
+
 		It("extraMount.secret x-jaas-config single realm update status", func() {
 
 			ctx := context.Background()
@@ -6727,7 +6909,7 @@ var _ = Describe("artemis controller", func() {
 
 			loggingConfigMapName := "my-logging-config"
 			loggingData := make(map[string]string)
-			loggingData["logging.properties"] = `appender.stdout.name = STDOUT
+			loggingData[LoggingConfigKey] = `appender.stdout.name = STDOUT
 		appender.stdout.type = Console
 		rootLogger = info, STDOUT
 		logger.activemq.name=org.apache.activemq.artemis.spi.core.security.jaas
@@ -6753,8 +6935,7 @@ var _ = Describe("artemis controller", func() {
 
 			userPropsKey := "users.properties"
 
-			loginPropsKey := "login.config"
-			secret.StringData = map[string]string{loginPropsKey: `
+			secret.StringData = map[string]string{LoginConfigKey: `
 		    // a full login.config, property files with unique names to match keys
 		    activemq {
 			    org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule sufficient
@@ -6908,7 +7089,7 @@ var _ = Describe("artemis controller", func() {
 
 			loggingConfigMapName := "my-logging-config-y"
 			loggingData := make(map[string]string)
-			loggingData["logging.properties"] = `appender.stdout.name = STDOUT
+			loggingData[LoggingConfigKey] = `appender.stdout.name = STDOUT
 		appender.stdout.type = Console
 		rootLogger = info, STDOUT
 		logger.activemq.name=org.apache.activemq.artemis.spi.core.security.jaas
@@ -6933,8 +7114,7 @@ var _ = Describe("artemis controller", func() {
 
 			userPropsKey := "users.properties"
 
-			loginPropsKey := "login.config"
-			secret.StringData = map[string]string{loginPropsKey: `
+			secret.StringData = map[string]string{LoginConfigKey: `
 		    // a full login.config
 		    activemq {
 			    org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule required

@@ -226,6 +226,7 @@ func validate(customResource *brokerv1beta1.ActiveMQArtemis, client rtclient.Cli
 		}
 	}
 
+	validationCondition.ObservedGeneration = customResource.Generation
 	meta.SetStatusCondition(&customResource.Status.Conditions, validationCondition)
 	return false, nil
 }
@@ -258,6 +259,10 @@ func validateBrokerVersion(customResource *brokerv1beta1.ActiveMQArtemis) *metav
 }
 
 func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, scheme *runtime.Scheme) (*metav1.Condition, error) {
+
+	instanceCounts := map[string]int{}
+	var Condition *metav1.Condition
+
 	for _, cm := range customResource.Spec.DeploymentPlan.ExtraMounts.ConfigMaps {
 		configMap := corev1.ConfigMap{}
 		found, err := validateExtraMount(cm, customResource.Namespace, &configMap, client, scheme)
@@ -272,16 +277,15 @@ func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client r
 				Message: fmt.Sprintf("Missing required configMap %v", cm),
 			}, nil
 		}
-		//validate logging
 		if strings.HasSuffix(cm, loggingConfigSuffix) {
-			if _, ok := configMap.Data["logging.properties"]; !ok {
-				return &metav1.Condition{
-					Type:    common.ValidConditionType,
-					Status:  metav1.ConditionFalse,
-					Reason:  common.ValidConditionFailedReason,
-					Message: fmt.Sprintf("Logging configmap %v must have key logging.properties", cm),
-				}, nil
-			}
+			Condition = AssertConfigMapContainsKey(configMap, LoggingConfigKey)
+			instanceCounts[loggingConfigSuffix]++
+		} else if strings.HasSuffix(cm, jaasConfigSuffix) {
+			Condition = AssertConfigMapContainsKey(configMap, LoginConfigKey)
+			instanceCounts[jaasConfigSuffix]++
+		}
+		if Condition != nil {
+			return Condition, nil
 		}
 	}
 	for _, s := range customResource.Spec.DeploymentPlan.ExtraMounts.Secrets {
@@ -298,19 +302,61 @@ func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client r
 				Message: fmt.Sprintf("Missing required secret %v", s),
 			}, nil
 		}
-		//validate logging
 		if strings.HasSuffix(s, loggingConfigSuffix) {
-			if _, ok := secret.Data["logging.properties"]; !ok {
-				return &metav1.Condition{
-					Type:    common.ValidConditionType,
-					Status:  metav1.ConditionFalse,
-					Reason:  common.ValidConditionFailedReason,
-					Message: fmt.Sprintf("Logging secret %v must have key logging.properties", s),
-				}, nil
+			Condition = AssertSecretContainsKey(secret, LoggingConfigKey)
+			instanceCounts[loggingConfigSuffix]++
+		} else if strings.HasSuffix(s, jaasConfigSuffix) {
+			Condition = AssertSecretContainsKey(secret, LoginConfigKey)
+			instanceCounts[jaasConfigSuffix]++
+		}
+		if Condition != nil {
+			return Condition, nil
+		}
+	}
+	Condition = AssertInstanceCounts(instanceCounts)
+	if Condition != nil {
+		return Condition, nil
+	}
+
+	return nil, nil
+}
+
+func AssertInstanceCounts(instanceCounts map[string]int) *metav1.Condition {
+	for key, v := range instanceCounts {
+		if v > 1 {
+			return &metav1.Condition{
+				Type:    common.ValidConditionType,
+				Status:  metav1.ConditionFalse,
+				Reason:  common.ValidConditionFailedExtraMountReason,
+				Message: fmt.Sprintf("extramount with prefix %v can only be supplied once", key),
 			}
 		}
 	}
-	return nil, nil
+	return nil
+}
+
+func AssertConfigMapContainsKey(configMap corev1.ConfigMap, key string) *metav1.Condition {
+	if _, present := configMap.Data[key]; !present {
+		return &metav1.Condition{
+			Type:    common.ValidConditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  common.ValidConditionFailedExtraMountReason,
+			Message: fmt.Sprintf("extra mount %v configmap %v must have key %v", configMap.Name, configMap, key),
+		}
+	}
+	return nil
+}
+
+func AssertSecretContainsKey(secret corev1.Secret, key string) *metav1.Condition {
+	if _, present := secret.Data[key]; !present {
+		return &metav1.Condition{
+			Type:    common.ValidConditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  common.ValidConditionFailedExtraMountReason,
+			Message: fmt.Sprintf("extra mount %v secret %v must have key %v", secret.Name, secret, key),
+		}
+	}
+	return nil
 }
 
 func validateExtraMount(name, namespace string, obj rtclient.Object, client rtclient.Client, scheme *runtime.Scheme) (bool, error) {

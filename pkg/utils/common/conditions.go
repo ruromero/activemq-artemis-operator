@@ -29,9 +29,10 @@ const (
 	ValidConditionType                       = "Validation"
 	ValidConditionSuccessReason              = "ValidationSucceded"
 	ValidConditionMissingResourcesReason     = "MissingDependentResources"
-	ValidConditionFailedReason               = "UnableToPerformValidation"
 	ValidConditionImageVersionConflictReason = "VersionAndImagesConflict"
 	ValidConditionPDBNonNilSelectorReason    = "PDBNonNilSelector"
+	ValidConditionFailedReservedLabelReason  = "ReservedLabelReference"
+	ValidConditionFailedExtraMountReason     = "InvalidExtraMount"
 )
 
 func SetReadyCondition(conditions *[]metav1.Condition) {

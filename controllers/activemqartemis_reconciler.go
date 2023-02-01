@@ -80,6 +80,8 @@ const (
 	OrdinalPrefix        = "broker-"
 	OrdinalPrefixSep     = "."
 	BrokerPropertiesName = "broker.properties"
+	LoginConfigKey       = "login.config"
+	LoggingConfigKey     = "logging.properties"
 )
 
 var defaultMessageMigration bool = true
@@ -1655,7 +1657,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 				meta.SetStatusCondition(&customResource.Status.Conditions, metav1.Condition{
 					Type:    common.ValidConditionType,
 					Status:  metav1.ConditionFalse,
-					Reason:  brokerv1beta1.ValidConditionFailedReservedLabelReason,
+					Reason:  common.ValidConditionFailedReservedLabelReason,
 					Message: fmt.Sprintf("'%s' is a reserved label, it is not allowed in Spec.DeploymentPlan.Labels", key),
 				})
 				return nil, fmt.Errorf("label key '%s' not allowed because it is reserved", key)
@@ -2956,7 +2958,7 @@ func checkStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, Proj
 			if !present {
 				// with ordinal prefix or extras in the map this can be the case
 				isForOrdinal, _ := extractOrdinalPrefixSeperatorIndex(name)
-				if !(name == "login.config" || strings.HasPrefix(name, "_") || isForOrdinal) {
+				if !(name == LoginConfigKey || strings.HasPrefix(name, "_") || isForOrdinal) {
 					missingKeys = append(missingKeys, name)
 				}
 				continue

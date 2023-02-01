@@ -628,8 +628,6 @@ const (
 	DeployedConditionZeroSizeReason  = "ZeroSizeDeployment"
 	DeployedConditionZeroSizeMessage = "Pods not scheduled. Deployment size is 0"
 
-	ValidConditionFailedReservedLabelReason = "ReservedLabelReference"
-
 	ConfigAppliedConditionType     = "BrokerPropertiesApplied"
 	JaasConfigAppliedConditionType = "JaasPropertiesApplied"
 
