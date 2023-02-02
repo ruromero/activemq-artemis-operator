@@ -319,7 +319,8 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) ProcessDeploymentPlan(customRes
 
 	clog.Info("Processing deployment plan", "plan", deploymentPlan, "broker cr", customResource.Name)
 	// Ensure the StatefulSet size is the same as the spec
-	currentStatefulSet.Spec.Replicas = deploymentPlan.Size
+	replicas := getDeploymentSize(customResource)
+	currentStatefulSet.Spec.Replicas = &replicas
 
 	aioSyncCausedUpdateOn(deploymentPlan, currentStatefulSet)
 
@@ -2485,7 +2486,8 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewStatefulSetForCR(customResou
 		Name:      customResource.Name,
 		Namespace: customResource.Namespace,
 	}
-	currentStateFullSet = ss.MakeStatefulSet(currentStateFullSet, namer.SsNameBuilder.Name(), namer.SvcHeadlessNameBuilder.Name(), namespacedName, customResource.Annotations, namer.LabelBuilder.Labels(), customResource.Spec.DeploymentPlan.Size)
+	replicas := getDeploymentSize(customResource)
+	currentStateFullSet = ss.MakeStatefulSet(currentStateFullSet, namer.SsNameBuilder.Name(), namer.SvcHeadlessNameBuilder.Name(), namespacedName, customResource.Annotations, namer.LabelBuilder.Labels(), &replicas)
 
 	podTemplateSpec, err := reconciler.NewPodTemplateSpecForCR(customResource, namer, &currentStateFullSet.Spec.Template, client)
 	if err != nil {
