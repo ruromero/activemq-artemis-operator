@@ -344,14 +344,17 @@ func AssertSyntaxOkOnLoginConfigData(SecretContentForLoginConfigKey []byte) *met
 	return nil
 }
 
-// comments push this over the edge a little when dealing with white space
-const regexpToMatchWholeValidLoginConfig = `^(?:(\s*|(?://.*)|(?s:/\*.*\*/))*\S+\s*{(?:(\s*|(?://.*)|(?s:/\*.*\*/))*\S+\s+(?i:required|optional|sufficient|requisite)+(?:\s*\S+=\S+\s*)*\s*;)+(\s*|(?://.*)|(?s:/\*.*\*/))*}\s*;)+\s*\z`
-
 var loginConfigSyntaxMatcher *regexp.Regexp
 
 func MatchBytesAgainsLoginConfigRegexp(buffer []byte) bool {
+	syntaxMatchRegEx := common.GetJaasConfigSyntaxMatchRegEx()
+	if syntaxMatchRegEx == "" {
+		// disabled
+		return true
+	}
+
 	if loginConfigSyntaxMatcher == nil {
-		loginConfigSyntaxMatcher, _ = regexp.Compile(regexpToMatchWholeValidLoginConfig)
+		loginConfigSyntaxMatcher, _ = regexp.Compile(syntaxMatchRegEx)
 	}
 	return loginConfigSyntaxMatcher.Match(buffer)
 }
