@@ -465,3 +465,133 @@ func TestNewPodTemplateSpecForCR_AppendsDebugArgs(t *testing.T) {
 	}
 	assert.Contains(t, newSpec.Spec.Containers[0].Env, expectedEnv)
 }
+
+func TestLoginConfigSyntaxCheck(t *testing.T) {
+	good := map[string][]byte{
+		"simple": []byte(`a {
+		SampleLoginModule Required  a=b b=d;
+		SampleLoginModule Optional;
+		SampleLoginModule requisite;
+		SampleLoginModule sufficient;
+	   };`),
+		"quotex": []byte(` aaa {
+		SampleLoginModule Required  a=b b=d;
+		SampleLoginModule Required
+		   base=2
+		   option=x;
+	   };`),
+		"comments": []byte(` aaa {
+		// a good comment
+		/* and another */
+		/* and line */
+		SampleLoginModule Required  a=b b=d;
+		// more comments
+		SampleLoginModule Required
+		   base=2
+		   option=x; 
+	   };`),
+
+		"comments_multiline": []byte(` aaa {
+		/* and multi 
+		line */
+		SampleLoginModule Required  a=b b=d;
+
+		/* more 
+		comments */
+
+	   };`),
+
+		"comment_at_end_of_line": []byte(` aaa {
+		// a good comment
+		SampleLoginModule Required  a=b b=d; // again
+		SampleLoginModule Required
+		   base=2
+		   option=x; // and another comment
+	   };`),
+
+		"twoRealm": []byte(` aa 
+		{
+		SampleLoginModule Required  a=b b=d;
+		SampleLoginModule Required
+		   base=2
+		   option="x";
+	   };
+	   
+	     bb {
+		   SampleLoginModule Required
+		   base=2
+		   option="${x}";
+	 }  ;`),
+
+		"full": []byte(`
+	 // a full login.config
+	 activemq {
+		 org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule required
+			 reload=true
+			 debug=true
+			 org.apache.activemq.jaas.properties.user="users.properties"
+			 org.apache.activemq.jaas.properties.role="roles.properties";
+	 };
+
+	 console {
+
+		 // ensure the operator can connect to the mgmt console by referencing the existing properties config
+		 // operatorAuth = plain
+		 // hawtio.realm = console
+		 org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule required
+			 reload=true
+			 debug=true
+			 org.apache.activemq.jaas.properties.user="artemis-users.properties"
+			 org.apache.activemq.jaas.properties.role="artemis-roles.properties"
+			 baseDir="/home/jboss/amq-broker/etc";
+
+	 };`),
+	}
+
+	for k, v := range good {
+		assert.True(t, MatchBytesAgainsLoginConfigRegexp(v), "for key "+k)
+	}
+
+	bad := map[string][]byte{
+		"twoRealm-missingSemiBetweenRealms": []byte(` aa 
+		{
+		SampleLoginModule Required  a=b b=d;
+		SampleLoginModule Required
+		   base=2
+		   option="x";
+	   } // missing semi - and comments! // may have to strip comments as a first step of validation
+	   
+	     bb {
+		   SampleLoginModule Required
+		   base=2
+		   option="${x}";
+	 }  ;`),
+		"no_flags": []byte(`aa 
+	 {
+	     SampleLoginModule a=b b=d;
+	 };`),
+
+		"no_semi_on_module": []byte(`aa 
+	 {
+	     SampleLoginModule sufficient a=b
+	 };`),
+
+		"no_semi_at_end": []byte(`aa 
+	 {
+	     SampleLoginModule sufficient;
+	 }`),
+		"no_value_for_key": []byte(`aa 
+	 {
+	     SampleLoginModule sufficient a=;
+	 };`),
+		"no_key for value": []byte(`aa 
+	 {
+	     SampleLoginModule sufficient =a;
+	 };`),
+	}
+
+	for k, v := range bad {
+		assert.False(t, MatchBytesAgainsLoginConfigRegexp(v), "for key "+k)
+	}
+
+}

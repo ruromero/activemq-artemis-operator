@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -311,6 +312,9 @@ func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client r
 			instanceCounts[loggingConfigSuffix]++
 		} else if strings.HasSuffix(s, jaasConfigSuffix) {
 			Condition = AssertSecretContainsKey(secret, JaasConfigKey)
+			if Condition == nil {
+				Condition = AssertSyntaxOkOnLoginConfigData(secret.Data[JaasConfigKey])
+			}
 			instanceCounts[jaasConfigSuffix]++
 		}
 		if Condition != nil {
@@ -323,6 +327,33 @@ func validateExtraMounts(customResource *brokerv1beta1.ActiveMQArtemis, client r
 	}
 
 	return nil, nil
+}
+
+func AssertSyntaxOkOnLoginConfigData(SecretContentForLoginConfigKey []byte) *metav1.Condition {
+
+	if !MatchBytesAgainsLoginConfigRegexp(SecretContentForLoginConfigKey) {
+
+		return &metav1.Condition{
+			Type:    common.ValidConditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  common.ValidConditionFailedExtraMountReason,
+			Message: "content of login.config key does not match supported jaas config file syntax",
+		}
+	}
+
+	return nil
+}
+
+// comments push this over the edge a little when dealing with white space
+const regexpToMatchWholeValidLoginConfig = `^(?:(\s*|(?://.*)|(?s:/\*.*\*/))*\S+\s*{(?:(\s*|(?://.*)|(?s:/\*.*\*/))*\S+\s+(?i:required|optional|sufficient|requisite)+(?:\s*\S+=\S+\s*)*\s*;)+(\s*|(?://.*)|(?s:/\*.*\*/))*}\s*;)+\s*\z`
+
+var loginConfigSyntaxMatcher *regexp.Regexp
+
+func MatchBytesAgainsLoginConfigRegexp(buffer []byte) bool {
+	if loginConfigSyntaxMatcher == nil {
+		loginConfigSyntaxMatcher, _ = regexp.Compile(regexpToMatchWholeValidLoginConfig)
+	}
+	return loginConfigSyntaxMatcher.Match(buffer)
 }
 
 func AssertInstanceCounts(instanceCounts map[string]int) *metav1.Condition {

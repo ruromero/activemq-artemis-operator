@@ -6805,7 +6805,7 @@ var _ = Describe("artemis controller", func() {
 			Eventually(func(g Gomega) {
 
 				g.Expect(k8sClient.Get(ctx, secretName, createdSecret)).Should(Succeed())
-				createdSecret.Data[JaasConfigKey] = []byte(`someText`)
+				createdSecret.Data[JaasConfigKey] = []byte(`a_realm { a_good_login_module sufficient noOp=true; };`)
 				g.Expect(k8sClient.Update(ctx, createdSecret)).Should(Succeed())
 
 			}, timeout, interval).Should(Succeed())
@@ -6836,7 +6836,7 @@ var _ = Describe("artemis controller", func() {
 				},
 			}
 
-			secret.StringData = map[string]string{JaasConfigKey: "stuff"}
+			secret.StringData = map[string]string{JaasConfigKey: `a_realm { a_good_login_module sufficient noOp=true; };`}
 
 			secret2 := &corev1.Secret{
 				TypeMeta: metav1.TypeMeta{
@@ -6849,7 +6849,7 @@ var _ = Describe("artemis controller", func() {
 				},
 			}
 
-			secret2.StringData = map[string]string{JaasConfigKey: "stuff"}
+			secret2.StringData = map[string]string{JaasConfigKey: `a_realm { a_good_login_module sufficient noOp=true; };`}
 
 			crd.Spec.DeploymentPlan.ExtraMounts.Secrets = []string{secret.Name, secret2.Name}
 
@@ -7149,6 +7149,8 @@ var _ = Describe("artemis controller", func() {
 
 					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, brokerv1beta1.DeployedConditionType)).Should(BeTrue())
 
+					fmt.Printf("\nStatus: %v\n", createdCrd.Status)
+
 					// secret status won't be visible till activemq realm is exercised, ready true but with unknown condition
 					g.Expect(meta.IsStatusConditionTrue(createdCrd.Status.Conditions, common.ReadyConditionType)).Should(BeTrue())
 					g.Expect(meta.IsStatusConditionPresentAndEqual(createdCrd.Status.Conditions, brokerv1beta1.JaasConfigAppliedConditionType, metav1.ConditionUnknown)).Should(BeTrue())
@@ -7199,7 +7201,7 @@ var _ = Describe("artemis controller", func() {
 			Expect(k8sClient.Delete(ctx, &crd)).To(Succeed())
 		})
 
-		It("jaas-config invalid in config map", func() {
+		It("jaas-config not allowed in config map", func() {
 
 			ctx := context.Background()
 			crd := generateArtemisSpec(defaultNamespace)
@@ -7216,7 +7218,7 @@ var _ = Describe("artemis controller", func() {
 					Namespace: crd.ObjectMeta.Namespace,
 				},
 			}
-			invalidJaasCm.Data = map[string]string{JaasConfigKey: `some realm stuff`}
+			invalidJaasCm.Data = map[string]string{JaasConfigKey: `content not verified as not a secret`}
 			Expect(k8sClient.Create(ctx, invalidJaasCm)).To(Succeed())
 
 			By("Deploying the CRD " + crd.ObjectMeta.Name)
@@ -7234,8 +7236,47 @@ var _ = Describe("artemis controller", func() {
 				g.Expect(validCondition.ObservedGeneration).Should(Equal(createdCrd.Generation))
 			}, timeout, interval).Should(Succeed())
 
-			By("deleting the logging configmap")
 			Expect(k8sClient.Delete(ctx, invalidJaasCm)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, createdCrd)).Should(Succeed())
+		})
+
+		It("jaas-config syntax check", func() {
+
+			ctx := context.Background()
+			crd := generateArtemisSpec(defaultNamespace)
+			crdKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+
+			By("verify -jaas-config in config map is invalid")
+			secret := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "k8s.io.api.core.v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "check-jaas-config",
+					Namespace: crd.ObjectMeta.Namespace,
+				},
+			}
+			secret.StringData = map[string]string{JaasConfigKey: `{;`}
+			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
+
+			By("Deploying the CRD " + crd.ObjectMeta.Name)
+			crd.Spec.DeploymentPlan.ExtraMounts.Secrets = []string{secret.Name}
+			Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+			By("verifying ivalid status and resource version")
+			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, crdKey, createdCrd)).To(Succeed())
+				validCondition := meta.FindStatusCondition(createdCrd.Status.Conditions, common.ValidConditionType)
+				g.Expect(validCondition).NotTo(BeNil())
+				g.Expect(validCondition.Status).To(Equal(metav1.ConditionFalse))
+				g.Expect(validCondition.Message).To(ContainSubstring("syntax"))
+				g.Expect(validCondition.ObservedGeneration).Should(Equal(createdCrd.Generation))
+			}, timeout, interval).Should(Succeed())
+
+			By("deleting the logging configmap")
+			Expect(k8sClient.Delete(ctx, secret)).Should(Succeed())
 			Expect(k8sClient.Delete(ctx, createdCrd)).Should(Succeed())
 		})
 
