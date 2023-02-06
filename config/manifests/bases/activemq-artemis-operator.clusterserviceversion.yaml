@@ -1678,4 +1678,4 @@ spec:
   provider:
     name: ArtemisCloud
     url: https://artemiscloud.io
-  version: 1.0.7
+  version: 0.0.0
