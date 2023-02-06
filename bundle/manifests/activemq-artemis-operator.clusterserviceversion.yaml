@@ -86,7 +86,7 @@ metadata:
     categories: Streaming & Messaging
     operators.operatorframework.io/builder: operator-sdk-v1.14.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: activemq-artemis-operator.v1.0.0
+  name: activemq-artemis-operator.v1.0.8
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -1808,7 +1808,7 @@ spec:
                   value: quay.io/artemiscloud/activemq-artemis-broker-kubernetes:1.0.14
                 - name: ENABLE_WEBHOOKS
                   value: "false"
-                image: quay.io/artemiscloud/activemq-artemis-operator:1.0.7
+                image: quay.io/artemiscloud/activemq-artemis-operator:1.0.8
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -2105,137 +2105,4 @@ spec:
   provider:
     name: ArtemisCloud
     url: https://artemiscloud.io
-  version: 1.0.0
-  webhookdefinitions:
-  - admissionReviewVersions:
-    - v2alpha5
-    - v1beta1
-    containerPort: 443
-    conversionCRDs:
-    - activemqartemises.broker.amq.io
-    deploymentName: activemq-artemis-controller-manager
-    generateName: cactivemqartemises.kb.io
-    sideEffects: None
-    targetPort: 9443
-    type: ConversionWebhook
-    webhookPath: /convert
-  - admissionReviewVersions:
-    - v1
-    containerPort: 443
-    deploymentName: activemq-artemis-controller-manager
-    failurePolicy: Fail
-    generateName: mactivemqartemis.kb.io
-    rules:
-    - apiGroups:
-      - broker.amq.io
-      apiVersions:
-      - v1beta1
-      operations:
-      - CREATE
-      - UPDATE
-      resources:
-      - activemqartemises
-    sideEffects: None
-    targetPort: 9443
-    type: MutatingAdmissionWebhook
-    webhookPath: /mutate-broker-amq-io-v1beta1-activemqartemis
-  - admissionReviewVersions:
-    - v1
-    containerPort: 443
-    deploymentName: activemq-artemis-controller-manager
-    failurePolicy: Fail
-    generateName: mactivemqartemisaddress.kb.io
-    rules:
-    - apiGroups:
-      - broker.amq.io
-      apiVersions:
-      - v1beta1
-      operations:
-      - CREATE
-      - UPDATE
-      resources:
-      - activemqartemisaddresses
-    sideEffects: None
-    targetPort: 9443
-    type: MutatingAdmissionWebhook
-    webhookPath: /mutate-broker-amq-io-v1beta1-activemqartemisaddress
-  - admissionReviewVersions:
-    - v1
-    containerPort: 443
-    deploymentName: activemq-artemis-controller-manager
-    failurePolicy: Fail
-    generateName: mactivemqartemissecurity.kb.io
-    rules:
-    - apiGroups:
-      - broker.amq.io
-      apiVersions:
-      - v1beta1
-      operations:
-      - CREATE
-      - UPDATE
-      resources:
-      - activemqartemissecurities
-    sideEffects: None
-    targetPort: 9443
-    type: MutatingAdmissionWebhook
-    webhookPath: /mutate-broker-amq-io-v1beta1-activemqartemissecurity
-  - admissionReviewVersions:
-    - v1
-    containerPort: 443
-    deploymentName: activemq-artemis-controller-manager
-    failurePolicy: Fail
-    generateName: vactivemqartemis.kb.io
-    rules:
-    - apiGroups:
-      - broker.amq.io
-      apiVersions:
-      - v1beta1
-      operations:
-      - CREATE
-      - UPDATE
-      resources:
-      - activemqartemises
-    sideEffects: None
-    targetPort: 9443
-    type: ValidatingAdmissionWebhook
-    webhookPath: /validate-broker-amq-io-v1beta1-activemqartemis
-  - admissionReviewVersions:
-    - v1
-    containerPort: 443
-    deploymentName: activemq-artemis-controller-manager
-    failurePolicy: Fail
-    generateName: vactivemqartemisaddress.kb.io
-    rules:
-    - apiGroups:
-      - broker.amq.io
-      apiVersions:
-      - v1beta1
-      operations:
-      - CREATE
-      - UPDATE
-      resources:
-      - activemqartemisaddresses
-    sideEffects: None
-    targetPort: 9443
-    type: ValidatingAdmissionWebhook
-    webhookPath: /validate-broker-amq-io-v1beta1-activemqartemisaddress
-  - admissionReviewVersions:
-    - v1
-    containerPort: 443
-    deploymentName: activemq-artemis-controller-manager
-    failurePolicy: Fail
-    generateName: vactivemqartemissecurity.kb.io
-    rules:
-    - apiGroups:
-      - broker.amq.io
-      apiVersions:
-      - v1beta1
-      operations:
-      - CREATE
-      - UPDATE
-      resources:
-      - activemqartemissecurities
-    sideEffects: None
-    targetPort: 9443
-    type: ValidatingAdmissionWebhook
-    webhookPath: /validate-broker-amq-io-v1beta1-activemqartemissecurity
+  version: 1.0.8
