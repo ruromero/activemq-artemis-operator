@@ -205,9 +205,9 @@ endef
 
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
-	operator-sdk generate kustomize manifests -q
+	operator-sdk generate kustomize manifests -q --package $(OPERATOR_NAMESPACE)
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --package $(OPERATOR_NAMESPACE) --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	sed -i '/creationTimestamp/d' ./bundle/manifests/*.yaml
 	operator-sdk bundle validate ./bundle
 
