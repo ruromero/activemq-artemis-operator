@@ -211,6 +211,10 @@ bundle: manifests kustomize ## Generate bundle manifests and metadata, then vali
 	sed -i '/creationTimestamp/d' ./bundle/manifests/*.yaml
 	operator-sdk bundle validate ./bundle
 
+.PHONY: bundle-clean
+bundle-clean: ## Clean the bundle directory
+	rm -rf ./bundle/*
+
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
