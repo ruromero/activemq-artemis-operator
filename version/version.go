@@ -3,9 +3,9 @@ package version
 import "strings"
 
 var (
-	Version = "1.0.8"
+	Version = "1.0.9"
 	// PriorVersion - prior version
-	PriorVersion = "1.0.7"
+	PriorVersion = "1.0.8"
 
 	//Vars injected at build-time
 	CommitHash     = ""
