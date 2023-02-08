@@ -57,15 +57,7 @@ RUN dnf update -y --setopt=install_weak_deps=0 && rm -rf /var/cache/yum
 USER ${USER_UID}
 ENTRYPOINT ["/home/${BROKER_NAME}-operator/bin/entrypoint"]
 
-LABEL com.redhat.component="amq-broker-rhel8-operator-container"
-LABEL com.redhat.delivery.appregistry="false"
+LABEL name="artemiscloud/activemq-artemis-operator"
 LABEL description="ActiveMQ Artemis Broker Operator"
-LABEL io.k8s.description="An associated operator that handles broker installation, updates and scaling."
-LABEL io.k8s.display-name="ActiveMQ Artemis Broker Operator"
-LABEL io.openshift.expose-services=""
-LABEL io.openshift.s2i.scripts-url="image:///usr/local/s2i"
-LABEL io.openshift.tags="messaging,amq,integration,operator,golang"
 LABEL maintainer="Roddie Kieley <rkieley@redhat.com>"
-LABEL name="amq7/amq-broker-rhel8-operator"
-LABEL summary="ActiveMQ Artemis Broker Operator"
-LABEL version="1.0"
+LABEL version="1.0.9"
