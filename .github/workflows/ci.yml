@@ -56,7 +56,7 @@ jobs:
           npm install && npm run build
 
       - name: Build the image
-        run: docker build --label \"quay.expires-after=1w\" --label \"git-sha=$GITHUB_SHA\" --tag $IMAGE_NAME:dev.latest .
+        run: docker build --label quay.expires-after=90d --label git-sha=$GITHUB_SHA --tag $IMAGE_NAME:dev.latest .
 
       - name: Push the image
         if: ${{ github.event_name == 'push' }}
