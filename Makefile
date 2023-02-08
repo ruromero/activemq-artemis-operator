@@ -174,7 +174,7 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 
 generate-deploy: manifests kustomize ## Generate deployment artifacts in separate files in $(DEPLOY) dir
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | hack/static_manifest_gen.sh $(DEPLOY)
+	$(KUSTOMIZE) build config/default | hack/static_manifest_gen.sh $(DEPLOY) $(OPERATOR_NAMESPACE)
 
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
