@@ -2541,9 +2541,6 @@ var _ = Describe("artemis controller", func() {
 
 			reconcilerImpl := &ActiveMQArtemisReconcilerImpl{}
 
-			os.Setenv("OPERATOR_OPENSHIFT", "true")
-			defer os.Unsetenv("OPERATOR_OPENSHIFT")
-
 			defaultConsoleSecretName := crd.Name + "-console-secret"
 			currentSS := &appsv1.StatefulSet{}
 			currentSS.Name = namer.CrToSS(crd.Name)
@@ -2602,9 +2599,6 @@ var _ = Describe("artemis controller", func() {
 			By("stop existing manager as we wish to populate etcd and reconcile directly")
 			shutdownControllerManager()
 			defer createControllerManagerForSuite()
-
-			os.Setenv("OPERATOR_OPENSHIFT", "true")
-			defer os.Unsetenv("OPERATOR_OPENSHIFT")
 
 			crd := generateArtemisSpec(defaultNamespace)
 			crd.Spec.Console.Expose = true
@@ -2700,9 +2694,6 @@ var _ = Describe("artemis controller", func() {
 			By("stop existing manager as we wish to populate etcd and reconcile directly")
 			shutdownControllerManager()
 			defer createControllerManagerForSuite()
-
-			os.Setenv("OPERATOR_OPENSHIFT", "true")
-			defer os.Unsetenv("OPERATOR_OPENSHIFT")
 
 			crd := generateArtemisSpec(defaultNamespace)
 			crd.Spec.Console.Expose = true
