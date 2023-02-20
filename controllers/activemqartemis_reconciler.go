@@ -1462,9 +1462,9 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 			if key == selectors.LabelAppKey || key == selectors.LabelResourceKey {
 
 				meta.SetStatusCondition(&customResource.Status.Conditions, metav1.Condition{
-					Type:    common.ValidConditionType,
+					Type:    brokerv1beta1.ValidConditionType,
 					Status:  metav1.ConditionFalse,
-					Reason:  common.ValidConditionFailedReservedLabelReason,
+					Reason:  brokerv1beta1.ValidConditionFailedReservedLabelReason,
 					Message: fmt.Sprintf("'%s' is a reserved label, it is not allowed in Spec.DeploymentPlan.Labels", key),
 				})
 				return nil, fmt.Errorf("label key '%s' not allowed because it is reserved", key)
@@ -1474,12 +1474,12 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 		}
 	}
 	// validation success
-	prevCondition := meta.FindStatusCondition(customResource.Status.Conditions, common.ValidConditionType)
+	prevCondition := meta.FindStatusCondition(customResource.Status.Conditions, brokerv1beta1.ValidConditionType)
 	if prevCondition == nil {
 		meta.SetStatusCondition(&customResource.Status.Conditions, metav1.Condition{
-			Type:   common.ValidConditionType,
+			Type:   brokerv1beta1.ValidConditionType,
 			Status: metav1.ConditionTrue,
-			Reason: common.ValidConditionSuccessReason,
+			Reason: brokerv1beta1.ValidConditionSuccessReason,
 		})
 	}
 
@@ -2379,13 +2379,13 @@ func UpdatePodStatus(cr *brokerv1beta1.ActiveMQArtemis, client rtclient.Client, 
 func getValidCondition(cr *brokerv1beta1.ActiveMQArtemis) metav1.Condition {
 	// add valid true if none exists
 	for _, c := range cr.Status.Conditions {
-		if c.Type == common.ValidConditionType {
+		if c.Type == brokerv1beta1.ValidConditionType {
 			return c
 		}
 	}
 	return metav1.Condition{
-		Type:   common.ValidConditionType,
-		Reason: common.ValidConditionSuccessReason,
+		Type:   brokerv1beta1.ValidConditionType,
+		Reason: brokerv1beta1.ValidConditionSuccessReason,
 		Status: metav1.ConditionTrue,
 	}
 }
@@ -2406,7 +2406,7 @@ func getDeploymentCondition(cr *brokerv1beta1.ActiveMQArtemis, podStatus olm.Dep
 			Type:    brokerv1beta1.DeployedConditionType,
 			Status:  metav1.ConditionFalse,
 			Reason:  brokerv1beta1.DeployedConditionZeroSizeReason,
-			Message: brokerv1beta1.DeployedConditionZeroSizeMessage,
+			Message: common.DeployedConditionZeroSizeMessage,
 		}
 	}
 	if len(podStatus.Ready) != int(deploymentSize) {
