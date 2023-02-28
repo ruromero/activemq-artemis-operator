@@ -1521,6 +1521,9 @@ spec:
                   - type
                   type: object
                 type: array
+              deploymentPlanSize:
+                format: int32
+                type: integer
               externalConfigs:
                 description: Current state of external referenced resources
                 items:
@@ -1580,6 +1583,9 @@ spec:
     served: true
     storage: true
     subresources:
+      scale:
+        specReplicasPath: .spec.deploymentPlan.size
+        statusReplicasPath: .status.deploymentPlanSize
       status: {}
   - name: v2alpha1
     schema:
