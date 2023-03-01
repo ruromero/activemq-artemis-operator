@@ -1556,6 +1556,8 @@ spec:
                       type: string
                     type: array
                 type: object
+              scaleLabelSelector:
+                type: string
               upgrade:
                 properties:
                   majorUpdates:
@@ -1584,6 +1586,7 @@ spec:
     storage: true
     subresources:
       scale:
+        labelSelectorPath: .status.scaleLabelSelector
         specReplicasPath: .spec.deploymentPlan.size
         statusReplicasPath: .status.deploymentPlanSize
       status: {}

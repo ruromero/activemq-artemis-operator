@@ -1315,6 +1315,8 @@ spec:
         path: podStatus
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:podStatuses
+      - displayName: Auto scale label selector
+        path: scaleLabelSelector
       - displayName: Upgrade Status
         path: upgrade
       - displayName: MajorUpdates
