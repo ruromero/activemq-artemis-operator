@@ -1616,7 +1616,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) NewPodTemplateSpecForCR(customR
 
 	compactVersionToUse, verr := determineCompactVersionToUse(customResource)
 	if verr != nil {
-		reqLogger.Error(verr, "failed to get compact version for", customResource.Spec.Version)
+		reqLogger.Error(verr, "failed to get compact version", "Spec.Version", customResource.Spec.Version)
 		return nil, verr
 	}
 	yacfgProfileVersion = version.YacfgProfileVersionFromFullVersion[version.FullVersionFromCompactVersion[compactVersionToUse]]
