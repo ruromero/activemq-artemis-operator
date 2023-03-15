@@ -1165,7 +1165,8 @@ spec:
           to all broker crs
         displayName: Apply to Broker CR Names
         path: applyToCrNames
-      - description: Specifies the login modules
+      - description: Specifies the login modules (deprecated in favour of ActiveMQArtemisSpec.DeploymentPlan.ExtraMounts.Secrets
+          -jaas-config)
         displayName: Login Modules
         path: loginModules
       - description: Specifies the guest login modules
@@ -1453,7 +1454,8 @@ spec:
       - description: Roles to be defined in properties login module
         displayName: Roles
         path: loginModules.propertiesLoginModules[0].users[0].roles
-      - description: Specifies the security domains
+      - description: Specifies the security domains (deprecated in favour of ActiveMQArtemisSpec.DeploymentPlan.ExtraMounts.Secrets
+          -jaas-config)
         displayName: Security Domains
         path: securityDomains
       - description: Specify the broker domain

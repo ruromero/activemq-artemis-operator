@@ -28,10 +28,10 @@ type ActiveMQArtemisSecuritySpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Specifies the login modules
+	// Specifies the login modules (deprecated in favour of ActiveMQArtemisSpec.DeploymentPlan.ExtraMounts.Secrets -jaas-config)
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Login Modules"
 	LoginModules LoginModulesType `json:"loginModules,omitempty"`
-	// Specifies the security domains
+	// Specifies the security domains (deprecated in favour of ActiveMQArtemisSpec.DeploymentPlan.ExtraMounts.Secrets -jaas-config)
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Security Domains"
 	SecurityDomains SecurityDomainsType `json:"securityDomains,omitempty"`
 	// Specifies the security settings

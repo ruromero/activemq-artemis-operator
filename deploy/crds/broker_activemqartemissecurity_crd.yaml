@@ -360,7 +360,7 @@ spec:
                   type: string
                 type: array
               loginModules:
-                description: Specifies the login modules
+                description: Specifies the login modules (deprecated in favour of ActiveMQArtemisSpec.DeploymentPlan.ExtraMounts.Secrets -jaas-config)
                 properties:
                   guestLoginModules:
                     description: Specifies the guest login modules
@@ -569,7 +569,7 @@ spec:
                     type: array
                 type: object
               securityDomains:
-                description: Specifies the security domains
+                description: Specifies the security domains (deprecated in favour of ActiveMQArtemisSpec.DeploymentPlan.ExtraMounts.Secrets -jaas-config)
                 properties:
                   brokerDomain:
                     description: Specify the broker domain

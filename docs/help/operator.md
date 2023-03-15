@@ -806,6 +806,38 @@ spec:
       - "my-logging-config"
 ```
 
+## Configuring JAAS for Brokers
+
+An entire JAAS configuration file (login.config) can be supplied via a secret with a `-jaas-config` postfix in the spec.deploymentPlan.extraMounts.secrets field. This file will be referenced from
+the jaas config system property (`java.security.auth.login.config`) and it will override anything configured via artemis create or via the ArtemisSecurityCR. For full details of how to configure JAAS for the broker refer to the [JAAS Security manager documentation](https://activemq.apache.org/components/artemis/documentation/latest/security.html#JAAS_Security_Manager).
+Note: care must be taken to respect the any configured admin user such that the operator can still access the jolokia endpoint of the broker. The simplest way to do that is to reference the existing PropertiesLoginModule configuration files in your login.config.
+For example, here we have two instances of the PropertiesLoginModule, one that references the the default credentials from `/home/jboss/amq-broker/etc` and one that has user suplied values from the secret. `reload=true` will ensure that the properties are reloaded if the secret changes. The `login.config` key in your secret called `<...>-jaas-config`, would have the following as the value:
+
+```
+		// a full login.config with the default activemq realm
+		activemq {
+
+				// ensure the operator can connect to the broker by referencing the existing properties config
+				org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule sufficient
+					org.apache.activemq.jaas.properties.user="artemis-users.properties"
+					org.apache.activemq.jaas.properties.role="artemis-roles.properties"
+					baseDir="/home/jboss/amq-broker/etc";
+
+				// a custom LoginModule that will reload from this secret
+				org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule sufficient
+					reload=true
+					// these files will be provided by the secret
+					org.apache.activemq.jaas.properties.user="users.properties"
+					org.apache.activemq.jaas.properties.role="roles.properties";
+
+				// add any other supported LoginModule here
+		};
+```
+
+There would be corresponding keys for users.properties and roles.properties, they are picked up from the same mount point as your login.config by default.
+
+With the possiblity of configuring arbritary jaas login modules directly, the ArtemisSecurityCR ActiveMQArtemisSecuritySpec.LoginModules and ActiveMQArtemisSecuritySpec.SecurityDomains fields are deprecated.
+
 ## Locking down a broker deployment
 
 Often when verificiation is complete it is desirable to lock down the broker images and prevent auto upgrades, which will result in a roll out of images and a restart of your broker.
