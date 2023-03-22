@@ -237,7 +237,7 @@ metadata:
     categories: Streaming & Messaging
     operators.operatorframework.io/builder: operator-sdk-v1.14.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: activemq-artemis-operator.v1.0.10
+  name: activemq-artemis-operator.v1.0.11
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -2018,7 +2018,7 @@ spec:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: ENABLE_WEBHOOKS
                   value: "false"
-                image: quay.io/artemiscloud/activemq-artemis-operator:1.0.10
+                image: quay.io/artemiscloud/activemq-artemis-operator:1.0.11
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -2315,4 +2315,4 @@ spec:
   provider:
     name: ArtemisCloud
     url: https://artemiscloud.io
-  version: 1.0.10
+  version: 1.0.11
