@@ -59,6 +59,7 @@ import (
 
 var chars = []rune("hgjkmnpqrtvwxyzslbcdaefiou")
 var defaultPassword string = "password"
+var defaultSanDnsNames = []string{"*.apps.artemiscloud.io", "*.tests.artemiscloud.io"}
 
 func randStringWithPrefix(prefix string) string {
 	rand.Seed(time.Now().UnixNano())

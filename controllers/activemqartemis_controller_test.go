@@ -81,7 +81,6 @@ var _ = Describe("artemis controller", func() {
 
 	brokerPropertiesMatchString := "broker.properties"
 	ingressHostDomainSubString := "apps.artemiscloud.io"
-	defaultSanDnsNames := []string{"*.apps.artemiscloud.io", "*.tests.artemiscloud.io"}
 
 	// see what has changed from the controllers perspective, what we watch
 	toWatch := []client.ObjectList{&brokerv1beta1.ActiveMQArtemisList{}, &appsv1.StatefulSetList{}, &corev1.PodList{}}
