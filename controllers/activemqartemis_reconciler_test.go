@@ -534,6 +534,34 @@ func TestNewPodTemplateSpecForCR_AppendsDebugArgs(t *testing.T) {
 	assert.Contains(t, newSpec.Spec.Containers[0].Env, expectedEnv)
 }
 
+func TestNewPodTemplateSpecForCR_IncludesImagePullSecret(t *testing.T) {
+	// client := fake.NewClientBuilder().Build()
+	reconciler := &ActiveMQArtemisReconcilerImpl{}
+
+	cr := &brokerv1beta1.ActiveMQArtemis{
+		Spec: brokerv1beta1.ActiveMQArtemisSpec{
+			DeploymentPlan: brokerv1beta1.DeploymentPlanType{
+				ImagePullSecrets: []v1.LocalObjectReference{
+					{
+						Name: "testPullSecret",
+					},
+				},
+			},
+		},
+	}
+
+	newSpec, err := reconciler.NewPodTemplateSpecForCR(cr, Namers{}, &v1.PodTemplateSpec{}, k8sClient)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, newSpec)
+	expectedPullSecret := []v1.LocalObjectReference{
+		{
+			Name: "testPullSecret",
+		},
+	}
+	assert.Equal(t, newSpec.Spec.ImagePullSecrets, expectedPullSecret)
+}
+
 func TestLoginConfigSyntaxCheck(t *testing.T) {
 	good := map[string][]byte{
 		"simple": []byte(`a {

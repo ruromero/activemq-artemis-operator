@@ -292,6 +292,9 @@ type DeploymentPlanType struct {
 	// The init container image used to configure broker, all upgrades are disabled. Needs a corresponding image
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Init Image",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	InitImage string `json:"initImage,omitempty"`
+	//The image pull secrets name used to retrieve secrets for image pulls.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Image Pull Secrets"
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	// The number of broker pods to deploy
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Size",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:podCount"}
 	Size *int32 `json:"size,omitempty"`

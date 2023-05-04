@@ -1159,6 +1159,10 @@ spec:
         path: deploymentPlan.image
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      - description: The image pull secrets name used to retrieve secrets for image
+          pulls.
+        displayName: Image Pull Secrets
+        path: deploymentPlan.imagePullSecrets
       - description: The init container image used to configure broker, all upgrades
           are disabled. Needs a corresponding image
         displayName: Init Image
