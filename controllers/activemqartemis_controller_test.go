@@ -81,6 +81,7 @@ var _ = Describe("artemis controller", func() {
 
 	brokerPropertiesMatchString := "broker.properties"
 	ingressHostDomainSubString := "apps.artemiscloud.io"
+	defaultSanDnsNames := []string{"*.apps.artemiscloud.io", "*.tests.artemiscloud.io"}
 
 	// see what has changed from the controllers perspective, what we watch
 	toWatch := []client.ObjectList{&brokerv1beta1.ActiveMQArtemisList{}, &appsv1.StatefulSetList{}, &corev1.PodList{}}
@@ -132,34 +133,10 @@ var _ = Describe("artemis controller", func() {
 				Expect(err).To(BeNil())
 
 				commonSecretName := "common-amq-tls-secret"
-				var commonSecret corev1.Secret
-				By("deploying a common secret")
-				certData := make(map[string][]byte)
-				stringData := make(map[string]string)
+				commonSecret, err := CreateTlsSecret(commonSecretName, defaultNamespace, defaultPassword, defaultSanDnsNames)
+				Expect(err).To(BeNil())
 
-				brokerKs, ferr := os.ReadFile("../test/resources/broker.ks")
-				Expect(ferr).To(BeNil())
-				clientTs, ferr := os.ReadFile("../test/resources/client.ts")
-				Expect(ferr).To(BeNil())
-
-				certData["broker.ks"] = brokerKs
-				certData["client.ts"] = clientTs
-				stringData["keyStorePassword"] = "password"
-				stringData["trustStorePassword"] = "password"
-
-				commonSecret = corev1.Secret{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "v1",
-						Kind:       "Secret",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      commonSecretName,
-						Namespace: defaultNamespace,
-					},
-					Data:       certData,
-					StringData: stringData,
-				}
-				Expect(k8sClient.Create(ctx, &commonSecret)).Should(Succeed())
+				Expect(k8sClient.Create(ctx, commonSecret)).Should(Succeed())
 
 				createdSecret := corev1.Secret{}
 				secretKey := types.NamespacedName{
@@ -378,8 +355,8 @@ var _ = Describe("artemis controller", func() {
 					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 				}
 
-				Expect(k8sClient.Delete(ctx, createdBrokerCr)).Should(Succeed())
-				Expect(k8sClient.Delete(ctx, &commonSecret)).Should(Succeed())
+				CleanResource(createdBrokerCr, createdBrokerCr.Name, defaultNamespace)
+				CleanResource(commonSecret, commonSecret.Name, defaultNamespace)
 			}
 		})
 	})
@@ -1740,36 +1717,11 @@ var _ = Describe("artemis controller", func() {
 				isOpenshift, err := environments.DetectOpenshift()
 				Expect(err).To(BeNil())
 
-				var consoleSecret corev1.Secret
-
 				By("deploying well known secret name that the operator will look for")
-				certData := make(map[string][]byte)
-				stringData := make(map[string]string)
-
-				brokerKs, ferr := os.ReadFile("../test/resources/broker.ks")
-				Expect(ferr).To(BeNil())
-				clientTs, ferr := os.ReadFile("../test/resources/client.ts")
-				Expect(ferr).To(BeNil())
-
-				certData["broker.ks"] = brokerKs
-				certData["client.ts"] = clientTs
-				stringData["keyStorePassword"] = "password"
-				stringData["trustStorePassword"] = "password"
-
 				consoleSecretName := crd.Name + "-console-secret"
-				consoleSecret = corev1.Secret{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "v1",
-						Kind:       "Secret",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      consoleSecretName,
-						Namespace: defaultNamespace,
-					},
-					Data:       certData,
-					StringData: stringData,
-				}
-				Expect(k8sClient.Create(ctx, &consoleSecret)).Should(Succeed())
+				consoleSecret, err := CreateTlsSecret(consoleSecretName, defaultNamespace, defaultPassword, defaultSanDnsNames)
+				Expect(err).To(BeNil())
+				Expect(k8sClient.Create(ctx, consoleSecret)).Should(Succeed())
 
 				createdSecret := corev1.Secret{}
 				secretKey := types.NamespacedName{
@@ -1872,8 +1824,8 @@ var _ = Describe("artemis controller", func() {
 					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 				}
 
-				Expect(k8sClient.Delete(ctx, &crd)).Should(Succeed())
-				Expect(k8sClient.Delete(ctx, &consoleSecret)).Should(Succeed())
+				CleanResource(&crd, crd.Name, defaultNamespace)
+				CleanResource(consoleSecret, consoleSecret.Name, defaultNamespace)
 			}
 		})
 
@@ -1914,36 +1866,12 @@ var _ = Describe("artemis controller", func() {
 				isOpenshift, err := environments.DetectOpenshift()
 				Expect(err).To(BeNil())
 
-				var consoleSecret corev1.Secret
-
 				By("deploying user specified secret")
-				certData := make(map[string][]byte)
-				stringData := make(map[string]string)
-
-				brokerKs, ferr := os.ReadFile("../test/resources/broker.ks")
-				Expect(ferr).To(BeNil())
-				clientTs, ferr := os.ReadFile("../test/resources/client.ts")
-				Expect(ferr).To(BeNil())
-
-				certData["broker.ks"] = brokerKs
-				certData["client.ts"] = clientTs
-				stringData["keyStorePassword"] = "password"
-				stringData["trustStorePassword"] = "password"
-
 				consoleSecretName := "my-secret"
-				consoleSecret = corev1.Secret{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "v1",
-						Kind:       "Secret",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      consoleSecretName,
-						Namespace: defaultNamespace,
-					},
-					Data:       certData,
-					StringData: stringData,
-				}
-				Expect(k8sClient.Create(ctx, &consoleSecret)).Should(Succeed())
+				consoleSecret, err := CreateTlsSecret(consoleSecretName, defaultNamespace, defaultPassword, defaultSanDnsNames)
+				Expect(err).To(BeNil())
+
+				Expect(k8sClient.Create(ctx, consoleSecret)).Should(Succeed())
 
 				createdSecret := corev1.Secret{}
 				secretKey := types.NamespacedName{
@@ -2030,8 +1958,8 @@ var _ = Describe("artemis controller", func() {
 					g.Expect(retrievedService.Spec.Ports[0].Port).Should(Not(BeEquivalentTo(dudPort)))
 				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
 
-				Expect(k8sClient.Delete(ctx, &crd)).Should(Succeed())
-				Expect(k8sClient.Delete(ctx, &consoleSecret)).Should(Succeed())
+				CleanResource(&crd, crd.Name, defaultNamespace)
+				CleanResource(consoleSecret, consoleSecret.Name, defaultNamespace)
 
 				By("verify service gets owned and deleted")
 				Eventually(func(g Gomega) {
