@@ -73,7 +73,7 @@ SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
 BUILD_TIMESTAMP := $(shell date '+%Y-%m-%dT%H:%M:%S')
-LDFLAGS = "'$(GO_MODULE)/version.BuildTimestamp=$(BUILD_TIMESTAMP)'"
+LDFLAGS = "$(GO_MODULE)/version.BuildTimestamp=$(BUILD_TIMESTAMP)"
 
 
 all: build

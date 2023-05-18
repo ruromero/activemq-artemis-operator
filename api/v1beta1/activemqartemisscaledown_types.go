@@ -48,7 +48,7 @@ type ActiveMQArtemisScaledownStatus struct {
 //+kubebuilder:subresource:status
 
 // Provides message migration on clustered broker scaledown
-//+operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis Scaledown"
+// +operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis Scaledown"
 type ActiveMQArtemisScaledown struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -210,7 +210,7 @@ func (r *ActiveMQArtemisSecurityConfigHandler) GetDefaultLabels() map[string]str
 
 }
 
-//retrive value from secret, generate value if not exist.
+// retrive value from secret, generate value if not exist.
 func (r *ActiveMQArtemisSecurityConfigHandler) getPassword(secretName string, key string) *string {
 	//check if the secret exists.
 	namespacedName := types.NamespacedName{

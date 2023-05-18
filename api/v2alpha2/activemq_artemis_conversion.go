@@ -11,7 +11,7 @@ func (r *ActiveMQArtemis) ConvertTo(dst conversion.Hub) error {
 	return nil
 }
 
-//may not need it if the Hub (storage version) is the latest
+// may not need it if the Hub (storage version) is the latest
 func (r *ActiveMQArtemis) ConvertFrom(src conversion.Hub) error {
 	return nil
 }

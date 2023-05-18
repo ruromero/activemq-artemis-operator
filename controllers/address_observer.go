@@ -68,15 +68,15 @@ func (c *AddressObserver) Run(C chan types.NamespacedName, ctx context.Context) 
 	}
 }
 
-//if we support multiple statefulset in a namespace
-//the pod may came from any stateful set
-//so we need to check if the pod belongs to the statefulset(cr)
-//that this address intends to be applied to
-//that why we need one more property (targetBrokerCrName)
-//and only apply addresses to those pods that in that SS.
-//The property should be optional to keep backward compatibility
-//and if multiple statefulsets exists while the property
-//is not specified, apply to all pods)
+// if we support multiple statefulset in a namespace
+// the pod may came from any stateful set
+// so we need to check if the pod belongs to the statefulset(cr)
+// that this address intends to be applied to
+// that why we need one more property (targetBrokerCrName)
+// and only apply addresses to those pods that in that SS.
+// The property should be optional to keep backward compatibility
+// and if multiple statefulsets exists while the property
+// is not specified, apply to all pods)
 func (c *AddressObserver) newPodReady(ready *types.NamespacedName) {
 
 	olog.Info("New pod ready.", "Pod", ready)

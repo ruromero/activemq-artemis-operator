@@ -404,7 +404,7 @@ type ActiveMQArtemisSecurityStatus struct {
 //+kubebuilder:storageversion
 
 // Security configuration for the broker
-//+operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis Security"
+// +operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis Security"
 type ActiveMQArtemisSecurity struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

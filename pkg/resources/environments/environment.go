@@ -15,7 +15,7 @@ import (
 
 var log = logf.Log.WithName("package environments")
 
-//TODO: Remove this blatant hack
+// TODO: Remove this blatant hack
 var GLOBAL_AMQ_CLUSTER_USER string = ""
 var GLOBAL_AMQ_CLUSTER_PASSWORD string = ""
 

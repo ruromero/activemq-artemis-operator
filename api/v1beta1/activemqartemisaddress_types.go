@@ -146,7 +146,7 @@ type ActiveMQArtemisAddressStatus struct {
 //+kubebuilder:storageversion
 
 // Adding and removing addresses using custom resource definitions
-//+operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis Address"
+// +operator-sdk:csv:customresourcedefinitions:displayName="ActiveMQ Artemis Address"
 type ActiveMQArtemisAddress struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
