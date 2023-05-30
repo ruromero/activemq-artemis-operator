@@ -328,6 +328,7 @@ func createControllerManager(disableMetrics bool, watchNamespace string) {
 	waitforever := time.Duration(-1)
 	mgrOptions.GracefulShutdownTimeout = &waitforever
 	mgrOptions.LeaderElectionReleaseOnCancel = true
+	mgrOptions.Port = 9443
 
 	// start our controler
 	var err error

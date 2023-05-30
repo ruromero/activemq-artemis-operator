@@ -8,10 +8,10 @@ VERSION ?= 1.0.11
 KUBE_CLI=kubectl
 OPERATOR_VERSION := 1.0.11
 OPERATOR_ACCOUNT_NAME := activemq-artemis-operator
-OPERATOR_CLUSTER_ROLE_NAME := operator
+OPERATOR_CLUSTER_ROLE_NAME := operator-role
 OPERATOR_IMAGE_REPO := quay.io/artemiscloud/activemq-artemis-operator
 OPERATOR_NAMESPACE := activemq-artemis-operator
-CATALOG_NAMESPACE := $(OPERATOR_NAMESPACE)
+ENABLE_WEBHOOKS := true
 BUNDLE_PACKAGE := $(OPERATOR_NAMESPACE)
 BUNDLE_ANNOTATION_PACKAGE := $(BUNDLE_PACKAGE)
 CATALOG_NAMESPACE := $(OPERATOR_NAMESPACE)
@@ -112,17 +112,17 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen kustomize
-ifeq ($(USE_CERTMANAGER),true)
+ifeq ($(ENABLE_WEBHOOKS),true)
 ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 ## v2alpha3, v2alpha4 and v2alpha3 requires allowDangerousTypes=true because they use float32 type
 	cd config/manager && $(KUSTOMIZE) edit add resource webhook_secret.yaml 
 	$(CONTROLLER_GEN) rbac:roleName=$(OPERATOR_CLUSTER_ROLE_NAME) crd:allowDangerousTypes=true webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	find config -type f -exec sed -i.bak -e '/creationTimestamp/d' {} \; -exec rm {}.bak \;
 else
-## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+## Generate ClusterRole and CustomResourceDefinition objects.
 ## v2alpha3, v2alpha4 and v2alpha3 requires allowDangerousTypes=true because they use float32 type
-	cd config/manager && $(KUSTOMIZE) edit add resource webhook_secret.yaml 
-	$(CONTROLLER_GEN) rbac:roleName=$(OPERATOR_CLUSTER_ROLE_NAME) crd:allowDangerousTypes=true webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	cd config/manager && $(KUSTOMIZE) edit remove resource webhook_secret.yaml 
+	$(CONTROLLER_GEN) rbac:roleName=$(OPERATOR_CLUSTER_ROLE_NAME) crd:allowDangerousTypes=true paths="./..." output:crd:artifacts:config=config/crd/bases
 	find config -type f -exec sed -i.bak -e '/creationTimestamp/d' {} \; -exec rm {}.bak \;
 endif
 
@@ -143,11 +143,11 @@ test test-v: TEST_VARS = KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8
 
 ## Run tests against minikube with local operator.
 test-mk test-mk-v: TEST_ARGS += -test.timeout=50m -ginkgo.label-filter='!do'
-test-mk test-mk-v: TEST_VARS = USE_EXISTING_CLUSTER=true RECONCILE_RESYNC_PERIOD=5s
+test-mk test-mk-v: TEST_VARS = ENABLE_WEBHOOKS=false USE_EXISTING_CLUSTER=true RECONCILE_RESYNC_PERIOD=5s
 
 ## Run tests against minikube with deployed operator(do)
 test-mk-do test-mk-do-v: TEST_ARGS += -test.timeout=40m -ginkgo.label-filter='do'
-test-mk-do test-mk-do-v: TEST_VARS = DEPLOY_OPERATOR=true USE_EXISTING_CLUSTER=true
+test-mk-do test-mk-do-v: TEST_VARS = DEPLOY_OPERATOR=true ENABLE_WEBHOOKS=false USE_EXISTING_CLUSTER=true
 
 ## Run tests against minikube with deployed operator(do) and exclude slow, useful for CI smoke
 test-mk-do-fast test-mk-do-fast-v: TEST_ARGS += -test.timeout=40m -ginkgo.label-filter='do && !slow'
@@ -279,6 +279,8 @@ bundle: manifests operator-sdk kustomize ## Generate bundle manifests and metada
 	sed -e 's/annotations://' -e 's/  /LABEL /g' -e 's/: /=/g'  config/metadata/$(BUNDLE_PACKAGE).annotations.yaml >> bundle.Dockerfile
 	sed -i.bak 's/operators.operatorframework.io.bundle.package.v1:.*/operators.operatorframework.io.bundle.package.v1: $(BUNDLE_ANNOTATION_PACKAGE)/' bundle/metadata/annotations.yaml && rm bundle/metadata/annotations.yaml.bak
 	sed -i.bak 's/operators.operatorframework.io.bundle.package.v1=.*/operators.operatorframework.io.bundle.package.v1=$(BUNDLE_ANNOTATION_PACKAGE)/' bundle.Dockerfile && rm bundle.Dockerfile.bak
+	rm bundle/manifests/activemq-artemis-webhook-service_v1_service.yaml
+	sed -i -e "/conversion:/, /- v1/ { d }" bundle/manifests/broker.amq.io_activemqartemises.yaml
 	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-clean

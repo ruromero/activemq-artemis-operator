@@ -1983,18 +1983,6 @@ spec:
                 env:
                 - name: ENABLE_WEBHOOKS
                   value: "true"
-                - name: OPERATOR_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.labels['name']
-                - name: POD_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: WATCH_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: RELATED_IMAGE_ActiveMQ_Artemis_Broker_Init_2150
                   value: quay.io/artemiscloud/activemq-artemis-broker-init:0.2.2
                 - name: RELATED_IMAGE_ActiveMQ_Artemis_Broker_Init_2160
@@ -2055,8 +2043,6 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                - name: ENABLE_WEBHOOKS
-                  value: "false"
                 image: quay.io/artemiscloud/activemq-artemis-operator:1.0.11
                 livenessProbe:
                   httpGet:
@@ -2083,19 +2069,10 @@ spec:
                     - ALL
                   seccompProfile:
                     type: RuntimeDefault
-                volumeMounts:
-                - mountPath: /tmp/k8s-webhook-server/serving-certs
-                  name: cert
-                  readOnly: true
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: activemq-artemis-controller-manager
               terminationGracePeriodSeconds: 10
-              volumes:
-              - name: cert
-                secret:
-                  defaultMode: 420
-                  secretName: webhook-server-cert
       permissions:
       - rules:
         - apiGroups:
@@ -2328,11 +2305,11 @@ spec:
         serviceAccountName: activemq-artemis-controller-manager
     strategy: deployment
   installModes:
-  - supported: true
+  - supported: false
     type: OwnNamespace
-  - supported: true
+  - supported: false
     type: SingleNamespace
-  - supported: true
+  - supported: false
     type: MultiNamespace
   - supported: true
     type: AllNamespaces
@@ -2414,8 +2391,7 @@ spec:
   version: 1.0.11
   webhookdefinitions:
   - admissionReviewVersions:
-    - v2alpha5
-    - v1beta1
+    - v1
     containerPort: 443
     conversionCRDs:
     - activemqartemises.broker.amq.io
