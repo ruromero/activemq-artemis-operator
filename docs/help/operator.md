@@ -826,7 +826,6 @@ For example, here we have two instances of the PropertiesLoginModule, one that r
 				// a custom LoginModule that will reload from this secret
 				org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule sufficient
 					reload=true
-					// these files will be provided by the secret
 					org.apache.activemq.jaas.properties.user="users.properties"
 					org.apache.activemq.jaas.properties.role="roles.properties";
 
