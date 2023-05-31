@@ -265,42 +265,27 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) ProcessCredentials(customResour
 	}
 	// TODO: Remove singular admin level user and password in favour of at least guest and admin access
 	secretName := namer.SecretsCredentialsNameBuilder.Name()
-	for {
-		adminUser.Value = customResource.Spec.AdminUser
-		if adminUser.Value != "" {
-			break
-		}
-
+	adminUser.Value = customResource.Spec.AdminUser
+	if adminUser.Value == "" {
 		if amqUserEnvVar := environments.Retrieve(currentStatefulSet.Spec.Template.Spec.Containers, "AMQ_USER"); nil != amqUserEnvVar {
 			adminUser.Value = amqUserEnvVar.Value
 		}
-		if adminUser.Value != "" {
-			break
+		if adminUser.Value == "" {
+			adminUser.Value = environments.Defaults.AMQ_USER
+			adminUser.AutoGen = true
 		}
-
-		adminUser.Value = environments.Defaults.AMQ_USER
-		adminUser.AutoGen = true
-		// do once
-		break
 	}
 	envVars["AMQ_USER"] = adminUser
 
-	for {
-		adminPassword.Value = customResource.Spec.AdminPassword
-		if adminPassword.Value != "" {
-			break
-		}
-
+	adminPassword.Value = customResource.Spec.AdminPassword
+	if adminPassword.Value == "" {
 		if amqPasswordEnvVar := environments.Retrieve(currentStatefulSet.Spec.Template.Spec.Containers, "AMQ_PASSWORD"); nil != amqPasswordEnvVar {
 			adminPassword.Value = amqPasswordEnvVar.Value
 		}
-		if adminPassword.Value != "" {
-			break
+		if adminPassword.Value == "" {
+			adminPassword.Value = environments.Defaults.AMQ_PASSWORD
+			adminPassword.AutoGen = true
 		}
-
-		adminPassword.Value = environments.Defaults.AMQ_PASSWORD
-		adminPassword.AutoGen = true
-		break
 	}
 	envVars["AMQ_PASSWORD"] = adminPassword
 

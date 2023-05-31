@@ -387,7 +387,7 @@ func RunCommandInPod(podName string, containerName string, command []string) (*s
 
 	var consumerCapturedOut bytes.Buffer
 
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  os.Stdin,
 		Stdout: &consumerCapturedOut,
 		Stderr: os.Stderr,
@@ -465,7 +465,7 @@ func ExecOnPod(podWithOrdinal string, brokerName string, namespace string, comma
 
 	var outPutbuffer bytes.Buffer
 
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  os.Stdin,
 		Stdout: &outPutbuffer,
 		Stderr: os.Stderr,

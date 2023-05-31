@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -478,7 +477,7 @@ func loadYamlResource(yamlFile string) (runtime.Object, *schema.GroupVersionKind
 	filePath = filepath.Dir(yamlFile)
 
 	var b []byte
-	b, err = ioutil.ReadFile(filepath.Join(filePath, info.Name()))
+	b, err = os.ReadFile(filepath.Join(filePath, info.Name()))
 	if err != nil {
 		return nil, nil, err
 	}

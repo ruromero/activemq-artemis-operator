@@ -18,7 +18,7 @@ package controllers
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"time"
 
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
@@ -105,7 +105,7 @@ func (r *ActiveMQArtemisScaledownReconciler) getDrainController(localOnly bool, 
 	controllerKey := "*"
 	if localOnly {
 		if namespace == "" {
-			bytes, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+			bytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 			if err != nil {
 				slog.Error(err, "Using --localOnly without --namespace, but unable to determine namespace")
 			}

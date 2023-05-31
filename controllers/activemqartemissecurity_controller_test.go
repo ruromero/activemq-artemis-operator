@@ -972,7 +972,7 @@ var _ = Describe("security controller", func() {
 				Expect(err).To(BeNil())
 				var capturedOut bytes.Buffer
 
-				err = exec.Stream(remotecommand.StreamOptions{
+				err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 					Stdin:  os.Stdin,
 					Stdout: &capturedOut,
 					Stderr: os.Stderr,

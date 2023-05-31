@@ -23,7 +23,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -7180,7 +7180,7 @@ var _ = Describe("artemis controller", func() {
 				g.Expect(err).Should(Succeed())
 
 				defer resp.Body.Close()
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				g.Expect(err).Should(Succeed())
 
 				g.Expect(body).Should(ContainSubstring("jvm_gc"))

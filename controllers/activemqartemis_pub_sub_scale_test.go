@@ -18,7 +18,7 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -316,7 +316,7 @@ var _ = Describe("pub sub scale", func() {
 					g.Expect(err).Should(Succeed())
 
 					defer resp.Body.Close()
-					body, err := ioutil.ReadAll(resp.Body)
+					body, err := io.ReadAll(resp.Body)
 					g.Expect(err).Should(Succeed())
 
 					lines := strings.Split(string(body), "\n")
