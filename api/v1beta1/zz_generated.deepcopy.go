@@ -1180,6 +1180,11 @@ func (in *DeploymentPlanType) DeepCopyInto(out *DeploymentPlanType) {
 		**out = **in
 	}
 	in.PodSecurity.DeepCopyInto(&out.PodSecurity)
+	if in.StartupProbe != nil {
+		in, out := &in.StartupProbe, &out.StartupProbe
+		*out = new(v1.Probe)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.LivenessProbe != nil {
 		in, out := &in.LivenessProbe, &out.LivenessProbe
 		*out = new(v1.Probe)
