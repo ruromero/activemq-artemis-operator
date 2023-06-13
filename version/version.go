@@ -39,6 +39,7 @@ var FullVersionFromCompactVersion map[string]string = map[string]string{
 	"2250": "2.25.0",
 	"2260": "2.26.0",
 	"2270": "2.27.0",
+	"2271": "2.27.1",
 	"2280": "2.28.0",
 }
 
@@ -50,6 +51,7 @@ var YacfgProfileVersionFromFullVersion map[string]string = map[string]string{
 	"2.25.0": "2.21.0",
 	"2.26.0": "2.21.0",
 	"2.27.0": "2.21.0",
+	"2.27.1": "2.21.0",
 	"2.28.0": "2.21.0",
 }
 
@@ -63,6 +65,7 @@ var SupportedActiveMQArtemisVersions = []string{
 	"2.25.0",
 	"2.26.0",
 	"2.27.0",
+	"2.27.1",
 	"2.28.0",
 }
 
