@@ -479,6 +479,9 @@ type AcceptorType struct {
 	// Provider used for the truststore; "SUN", "SunJCE", etc. Default in broker is null
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="TrustStore Provider",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	TrustStoreProvider string `json:"trustStoreProvider,omitempty"`
+	// Host for Ingress and Route resources of the acceptor. It supports the following variables: $(CR_NAME), $(CR_NAMESPACE), $(BROKER_ORDINAL), $(ITEM_NAME), $(RES_NAME) and $(INGRESS_DOMAIN). Default is $(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL)-svc-$(RES_TYPE).$(INGRESS_DOMAIN)
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Ingress Host",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	IngressHost string `json:"ingressHost,omitempty"`
 }
 
 type ConnectorType struct {
@@ -533,9 +536,15 @@ type ConnectorType struct {
 	// Provider used for the truststore; "SUN", "SunJCE", etc. Default in broker is null
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="TrustStore Provider",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	TrustStoreProvider string `json:"trustStoreProvider,omitempty"`
+	// Host for Ingress and Route resources of the acceptor. It supports the following variables: $(CR_NAME), $(CR_NAMESPACE), $(BROKER_ORDINAL), $(ITEM_NAME), $(RES_NAME) and $(INGRESS_DOMAIN). Default is $(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL)-svc-$(RES_TYPE).$(INGRESS_DOMAIN)
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Ingress Host",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	IngressHost string `json:"ingressHost,omitempty"`
 }
 
 type ConsoleType struct {
+	// The name of the console. Default is wconsj.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Name",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	Name string `json:"name,omitempty"`
 	// Whether or not to expose this port
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Expose",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	Expose bool `json:"expose,omitempty"`
@@ -548,6 +557,9 @@ type ConsoleType struct {
 	// If the embedded server requires client authentication
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Use Client Auth",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	UseClientAuth bool `json:"useClientAuth,omitempty"`
+	// Host for Ingress and Route resources of the acceptor. It supports the following variables: $(CR_NAME), $(CR_NAMESPACE), $(BROKER_ORDINAL), $(ITEM_NAME), $(RES_NAME) and $(INGRESS_DOMAIN). Default is $(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL)-svc-$(RES_TYPE).$(INGRESS_DOMAIN)
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Ingress Host",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	IngressHost string `json:"ingressHost,omitempty"`
 }
 
 // ActiveMQArtemis App product upgrade flags, this is deprecated in v1beta1, specifying the Version is sufficient

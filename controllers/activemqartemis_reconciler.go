@@ -750,18 +750,17 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureAcceptorsExposure(cust
 			reconciler.trackDesired(serviceDefinition)
 
 			if acceptor.Expose {
-
-				targetPortName := acceptor.Name + "-" + ordinalString
-				targetServiceName := customResource.Name + "-" + targetPortName + "-svc"
-
-				exposureDefinition := reconciler.ExposureDefinitionForCR(namespacedName, serviceRoutelabels, targetServiceName, targetPortName, acceptor.SSLEnabled, customResource.Spec.IngressDomain)
+				exposureDefinition := reconciler.ExposureDefinitionForCR(customResource, namespacedName, serviceRoutelabels, acceptor.SSLEnabled, acceptor.IngressHost, ordinalString, acceptor.Name)
 				reconciler.trackDesired(exposureDefinition)
 			}
 		}
 	}
 }
 
-func (reconciler *ActiveMQArtemisReconcilerImpl) ExposureDefinitionForCR(namespacedName types.NamespacedName, labels map[string]string, targetServiceName string, targetPortName string, passthroughTLS bool, domain string) rtclient.Object {
+func (reconciler *ActiveMQArtemisReconcilerImpl) ExposureDefinitionForCR(customResource *brokerv1beta1.ActiveMQArtemis, namespacedName types.NamespacedName, labels map[string]string, passthroughTLS bool, ingressHost string, ordinalString string, itemName string) rtclient.Object {
+
+	targetPortName := itemName + "-" + ordinalString
+	targetServiceName := customResource.Name + "-" + targetPortName + "-svc"
 
 	if isOpenshift, err := environments.DetectOpenshift(); isOpenshift && err == nil {
 		clog.Info("creating route for "+targetPortName, "service", targetServiceName)
@@ -771,7 +770,8 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) ExposureDefinitionForCR(namespa
 		if obj != nil {
 			existing = obj.(*routev1.Route)
 		}
-		return routes.NewRouteDefinitionForCR(existing, namespacedName, labels, targetServiceName, targetPortName, passthroughTLS, domain)
+		brokerHost := formatIngressHost(customResource, ingressHost, ordinalString, itemName, "rte")
+		return routes.NewRouteDefinitionForCR(existing, namespacedName, labels, targetServiceName, targetPortName, passthroughTLS, customResource.Spec.IngressDomain, brokerHost)
 	} else {
 		clog.Info("creating ingress for "+targetPortName, "service", targetServiceName)
 
@@ -780,7 +780,8 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) ExposureDefinitionForCR(namespa
 		if obj != nil {
 			existing = obj.(*netv1.Ingress)
 		}
-		return ingresses.NewIngressForCRWithSSL(existing, namespacedName, labels, targetServiceName, targetPortName, passthroughTLS, domain)
+		brokerHost := formatIngressHost(customResource, ingressHost, ordinalString, itemName, "ing")
+		return ingresses.NewIngressForCRWithSSL(existing, namespacedName, labels, targetServiceName, targetPortName, passthroughTLS, customResource.Spec.IngressDomain, brokerHost)
 	}
 }
 
@@ -810,9 +811,7 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConnectorsExposure(cus
 
 			if connector.Expose {
 
-				targetPortName := connector.Name + "-" + ordinalString
-				targetServiceName := customResource.Name + "-" + targetPortName + "-svc"
-				exposureDefinition := reconciler.ExposureDefinitionForCR(namespacedName, serviceRoutelabels, targetServiceName, targetPortName, connector.SSLEnabled, customResource.Spec.IngressDomain)
+				exposureDefinition := reconciler.ExposureDefinitionForCR(customResource, namespacedName, serviceRoutelabels, connector.SSLEnabled, connector.IngressHost, ordinalString, connector.Name)
 
 				reconciler.trackDesired(exposureDefinition)
 			}
@@ -822,13 +821,17 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConnectorsExposure(cus
 
 func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, scheme *runtime.Scheme) {
 	console := customResource.Spec.Console
+	consoleName := customResource.Spec.Console.Name
+
+	if consoleName == "" {
+		consoleName = "wconsj"
+	}
 
 	originalLabels := namer.LabelBuilder.Labels()
 	namespacedName := types.NamespacedName{
 		Name:      customResource.Name,
 		Namespace: customResource.Namespace,
 	}
-	commonPortName := "wconsj"
 	targetPort := int32(8161)
 	portNumber := int32(8162)
 	deploymentSize := getDeploymentSize(customResource)
@@ -840,10 +843,10 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(custom
 		}
 		serviceRoutelabels["statefulset.kubernetes.io/pod-name"] = namer.SsNameBuilder.Name() + "-" + ordinalString
 
-		targetPortName := commonPortName + "-" + ordinalString
+		targetPortName := consoleName + "-" + ordinalString
 		targetServiceName := customResource.Name + "-" + targetPortName + "-svc"
 
-		serviceDefinition := svc.NewServiceDefinitionForCR(targetServiceName, client, namespacedName, commonPortName, targetPort, serviceRoutelabels, namer.LabelBuilder.Labels())
+		serviceDefinition := svc.NewServiceDefinitionForCR(targetServiceName, client, namespacedName, consoleName, targetPort, serviceRoutelabels, namer.LabelBuilder.Labels())
 
 		serviceDefinition.Spec.Ports = append(serviceDefinition.Spec.Ports, corev1.ServicePort{
 			Name:       targetPortName,
@@ -864,7 +867,8 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(custom
 				if obj != nil {
 					existing = obj.(*routev1.Route)
 				}
-				routeDefinition := routes.NewRouteDefinitionForCR(existing, namespacedName, serviceRoutelabels, targetServiceName, targetPortName, console.SSLEnabled, customResource.Spec.IngressDomain)
+				brokerHost := formatIngressHost(customResource, customResource.Spec.Console.IngressHost, ordinalString, consoleName, "rte")
+				routeDefinition := routes.NewRouteDefinitionForCR(existing, namespacedName, serviceRoutelabels, targetServiceName, targetPortName, console.SSLEnabled, customResource.Spec.IngressDomain, brokerHost)
 				reconciler.trackDesired(routeDefinition)
 
 			} else {
@@ -874,11 +878,38 @@ func (reconciler *ActiveMQArtemisReconcilerImpl) configureConsoleExposure(custom
 				if obj != nil {
 					existing = obj.(*netv1.Ingress)
 				}
-				ingressDefinition := ingresses.NewIngressForCRWithSSL(existing, namespacedName, serviceRoutelabels, targetServiceName, targetPortName, console.SSLEnabled, customResource.Spec.IngressDomain)
+				brokerHost := formatIngressHost(customResource, customResource.Spec.Console.IngressHost, ordinalString, consoleName, "ing")
+				ingressDefinition := ingresses.NewIngressForCRWithSSL(existing, namespacedName, serviceRoutelabels, targetServiceName, targetPortName, console.SSLEnabled, customResource.Spec.IngressDomain, brokerHost)
 				reconciler.trackDesired(ingressDefinition)
 			}
 		}
 	}
+}
+
+func formatIngressHost(customResource *brokerv1beta1.ActiveMQArtemis, ingressHost string, brokerOrdinal string, itemName string, resType string) string {
+
+	if ingressHost != "" {
+		if strings.Contains(ingressHost, "$(CR_NAME)") {
+			ingressHost = strings.Replace(ingressHost, "$(CR_NAME)", customResource.Name, -1)
+		}
+		if strings.Contains(ingressHost, "$(CR_NAMESPACE)") {
+			ingressHost = strings.Replace(ingressHost, "$(CR_NAMESPACE)", customResource.Namespace, -1)
+		}
+		if strings.Contains(ingressHost, "$(BROKER_ORDINAL)") {
+			ingressHost = strings.Replace(ingressHost, "$(BROKER_ORDINAL)", brokerOrdinal, -1)
+		}
+		if strings.Contains(ingressHost, "$(ITEM_NAME)") {
+			ingressHost = strings.Replace(ingressHost, "$(ITEM_NAME)", itemName, -1)
+		}
+		if strings.Contains(ingressHost, "$(RES_TYPE)") {
+			ingressHost = strings.Replace(ingressHost, "$(RES_TYPE)", resType, -1)
+		}
+		if strings.Contains(ingressHost, "$(INGRESS_DOMAIN)") {
+			ingressHost = strings.Replace(ingressHost, "$(INGRESS_DOMAIN)", customResource.Spec.IngressDomain, -1)
+		}
+	}
+
+	return ingressHost
 }
 
 func generateConsoleSSLFlags(customResource *brokerv1beta1.ActiveMQArtemis, namer Namers, client rtclient.Client, secretName string) string {

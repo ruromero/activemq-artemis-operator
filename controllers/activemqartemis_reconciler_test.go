@@ -711,3 +711,27 @@ func TestStatusMarshall(t *testing.T) {
 	assert.True(t, strings.Contains(string(v), ":false"))
 
 }
+
+func TestGetBrokerHost(t *testing.T) {
+	cr := brokerv1beta1.ActiveMQArtemis{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "test-ns",
+			Name:      "test",
+		},
+		Spec: brokerv1beta1.ActiveMQArtemisSpec{
+			IngressDomain: "my-domain.com",
+		},
+	}
+
+	var ingressHost string
+	specIngressHost := "$(CR_NAME)-$(CR_NAMESPACE)-$(ITEM_NAME)-$(BROKER_ORDINAL)-$(RES_TYPE).$(INGRESS_DOMAIN)"
+
+	ingressHost = formatIngressHost(&cr, specIngressHost, "0", "my-acceptor", "ing")
+	assert.Equal(t, "test-test-ns-my-acceptor-0-ing.my-domain.com", ingressHost)
+
+	ingressHost = formatIngressHost(&cr, specIngressHost, "1", "my-connector", "rte")
+	assert.Equal(t, "test-test-ns-my-connector-1-rte.my-domain.com", ingressHost)
+
+	ingressHost = formatIngressHost(&cr, specIngressHost, "2", "my-console", "abc")
+	assert.Equal(t, "test-test-ns-my-console-2-abc.my-domain.com", ingressHost)
+}

@@ -268,6 +268,13 @@ spec:
         path: acceptors[0].expose
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
+      - description: 'Host for Ingress and Route resources of the acceptor. It supports
+          the following variables: $(CR_NAME), $(CR_NAMESPACE), $(BROKER_ORDINAL),
+          $(ITEM_NAME), $(RES_NAME) and $(INGRESS_DOMAIN). Default is $(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL)-svc-$(RES_TYPE).$(INGRESS_DOMAIN)'
+        displayName: Ingress Host
+        path: acceptors[0].ingressHost
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
       - description: Provider used for the keystore; "SUN", "SunJCE", etc. Default
           is null
         displayName: KeyStore Provider
@@ -785,6 +792,13 @@ spec:
         path: connectors[0].host
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
+      - description: 'Host for Ingress and Route resources of the acceptor. It supports
+          the following variables: $(CR_NAME), $(CR_NAMESPACE), $(BROKER_ORDINAL),
+          $(ITEM_NAME), $(RES_NAME) and $(INGRESS_DOMAIN). Default is $(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL)-svc-$(RES_TYPE).$(INGRESS_DOMAIN)'
+        displayName: Ingress Host
+        path: connectors[0].ingressHost
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
       - description: Provider used for the keystore; "SUN", "SunJCE", etc. Default
           is null
         displayName: KeyStore Provider
@@ -867,6 +881,18 @@ spec:
         path: console.expose
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:booleanSwitch
+      - description: 'Host for Ingress and Route resources of the acceptor. It supports
+          the following variables: $(CR_NAME), $(CR_NAMESPACE), $(BROKER_ORDINAL),
+          $(ITEM_NAME), $(RES_NAME) and $(INGRESS_DOMAIN). Default is $(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL)-svc-$(RES_TYPE).$(INGRESS_DOMAIN)'
+        displayName: Ingress Host
+        path: console.ingressHost
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: The name of the console. Default is wconsj.
+        displayName: Name
+        path: console.name
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
       - description: Whether or not to enable SSL on this port
         displayName: SSL Enabled
         path: console.sslEnabled

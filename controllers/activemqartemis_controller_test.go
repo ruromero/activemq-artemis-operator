@@ -1828,6 +1828,199 @@ var _ = Describe("artemis controller", func() {
 			}
 		})
 
+		It("Exposing secured broker with custom ingress hosts", Label("console-expose-ssl"), func() {
+			//we need to use existing cluster to differentiate testing
+			//between openshift and k8s, also need it to check pod status
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+
+				crd := generateArtemisSpec(defaultNamespace)
+
+				isOpenshift, err := environments.DetectOpenshift()
+				Expect(err).To(BeNil())
+
+				By("deploying ssl secret")
+				sslSecretName := crd.Name + "-ssl-secret"
+				sslSecret, err := CreateTlsSecret(sslSecretName, defaultNamespace, defaultPassword, defaultSanDnsNames)
+				Expect(err).To(BeNil())
+				Expect(k8sClient.Create(ctx, sslSecret)).Should(Succeed())
+
+				createdSecret := corev1.Secret{}
+				secretKey := types.NamespacedName{
+					Name:      sslSecretName,
+					Namespace: defaultNamespace,
+				}
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, secretKey, &createdSecret)).To(Succeed())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				specIngressHost := "$(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL).$(INGRESS_DOMAIN)"
+
+				crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
+					InitialDelaySeconds: 1,
+					PeriodSeconds:       1,
+					TimeoutSeconds:      5,
+				}
+
+				crd.Spec.Acceptors = []brokerv1beta1.AcceptorType{
+					{
+						Name:        "my-acceptor",
+						Port:        61626,
+						Expose:      true,
+						SSLEnabled:  true,
+						SSLSecret:   sslSecretName,
+						IngressHost: specIngressHost,
+					},
+				}
+
+				crd.Spec.Connectors = []brokerv1beta1.ConnectorType{
+					{
+						Name:        "my-connector",
+						Port:        61626,
+						Expose:      true,
+						SSLEnabled:  true,
+						SSLSecret:   sslSecretName,
+						IngressHost: specIngressHost,
+					},
+				}
+
+				crd.Spec.Console = brokerv1beta1.ConsoleType{
+					Name:        "my-console",
+					Expose:      true,
+					SSLEnabled:  true,
+					SSLSecret:   sslSecretName,
+					IngressHost: specIngressHost,
+				}
+
+				crd.Spec.IngressDomain = "tests.artemiscloud.io"
+
+				By("deploying broker" + crd.Name)
+				Expect(k8sClient.Create(ctx, &crd)).Should(Succeed())
+
+				brokerKey := types.NamespacedName{Name: crd.Name, Namespace: crd.Namespace}
+				deployedCrd := &brokerv1beta1.ActiveMQArtemis{}
+
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, brokerKey, deployedCrd)).Should(Succeed())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				ssKey := types.NamespacedName{
+					Name:      namer.CrToSS(crd.Name),
+					Namespace: defaultNamespace,
+				}
+				currentSS := &appsv1.StatefulSet{}
+				Eventually(func(g Gomega) {
+					g.Expect(k8sClient.Get(ctx, ssKey, currentSS)).Should(Succeed())
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				By("verify pod is up")
+				podKey := types.NamespacedName{Name: namer.CrToSS(crd.Name) + "-0", Namespace: defaultNamespace}
+				Eventually(func(g Gomega) {
+					pod := &corev1.Pod{}
+					g.Expect(k8sClient.Get(ctx, podKey, pod)).Should(Succeed())
+					g.Expect(pod.Status.ContainerStatuses).Should(HaveLen(1))
+					g.Expect(pod.Status.ContainerStatuses[0].State.Running).Should(Not(BeNil()))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				if isOpenshift {
+					By("check console acceptor is created")
+					acceptorHost := crd.Name + "-my-acceptor-0." + crd.Spec.IngressDomain
+					acceptorRouteKey := types.NamespacedName{
+						Name:      crd.Name + "-my-acceptor-0-svc-rte",
+						Namespace: defaultNamespace,
+					}
+					acceptorRoute := routev1.Route{}
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, acceptorRouteKey, &acceptorRoute)).To(Succeed())
+
+						g.Expect(acceptorRoute.Spec.Host).To(Equal(acceptorHost))
+					}).Should(Succeed())
+
+					By("check console connector is created")
+					connectorHost := crd.Name + "-my-connector-0." + crd.Spec.IngressDomain
+					connectorRouteKey := types.NamespacedName{
+						Name:      crd.Name + "-my-connector-0-svc-rte",
+						Namespace: defaultNamespace,
+					}
+					connectorRoute := routev1.Route{}
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, connectorRouteKey, &connectorRoute)).To(Succeed())
+
+						g.Expect(acceptorRoute.Spec.Host).To(Equal(connectorHost))
+					}).Should(Succeed())
+
+					By("check console route is created")
+					consoleHost := crd.Name + "-my-console-0." + crd.Spec.IngressDomain
+					consoleRouteKey := types.NamespacedName{
+						Name:      crd.Name + "-my-console-0-svc-rte",
+						Namespace: defaultNamespace,
+					}
+					consoleRoute := routev1.Route{}
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, consoleRouteKey, &consoleRoute)).To(Succeed())
+
+						g.Expect(consoleRoute.Spec.Host).To(Equal(consoleHost))
+					}).Should(Succeed())
+				} else {
+					By("check acceptor ingress is created")
+					acceptorHost := crd.Name + "-my-acceptor-0." + crd.Spec.IngressDomain
+					acceptorIngKey := types.NamespacedName{
+						Name:      crd.Name + "-my-acceptor-0-svc-ing",
+						Namespace: defaultNamespace,
+					}
+					acceptorIngress := netv1.Ingress{}
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, acceptorIngKey, &acceptorIngress)).To(Succeed())
+
+						g.Expect(acceptorIngress.Spec.Rules).To(HaveLen(1))
+						g.Expect(acceptorIngress.Spec.Rules[0].Host).To(Equal(acceptorHost))
+
+						g.Expect(acceptorIngress.Spec.TLS).To(HaveLen(1))
+						g.Expect(acceptorIngress.Spec.TLS[0].Hosts).To(HaveLen(1))
+						g.Expect(acceptorIngress.Spec.TLS[0].Hosts[0]).To(Equal(acceptorHost))
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+					By("check connector ingress is created")
+					connectorHost := crd.Name + "-my-connector-0." + crd.Spec.IngressDomain
+					connectorIngKey := types.NamespacedName{
+						Name:      crd.Name + "-my-connector-0-svc-ing",
+						Namespace: defaultNamespace,
+					}
+					connectorIngress := netv1.Ingress{}
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, connectorIngKey, &connectorIngress)).To(Succeed())
+
+						g.Expect(connectorIngress.Spec.Rules).To(HaveLen(1))
+						g.Expect(connectorIngress.Spec.Rules[0].Host).To(Equal(connectorHost))
+
+						g.Expect(connectorIngress.Spec.TLS).To(HaveLen(1))
+						g.Expect(connectorIngress.Spec.TLS[0].Hosts).To(HaveLen(1))
+						g.Expect(connectorIngress.Spec.TLS[0].Hosts[0]).To(Equal(connectorHost))
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+					By("check console ingress is created")
+					consoleHost := crd.Name + "-my-console-0." + crd.Spec.IngressDomain
+					consoleIngKey := types.NamespacedName{
+						Name:      crd.Name + "-my-console-0-svc-ing",
+						Namespace: defaultNamespace,
+					}
+					consoleIngress := netv1.Ingress{}
+					Eventually(func(g Gomega) {
+						g.Expect(k8sClient.Get(ctx, consoleIngKey, &consoleIngress)).To(Succeed())
+
+						g.Expect(consoleIngress.Spec.Rules).To(HaveLen(1))
+						g.Expect(consoleIngress.Spec.Rules[0].Host).To(Equal(consoleHost))
+
+						g.Expect(consoleIngress.Spec.TLS).To(HaveLen(1))
+						g.Expect(consoleIngress.Spec.TLS[0].Hosts).To(HaveLen(1))
+						g.Expect(consoleIngress.Spec.TLS[0].Hosts[0]).To(Equal(consoleHost))
+					}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+				}
+
+				CleanResource(&crd, crd.Name, defaultNamespace)
+				CleanResource(sslSecret, sslSecret.Name, defaultNamespace)
+			}
+		})
+
 		It("Exposing secured console with user specified secret", Label("console-expose-ssl-no-default-secret"), func() {
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 

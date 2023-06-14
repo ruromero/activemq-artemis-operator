@@ -11,7 +11,7 @@ import (
 
 const defaultIngressDomain string = "apps.artemiscloud.io"
 
-func NewIngressForCRWithSSL(existing *netv1.Ingress, namespacedName types.NamespacedName, labels map[string]string, targetServiceName string, targetPortName string, sslEnabled bool, domain string) *netv1.Ingress {
+func NewIngressForCRWithSSL(existing *netv1.Ingress, namespacedName types.NamespacedName, labels map[string]string, targetServiceName string, targetPortName string, sslEnabled bool, domain string, brokerHost string) *netv1.Ingress {
 
 	pathType := netv1.PathTypePrefix
 
@@ -75,6 +75,11 @@ func NewIngressForCRWithSSL(existing *netv1.Ingress, namespacedName types.Namesp
 	}
 
 	host := desired.GetObjectMeta().GetName() + "." + domain
+
+	if brokerHost != "" {
+		host = brokerHost
+	}
+
 	desired.Spec.Rules[0].Host = host
 	if sslEnabled {
 		desired.Annotations = map[string]string{"nginx.ingress.kubernetes.io/ssl-passthrough": "true"}
