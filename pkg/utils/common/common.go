@@ -2,13 +2,15 @@ package common
 
 import (
 	"encoding/json"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/blang/semver/v4"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -16,15 +18,19 @@ import (
 const (
 	RouteKind              = "Route"
 	OpenShiftAPIServerKind = "OpenShiftAPIServer"
+	DEFAULT_RESYNC_PERIOD  = 30 * time.Second
+	// comments push this over the edge a little when dealing with white space
+	// as en env var it can be disabled by setting to "" or can be improved!
+	JaasConfigSyntaxMatchRegExDefault = `^(?:(\s*|(?://.*)|(?s:/\*.*\*/))*\S+\s*{(?:(\s*|(?://.*)|(?s:/\*.*\*/))*\S+\s+(?i:required|optional|sufficient|requisite)+(?:\s*\S+=\S+\s*)*\s*;)+(\s*|(?://.*)|(?s:/\*.*\*/))*}\s*;)+\s*\z`
 )
-
-var clog = ctrl.Log.WithName("common")
 
 var theManager manager.Manager
 
-const DEFAULT_RESYNC_PERIOD = 30 * time.Second
-
 var resyncPeriod time.Duration = DEFAULT_RESYNC_PERIOD
+
+var jaasConfigSyntaxMatchRegEx = JaasConfigSyntaxMatchRegExDefault
+
+var ClusterDomain *string
 
 func init() {
 	if period, defined := os.LookupEnv("RECONCILE_RESYNC_PERIOD"); defined {
@@ -35,6 +41,16 @@ func init() {
 	} else {
 		resyncPeriod = DEFAULT_RESYNC_PERIOD
 	}
+
+	if regEx, defined := os.LookupEnv("JAAS_CONFIG_SYNTAX_MATCH_REGEX"); defined {
+		jaasConfigSyntaxMatchRegEx = regEx
+	} else {
+		jaasConfigSyntaxMatchRegEx = JaasConfigSyntaxMatchRegExDefault
+	}
+}
+
+func GetJaasConfigSyntaxMatchRegEx() string {
+	return jaasConfigSyntaxMatchRegEx
 }
 
 func GetReconcileResyncPeriod() time.Duration {
@@ -120,4 +136,84 @@ func ResolveWatchNamespaceForManager(oprNamespace string, watchNamespace string)
 		return false, nil
 	}
 	return false, strings.Split(watchNamespace, ",")
+}
+
+func ResolveBrokerVersion(versions []semver.Version, desired string) *semver.Version {
+
+	if len(versions) == 0 {
+		return nil
+	}
+	if desired == "" {
+		// latest
+		return &versions[len(versions)-1]
+	}
+
+	major, minor, patch := resolveVersionComponents(desired)
+
+	// walk the ordered tree in reverse, locking down match based on desired version components
+	var i int = len(versions) - 1
+	for ; i >= 0; i-- {
+		if major != nil {
+			if *major == versions[i].Major {
+				if minor == nil {
+					break
+				} else if *minor == versions[i].Minor {
+					if patch == nil {
+						break
+					} else if *patch == versions[i].Patch {
+						break
+					}
+				}
+			}
+		}
+	}
+	if i >= 0 {
+		return &versions[i]
+	}
+	return nil
+}
+
+func resolveVersionComponents(desired string) (major, minor, patch *uint64) {
+
+	parts := strings.SplitN(desired, ".", 3)
+	switch len(parts) {
+	case 3:
+		if v, err := strconv.ParseUint(parts[2], 10, 64); err == nil {
+			patch = &v
+		}
+		fallthrough
+	case 2:
+		if v, err := strconv.ParseUint(parts[1], 10, 64); err == nil {
+			minor = &v
+		}
+		fallthrough
+	case 1:
+		if v, err := strconv.ParseUint(parts[0], 10, 64); err == nil {
+			major = &v
+		}
+	}
+
+	return major, minor, patch
+}
+
+func Int32ToPtr(v int32) *int32 {
+	return &v
+}
+
+func GetClusterDomain() string {
+	if ClusterDomain == nil {
+		apiSvc := "kubernetes.default.svc"
+		cname, err := net.LookupCNAME(apiSvc)
+		if err == nil {
+			clusterDomain := strings.TrimPrefix(cname, apiSvc)
+			clusterDomain = strings.TrimPrefix(clusterDomain, ".")
+			clusterDomain = strings.TrimSuffix(clusterDomain, ".")
+			ClusterDomain = &clusterDomain
+		} else {
+			defaultClusterDomain := "cluster.local"
+			ClusterDomain = &defaultClusterDomain
+		}
+	}
+
+	return *ClusterDomain
 }

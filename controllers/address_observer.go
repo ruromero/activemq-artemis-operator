@@ -10,7 +10,7 @@ import (
 
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 
-	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
+	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia_client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,15 +68,15 @@ func (c *AddressObserver) Run(C chan types.NamespacedName, ctx context.Context) 
 	}
 }
 
-//if we support multiple statefulset in a namespace
-//the pod may came from any stateful set
-//so we need to check if the pod belongs to the statefulset(cr)
-//that this address intends to be applied to
-//that why we need one more property (targetBrokerCrName)
-//and only apply addresses to those pods that in that SS.
-//The property should be optional to keep backward compatibility
-//and if multiple statefulsets exists while the property
-//is not specified, apply to all pods)
+// if we support multiple statefulset in a namespace
+// the pod may came from any stateful set
+// so we need to check if the pod belongs to the statefulset(cr)
+// that this address intends to be applied to
+// that why we need one more property (targetBrokerCrName)
+// and only apply addresses to those pods that in that SS.
+// The property should be optional to keep backward compatibility
+// and if multiple statefulsets exists while the property
+// is not specified, apply to all pods)
 func (c *AddressObserver) newPodReady(ready *types.NamespacedName) {
 
 	olog.Info("New pod ready.", "Pod", ready)
@@ -91,7 +91,7 @@ func (c *AddressObserver) newPodReady(ready *types.NamespacedName) {
 
 	realPodName := fmt.Sprintf("%s-%d", podBaseName, podSerial)
 
-	podNamespacedName := types.NamespacedName{ready.Namespace, realPodName}
+	podNamespacedName := types.NamespacedName{Namespace: ready.Namespace, Name: realPodName}
 	pod := &corev1.Pod{}
 
 	err1 := c.opclient.Get(context.TODO(), podNamespacedName, pod)
@@ -170,7 +170,7 @@ func (c *AddressObserver) getSSNameForPod(newPod *corev1.Pod) (*string, *appsv1.
 
 	if ownerRef := metav1.GetControllerOf(newPod); ownerRef != nil {
 		sts := &appsv1.StatefulSet{}
-		err := c.opclient.Get(context.TODO(), types.NamespacedName{newPod.Namespace, ownerRef.Name}, sts)
+		err := c.opclient.Get(context.TODO(), types.NamespacedName{Namespace: newPod.Namespace, Name: ownerRef.Name}, sts)
 		if err != nil {
 			olog.Error(err, "Error finding the statefulset")
 			return nil, nil

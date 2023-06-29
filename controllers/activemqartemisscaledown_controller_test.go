@@ -19,46 +19,45 @@ As usual, we start with the necessary imports. We also define some utility varia
 package controllers
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"os"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/environments"
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/remotecommand"
 )
 
 var _ = Describe("Scale down controller", func() {
 
+	BeforeEach(func() {
+		BeforeEachSpec()
+	})
+
 	Context("Scale down test", func() {
-		It("deploy plan 2 clustered", func() {
+		It("deploy plan 2 clustered", Label("basic-scaledown-check"), func() {
 
 			// note: we force a non local scaledown cr to exercise creds generation
 			// hense only valid with DEPLOY_OPERATOR = false
 			// 	see suite_test.go: os.Setenv("OPERATOR_WATCH_NAMESPACE", "SomeValueToCauesEqualitytoFailInIsLocalSoDrainControllerSortsCreds")
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
 
-				brokerName := nameFromTest()
+				brokerName := NextSpecResourceName()
 				ctx := context.Background()
 
 				brokerCrd := generateOriginalArtemisSpec(defaultNamespace, brokerName)
 
 				booleanTrue := true
 				brokerCrd.Spec.DeploymentPlan.Clustered = &booleanTrue
-				brokerCrd.Spec.DeploymentPlan.Size = 2
+				brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 				brokerCrd.Spec.DeploymentPlan.PersistenceEnabled = true
 				brokerCrd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 					InitialDelaySeconds: 1,
@@ -81,106 +80,46 @@ var _ = Describe("Scale down controller", func() {
 				By("Sending a message to 1")
 				podWithOrdinal := namer.CrToSS(brokerCrd.Name) + "-1"
 
-				gvk := schema.GroupVersionKind{
-					Group:   "",
-					Version: "v1",
-					Kind:    "Pod",
-				}
-				restClient, err := apiutil.RESTClientForGVK(gvk, false, testEnv.Config, serializer.NewCodecFactory(testEnv.Scheme))
+				sendCmd := []string{"amq-broker/bin/artemis", "producer", "--user", "Jay", "--password", "activemq", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--destination", "queue://DLQ", "--verbose"}
+
+				content, err := RunCommandInPod(podWithOrdinal, brokerName+"-container", sendCmd)
 				Expect(err).To(BeNil())
-
-				execReq := restClient.
-					Post().
-					Namespace(defaultNamespace).
-					Resource("pods").
-					Name(podWithOrdinal).
-					SubResource("exec").
-					VersionedParams(&corev1.PodExecOptions{
-						Container: brokerName + "-container",
-						Command:   []string{"amq-broker/bin/artemis", "producer", "--user", "Jay", "--password", "activemq", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--destination", "queue://DLQ", "--verbose"},
-						Stdin:     true,
-						Stdout:    true,
-						Stderr:    true,
-					}, runtime.NewParameterCodec(testEnv.Scheme))
-
-				exec, err := remotecommand.NewSPDYExecutor(testEnv.Config, "POST", execReq.URL())
-
-				if err != nil {
-					fmt.Printf("error while creating remote command executor: %v", err)
-				}
-				Expect(err).To(BeNil())
-
-				var producerCapturedOut bytes.Buffer
-
-				err = exec.Stream(remotecommand.StreamOptions{
-					Stdin:  os.Stdin,
-					Stdout: &producerCapturedOut,
-					Stderr: os.Stderr,
-					Tty:    false,
-				})
-				Expect(err).To(BeNil())
-
-				Eventually(func(g Gomega) {
-					By("Checking for output from producer")
-					g.Expect(producerCapturedOut.Len() > 0)
-				}, existingClusterTimeout, interval).Should(Succeed())
-
-				content := producerCapturedOut.String()
-				Expect(content).Should(ContainSubstring("Produced: 1 messages"))
+				Expect(*content).Should(ContainSubstring("Produced: 1 messages"))
 
 				By("Scaling down to ss-0")
+				podWithOrdinal = namer.CrToSS(brokerCrd.Name) + "-0"
+
 				Eventually(func(g Gomega) {
 
 					getPersistedVersionedCrd(brokerCrd.ObjectMeta.Name, defaultNamespace, createdBrokerCrd)
-					createdBrokerCrd.Spec.DeploymentPlan.Size = 1
+					createdBrokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 					// not checking return from update as it will error on repeat as there is no change
 					// which is expected
 					k8sClient.Update(ctx, createdBrokerCrd)
 					By("checking scale down to 0 complete?")
 					g.Expect(len(createdBrokerCrd.Status.PodStatus.Ready)).Should(BeEquivalentTo(1))
+					// This moment a drainer pod will come up and do the message migration
+					// so the pod number will change from 1 to 2 and back to 1.
+					// checking message count on broker 0 to make sure scale down finally happens.
+					By("Checking messsage count on broker 0")
+					//./artemis queue stat --silent --url tcp://artemis-broker-ss-0:61616 --queueName DLQ
+					queryCmd := []string{"amq-broker/bin/artemis", "queue", "stat", "--silent", "--url", "tcp://" + podWithOrdinal + ":61616", "--queueName", "DLQ"}
+					stdout, err := RunCommandInPod(podWithOrdinal, brokerName+"-container", queryCmd)
+					g.Expect(err).To(BeNil())
+					fields := strings.Split(*stdout, "|")
+					g.Expect(fields[4]).To(Equal("MESSAGE_COUNT"), *stdout)
+					g.Expect(strings.TrimSpace(fields[14])).To(Equal("1"), *stdout)
+
 				}, existingClusterTimeout, interval*2).Should(Succeed())
 
 				By("Receiving a message from 0")
-				podWithOrdinal = namer.CrToSS(brokerCrd.Name) + "-0"
-				execReq = restClient.
-					Post().
-					Namespace(defaultNamespace).
-					Resource("pods").
-					Name(podWithOrdinal).
-					SubResource("exec").
-					VersionedParams(&corev1.PodExecOptions{
-						Container: brokerName + "-container",
-						Command:   []string{"amq-broker/bin/artemis", "consumer", "--user", "Jay", "--password", "activemq", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--destination", "queue://DLQ", "--receive-timeout", "10000", "--break-on-null", "--verbose"},
-						Stdin:     true,
-						Stdout:    true,
-						Stderr:    true,
-					}, runtime.NewParameterCodec(testEnv.Scheme))
 
-				exec, err = remotecommand.NewSPDYExecutor(testEnv.Config, "POST", execReq.URL())
+				rcvCmd := []string{"amq-broker/bin/artemis", "consumer", "--user", "Jay", "--password", "activemq", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--destination", "queue://DLQ", "--receive-timeout", "10000", "--break-on-null", "--verbose"}
+				content, err = RunCommandInPod(podWithOrdinal, brokerName+"-container", rcvCmd)
 
-				if err != nil {
-					fmt.Printf("error while creating remote command executor for consume: %v", err)
-				}
 				Expect(err).To(BeNil())
 
-				var consumerCapturedOut bytes.Buffer
-
-				err = exec.Stream(remotecommand.StreamOptions{
-					Stdin:  os.Stdin,
-					Stdout: &consumerCapturedOut,
-					Stderr: os.Stderr,
-					Tty:    false,
-				})
-				Expect(err).To(BeNil())
-
-				Eventually(func(g Gomega) {
-					By("Checking for output from consumer")
-					g.Expect(consumerCapturedOut.Len() > 0)
-				}, existingClusterTimeout, interval).Should(Succeed())
-
-				content = consumerCapturedOut.String()
-
-				Expect(content).Should(ContainSubstring("JMS Message ID:"))
+				Expect(*content).Should(ContainSubstring("JMS Message ID:"))
 
 				By("accessing drain pod")
 				drainPod := &corev1.Pod{}
@@ -238,7 +177,7 @@ var _ = Describe("Scale down controller", func() {
 			crd := generateArtemisSpec(defaultNamespace)
 			clustered := true
 			crd.Spec.DeploymentPlan.Clustered = &clustered
-			crd.Spec.DeploymentPlan.Size = 2
+			crd.Spec.DeploymentPlan.Size = common.Int32ToPtr(2)
 			crd.Spec.DeploymentPlan.PersistenceEnabled = true
 			crd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 				InitialDelaySeconds: 1,
@@ -272,57 +211,17 @@ var _ = Describe("Scale down controller", func() {
 			podWithOrdinal := namer.CrToSS(brokerKey.Name) + "-1"
 			By("Sending a message to Host: " + podWithOrdinal)
 
-			gvk := schema.GroupVersionKind{
-				Group:   "",
-				Version: "v1",
-				Kind:    "Pod",
-			}
-			restClient, err := apiutil.RESTClientForGVK(gvk, false, testEnv.Config, serializer.NewCodecFactory(testEnv.Scheme))
+			sendCmd := []string{"amq-broker/bin/artemis", "producer", "--user", "Jay", "--password", "activemq", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1"}
+			content, err := RunCommandInPod(podWithOrdinal, brokerKey.Name+"-container", sendCmd)
+
 			Expect(err).To(BeNil())
 
-			execReq := restClient.
-				Post().
-				Namespace(defaultNamespace).
-				Resource("pods").
-				Name(podWithOrdinal).
-				SubResource("exec").
-				VersionedParams(&corev1.PodExecOptions{
-					Container: brokerKey.Name + "-container",
-					Command:   []string{"amq-broker/bin/artemis", "producer", "--user", "Jay", "--password", "activemq", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1"},
-					Stdin:     true,
-					Stdout:    true,
-					Stderr:    true,
-				}, runtime.NewParameterCodec(testEnv.Scheme))
-
-			exec, err := remotecommand.NewSPDYExecutor(testEnv.Config, "POST", execReq.URL())
-
-			if err != nil {
-				fmt.Printf("error while creating remote command executor: %v", err)
-			}
-			Expect(err).To(BeNil())
-
-			var producerCapturedOut bytes.Buffer
-
-			err = exec.Stream(remotecommand.StreamOptions{
-				Stdin:  os.Stdin,
-				Stdout: &producerCapturedOut,
-				Stderr: os.Stderr,
-				Tty:    false,
-			})
-			Expect(err).To(BeNil())
-
-			Eventually(func(g Gomega) {
-				By("Checking for output from producer")
-				g.Expect(producerCapturedOut.Len() > 0).Should(BeTrue())
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-
-			content := producerCapturedOut.String()
-			Expect(content).Should(ContainSubstring("Produced: 1 messages"))
+			Expect(*content).Should(ContainSubstring("Produced: 1 messages"))
 
 			By("Scaling down to 1")
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(ctx, brokerKey, createdCrd)).Should(Succeed())
-				createdCrd.Spec.DeploymentPlan.Size = 1
+				createdCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 				g.Expect(k8sClient.Update(ctx, createdCrd)).Should(Succeed())
 				By("Scale down to ss-0 update complete")
 			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
@@ -336,45 +235,13 @@ var _ = Describe("Scale down controller", func() {
 			podWithOrdinal = namer.CrToSS(createdCrd.Name) + "-0"
 			By("Receiving a message from Host: " + podWithOrdinal)
 
-			execReq = restClient.
-				Post().
-				Namespace(defaultNamespace).
-				Resource("pods").
-				Name(podWithOrdinal).
-				SubResource("exec").
-				VersionedParams(&corev1.PodExecOptions{
-					Container: brokerKey.Name + "-container",
-					Command:   []string{"amq-broker/bin/artemis", "consumer", "--user", "Jay", "--password", "activemq", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--receive-timeout", "10000", "--break-on-null", "--verbose"},
-					Stdin:     true,
-					Stdout:    true,
-					Stderr:    true,
-				}, runtime.NewParameterCodec(testEnv.Scheme))
+			recvCmd := []string{"amq-broker/bin/artemis", "consumer", "--user", "Jay", "--password", "activemq", "--url", "tcp://" + podWithOrdinal + ":61616", "--message-count", "1", "--receive-timeout", "10000", "--break-on-null", "--verbose"}
 
-			exec, err = remotecommand.NewSPDYExecutor(testEnv.Config, "POST", execReq.URL())
+			content, err = RunCommandInPod(podWithOrdinal, brokerKey.Name+"-container", recvCmd)
 
-			if err != nil {
-				fmt.Printf("error while creating remote command executor for consume: %v", err)
-			}
 			Expect(err).To(BeNil())
 
-			var consumerCapturedOut bytes.Buffer
-
-			err = exec.Stream(remotecommand.StreamOptions{
-				Stdin:  os.Stdin,
-				Stdout: &consumerCapturedOut,
-				Stderr: os.Stderr,
-				Tty:    false,
-			})
-			Expect(err).To(BeNil())
-
-			Eventually(func(g Gomega) {
-				By("Checking for output from consumer")
-				g.Expect(consumerCapturedOut.Len() > 0).Should(BeTrue())
-			}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
-
-			content = consumerCapturedOut.String()
-
-			Expect(content).Should(ContainSubstring("JMS Message ID:"))
+			Expect(*content).Should(ContainSubstring("JMS Message ID:"))
 
 			By("reverting taints on node")
 			Eventually(func(g Gomega) {

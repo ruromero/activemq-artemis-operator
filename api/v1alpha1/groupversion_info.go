@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the broker v1alpha1 API group
-//+kubebuilder:object:generate=true
-//+groupName=broker.amq.io
+// +kubebuilder:object:generate=true
+// +groupName=broker.amq.io
 package v1alpha1
 
 import (

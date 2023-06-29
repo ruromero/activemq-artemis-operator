@@ -11,6 +11,9 @@ file=()
 resource_kind=""
 resource_name=""
 
+OPERATOR_NAMESPACE=${2}
+echo "OPERATOR_NAMESPACE:${OPERATOR_NAMESPACE}"
+
 # write a single yaml.
 # it takes one parameter:
 # 1 array that contains total lines of the yaml
@@ -57,6 +60,8 @@ function writeFile() {
         createFile "$destdir/cluster_role_binding.yaml"
         sed -i -e 's/kind: Role/kind: ClusterRole/' \
           -e 's/kind: RoleBinding/kind: ClusterRoleBinding/' \
+          "$destdir/cluster_role_binding.yaml"
+        echo "  namespace: ${OPERATOR_NAMESPACE}" >> \
           "$destdir/cluster_role_binding.yaml"
       elif [[ ${resource_name} =~ (leader-election) ]]; then
         createFile "$destdir/election_role_binding.yaml"

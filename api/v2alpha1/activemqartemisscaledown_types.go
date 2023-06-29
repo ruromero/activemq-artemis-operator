@@ -40,6 +40,7 @@ type ActiveMQArtemisScaledownStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:path=activemqartemisscaledowns,shortName=aad
 
 // ActiveMQArtemisScaledown is the Schema for the activemqartemisscaledowns API
 type ActiveMQArtemisScaledown struct {

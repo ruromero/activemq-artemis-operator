@@ -36,7 +36,6 @@ func MakeStringDataMap(keyName string, valueName string, key string, value strin
 	return stringDataMap
 }
 
-//func MakeSecret(customResource *brokerv2alpha1.ActiveMQArtemis, secretName string, stringData map[string]string) corev1.Secret {
 func MakeSecret(namespacedName types.NamespacedName, secretName string, stringData map[string]string, labels map[string]string) corev1.Secret {
 
 	secretDefinition := corev1.Secret{
@@ -55,7 +54,6 @@ func MakeSecret(namespacedName types.NamespacedName, secretName string, stringDa
 	return secretDefinition
 }
 
-//func NewSecret(customResource *brokerv2alpha1.ActiveMQArtemis, secretName string, stringData map[string]string) *corev1.Secret {
 func NewSecret(namespacedName types.NamespacedName, secretName string, stringData map[string]string, labels map[string]string) *corev1.Secret {
 
 	secretDefinition := MakeSecret(namespacedName, secretName, stringData, labels)
@@ -119,7 +117,7 @@ func RetriveSecret(namespacedName types.NamespacedName, secretName string, label
 	return &secretDefinition, nil
 }
 
-func GetValueFromSecret(namespace string, autoCreateSecret bool, autoGenValue bool,
+func GetValueFromSecret(namespace string,
 	secretName string, key string, labels map[string]string, client client.Client, scheme *runtime.Scheme, owner metav1.Object) *string {
 	//check if the secret exists.
 	namespacedName := types.NamespacedName{
@@ -133,14 +131,8 @@ func GetValueFromSecret(namespace string, autoCreateSecret bool, autoGenValue bo
 
 	if err := resources.Retrieve(namespacedName, client, secretDefinition); err != nil {
 		if errors.IsNotFound(err) {
-			if autoCreateSecret {
-				log.Info("Auto create secret", "name", secretName)
-				//create the secret
-				resources.Create(owner, client, scheme, secretDefinition)
-			} else {
-				log.Info("No secret found", "name", secretName)
-				return nil
-			}
+			log.Info("No secret found", "name", secretName)
+			return nil
 		}
 	} else {
 		log.Info("Found secret " + secretName)
@@ -149,21 +141,6 @@ func GetValueFromSecret(namespace string, autoCreateSecret bool, autoGenValue bo
 			value := string(elem)
 			return &value
 		}
-	}
-	//not found
-	if autoGenValue {
-		value := random.GenerateRandomString(8)
-		//update the secret
-		if secretDefinition.Data == nil {
-			secretDefinition.Data = make(map[string][]byte)
-		}
-		secretDefinition.Data[key] = []byte(value)
-		log.Info("Updating secret", "secret", namespacedName.Name)
-		if err := resources.Update(client, secretDefinition); err != nil {
-			log.Error(err, "failed to update secret", "secret", secretName)
-		}
-		return &value
-
 	}
 	return nil
 }

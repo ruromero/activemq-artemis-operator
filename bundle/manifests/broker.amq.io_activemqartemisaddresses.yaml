@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.11.2
   name: activemqartemisaddresses.broker.amq.io
 spec:
   group: broker.amq.io
@@ -10,14 +10,15 @@ spec:
     kind: ActiveMQArtemisAddress
     listKind: ActiveMQArtemisAddressList
     plural: activemqartemisaddresses
+    shortNames:
+    - aaa
     singular: activemqartemisaddress
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ActiveMQArtemisAddress is the Schema for the activemqartemisaddresses
-          API
+        description: Adding and removing addresses using custom resource definitions
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -35,7 +36,7 @@ spec:
             description: ActiveMQArtemisAddressSpec defines the desired state of ActiveMQArtemisAddress
             properties:
               addressName:
-                description: Address Name
+                description: The Address Name
                 type: string
               applyToCrNames:
                 description: Apply to the broker crs in the current namespace. A value
@@ -45,9 +46,10 @@ spec:
                   type: string
                 type: array
               password:
-                description: The user's password
+                description: The password for the user
                 type: string
               queueConfiguration:
+                description: Specify the queue configuration
                 properties:
                   autoCreateAddress:
                     description: Whether auto create address
@@ -64,7 +66,7 @@ spec:
                     format: int64
                     type: integer
                   configurationManaged:
-                    description: ' If the queue is configuration managed'
+                    description: If the queue is configuration managed
                     type: boolean
                   consumerPriority:
                     description: Consumer Priority
@@ -141,7 +143,7 @@ spec:
                     type: string
                 type: object
               queueName:
-                description: Queue Name
+                description: The Queue Name
                 type: string
               removeFromBrokerOnDelete:
                 description: Whether or not delete the queue from broker when CR is
@@ -365,5 +367,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

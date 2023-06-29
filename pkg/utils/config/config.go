@@ -10,7 +10,7 @@ import (
 
 var log = ctrl.Log.WithName("config-util")
 
-//Todo:  should be a better way to do this.
+// Todo:  should be a better way to do this.
 func IsEqualV1Beta1(currentAddressSetting []brokerv1beta1.AddressSettingType, newAddressSetting []brokerv1beta1.AddressSettingType) bool {
 	log.Info("Comparing addressSettings...", "current: ", currentAddressSetting, "new: ", newAddressSetting)
 
@@ -735,7 +735,7 @@ func IsEqualV1Beta1(currentAddressSetting []brokerv1beta1.AddressSettingType, ne
 	return true
 }
 
-//assuming the lengths of 2 array are equal.
+// assuming the lengths of 2 array are equal.
 func IsEqualV2Alpha5(currentAddressSetting []brokerv2alpha5.AddressSettingType, newAddressSetting []brokerv2alpha5.AddressSettingType) bool {
 	log.Info("Comparing addressSettings...", "current: ", currentAddressSetting, "new: ", newAddressSetting)
 
@@ -1460,7 +1460,7 @@ func IsEqualV2Alpha5(currentAddressSetting []brokerv2alpha5.AddressSettingType, 
 	return true
 }
 
-//assuming the lengths of 2 array are equal
+// assuming the lengths of 2 array are equal
 func IsEqualV2Alpha4(currentAddressSetting []brokerv2alpha4.AddressSettingType, newAddressSetting []brokerv2alpha4.AddressSettingType) bool {
 	var currentAddressSettingV2Alpha3 []brokerv2alpha3.AddressSettingType
 	var newAddressSettingV2Alpha3 []brokerv2alpha3.AddressSettingType
@@ -1473,7 +1473,7 @@ func IsEqualV2Alpha4(currentAddressSetting []brokerv2alpha4.AddressSettingType, 
 	return IsEqual(currentAddressSettingV2Alpha3, newAddressSettingV2Alpha3)
 }
 
-//assuming the lengths of 2 array are equal
+// assuming the lengths of 2 array are equal
 func IsEqual(currentAddressSetting []brokerv2alpha3.AddressSettingType, newAddressSetting []brokerv2alpha3.AddressSettingType) bool {
 
 	log.Info("Comparing addressSettings...", "current: ", currentAddressSetting, "new: ", newAddressSetting)

@@ -1,9 +1,8 @@
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: operator
+  name: operator-role
   namespace: activemq-artemis-operator
 rules:
 - apiGroups:
@@ -168,6 +167,17 @@ rules:
   - delete
   - get
   - list
+  - watch
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io

@@ -20,11 +20,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -47,6 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	brokerv1alpha1 "github.com/artemiscloud/activemq-artemis-operator/api/v1alpha1"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
@@ -57,6 +58,7 @@ import (
 
 	//+kubebuilder:scaffold:imports
 
+	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/environments"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -82,10 +84,12 @@ const (
 	namespace1              = "namespace1"
 	namespace2              = "namespace2"
 	namespace3              = "namespace3"
+	specShortNameLimit      = 25
 )
 
 var (
-	testCount  int64
+	resCount   int64
+	specCount  int64
 	currentDir string
 	k8sClient  client.Client
 	restConfig *rest.Config
@@ -93,9 +97,13 @@ var (
 	ctx        context.Context
 	cancel     context.CancelFunc
 
+	// the cluster url
+	clusterUrl *url.URL
+
 	// the manager may be stopped/restarted via tests
 	managerCtx    context.Context
 	managerCancel context.CancelFunc
+	k8Manager     manager.Manager
 
 	stateManager *common.StateManager
 
@@ -116,6 +124,9 @@ var (
 	logBuffer *bytes.Buffer
 
 	artemisGvk = schema.GroupVersionKind{Group: "broker", Version: "v1beta1", Kind: "ActiveMQArtemis"}
+
+	isOpenshift                    = false
+	isIngressSSLPassthroughEnabled = false
 )
 
 func TestAPIs(t *testing.T) {
@@ -142,7 +153,12 @@ func setUpEnvTest() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(restConfig).NotTo(BeNil())
 
+	clusterUrl, err = url.Parse(testEnv.Config.Host)
+	Expect(err).NotTo(HaveOccurred())
+
 	setUpK8sClient()
+
+	setUpIngressSSLPassthrough()
 
 	setUpTestProxy()
 
@@ -151,7 +167,39 @@ func setUpEnvTest() {
 	createControllerManagerForSuite()
 }
 
-//Set up test-proxy for external http requests
+func setUpIngressSSLPassthrough() {
+	isIngressSSLPassthroughEnabled = false
+
+	if isOpenshift {
+		isIngressSSLPassthroughEnabled = true
+	} else {
+		ingressNginxControllerDeployment := &appsv1.Deployment{}
+		ingressNginxControllerDeploymentKey := types.NamespacedName{Name: "ingress-nginx-controller", Namespace: "ingress-nginx"}
+		err := k8sClient.Get(ctx, ingressNginxControllerDeploymentKey, ingressNginxControllerDeployment)
+		if err == nil {
+			if len(ingressNginxControllerDeployment.Spec.Template.Spec.Containers) > 0 {
+				ingressNginxControllerContainer := &ingressNginxControllerDeployment.Spec.Template.Spec.Containers[0]
+
+				for i := 0; i < len(ingressNginxControllerContainer.Args); i++ {
+					if ingressNginxControllerContainer.Args[i] == "--enable-ssl-passthrough" {
+						isIngressSSLPassthroughEnabled = true
+						break
+					}
+				}
+
+				if !isIngressSSLPassthroughEnabled && os.Getenv("ENABLE_INGRESS_SSL_PASSTHROUGH") == "true" {
+					ingressNginxControllerContainer.Args = append(ingressNginxControllerContainer.Args, "--enable-ssl-passthrough")
+
+					Expect(k8sClient.Update(ctx, ingressNginxControllerDeployment)).Should(Succeed())
+
+					isIngressSSLPassthroughEnabled = true
+				}
+			}
+		}
+	}
+}
+
+// Set up test-proxy for external http requests
 func setUpTestProxy() {
 
 	var err error
@@ -215,9 +263,6 @@ func setUpTestProxy() {
 
 	err = k8sClient.Create(ctx, &testProxyService)
 	Expect(err != nil || errors.IsConflict(err))
-
-	clusterUrl, err := url.Parse(testEnv.Config.Host)
-	Expect(err).NotTo(HaveOccurred())
 
 	proxyUrl, err := url.Parse(fmt.Sprintf("http://%s:%d", clusterUrl.Hostname(), testProxyNodePort))
 	Expect(err).NotTo(HaveOccurred())
@@ -283,9 +328,11 @@ func createControllerManager(disableMetrics bool, watchNamespace string) {
 	waitforever := time.Duration(-1)
 	mgrOptions.GracefulShutdownTimeout = &waitforever
 	mgrOptions.LeaderElectionReleaseOnCancel = true
+	mgrOptions.Port = 9443
 
 	// start our controler
-	k8Manager, err := ctrl.NewManager(restConfig, mgrOptions)
+	var err error
+	k8Manager, err = ctrl.NewManager(restConfig, mgrOptions)
 	Expect(err).ToNot(HaveOccurred())
 
 	// Create and start a new auto detect process for this operator
@@ -295,6 +342,8 @@ func createControllerManager(disableMetrics bool, watchNamespace string) {
 	} else {
 		autodetect.DetectOpenshift()
 	}
+
+	isOpenshift, _ = environments.DetectOpenshift()
 
 	brokerReconciler = &ActiveMQArtemisReconciler{
 		Client: k8Manager.GetClient(),
@@ -362,16 +411,16 @@ func setUpRealOperator() {
 	_, err = envtest.InstallCRDs(restConfig, options)
 	Expect(err).To(Succeed())
 
-	err = installOperator()
+	err = installOperator(nil)
 	Expect(err).To(Succeed(), "failed to install operator")
 }
 
-//Deploy operator resources
-//TODO: provide 'watch all namespaces' option
-func installOperator() error {
+// Deploy operator resources
+// TODO: provide 'watch all namespaces' option
+func installOperator(envMap map[string]string) error {
 	logf.Log.Info("#### Installing Operator ####")
 	for _, res := range oprRes {
-		if err := installYamlResource(res); err != nil {
+		if err := installYamlResource(res, envMap); err != nil {
 			return err
 		}
 	}
@@ -379,7 +428,7 @@ func installOperator() error {
 	return waitForOperator()
 }
 
-func uninstallOperator() error {
+func uninstallOperator(deleteCrds bool) error {
 	logf.Log.Info("#### Uninstalling Operator ####")
 	for _, res := range oprRes {
 		if err := uninstallYamlResource(res); err != nil {
@@ -387,14 +436,17 @@ func uninstallOperator() error {
 		}
 	}
 
-	//uninstall CRDs
-	logf.Log.Info("Uninstalling CRDs")
-	crds := []string{"../deploy/crds"}
-	options := envtest.CRDInstallOptions{
-		Paths:              crds,
-		ErrorIfPathMissing: false,
+	if deleteCrds {
+		//uninstall CRDs
+		logf.Log.Info("Uninstalling CRDs")
+		crds := []string{"../deploy/crds"}
+		options := envtest.CRDInstallOptions{
+			Paths:              crds,
+			ErrorIfPathMissing: false,
+		}
+		return envtest.UninstallCRDs(restConfig, options)
 	}
-	return envtest.UninstallCRDs(restConfig, options)
+	return nil
 }
 
 func waitForOperator() error {
@@ -402,6 +454,7 @@ func waitForOperator() error {
 	opts := &client.ListOptions{
 		Namespace: defaultNamespace,
 	}
+
 	Eventually(func(g Gomega) {
 		g.Expect(k8sClient.List(ctx, podList, opts)).Should(Succeed())
 
@@ -425,7 +478,7 @@ func loadYamlResource(yamlFile string) (runtime.Object, *schema.GroupVersionKind
 	filePath = filepath.Dir(yamlFile)
 
 	var b []byte
-	b, err = ioutil.ReadFile(filepath.Join(filePath, info.Name()))
+	b, err = os.ReadFile(filepath.Join(filePath, info.Name()))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -454,7 +507,7 @@ func uninstallYamlResource(resPath string) error {
 	return nil
 }
 
-func installYamlResource(resPath string) error {
+func installYamlResource(resPath string, envMap map[string]string) error {
 	logf.Log.Info("Installing yaml resource", "yaml", resPath)
 	robj, gkv, err := loadYamlResource(resPath)
 	if err != nil {
@@ -463,11 +516,19 @@ func installYamlResource(resPath string) error {
 	cobj := robj.(client.Object)
 	cobj.SetNamespace(defaultNamespace)
 
-	if oprImg := os.Getenv("OPERATOR_IMAGE"); oprImg != "" {
-		if gkv.Kind == "Deployment" {
+	if gkv.Kind == "Deployment" {
+		oprObj := cobj.(*appsv1.Deployment)
+		if oprImg := os.Getenv("IMG"); oprImg != "" {
 			logf.Log.Info("Using custom operator image", "url", oprImg)
-			oprObj := cobj.(*appsv1.Deployment)
 			oprObj.Spec.Template.Spec.Containers[0].Image = oprImg
+		}
+		for k, v := range envMap {
+			logf.Log.Info("Adding new env var into operator", "name", k, "value", v)
+			newEnv := corev1.EnvVar{
+				Name:  k,
+				Value: v,
+			}
+			oprObj.Spec.Template.Spec.Containers[0].Env = append(oprObj.Spec.Template.Spec.Containers[0].Env, newEnv)
 		}
 	}
 
@@ -575,7 +636,7 @@ var _ = AfterSuite(func() {
 	os.Unsetenv("OPERATOR_WATCH_NAMESPACE")
 
 	if os.Getenv("DEPLOY_OPERATOR") == "true" {
-		err := uninstallOperator()
+		err := uninstallOperator(true)
 		Expect(err).NotTo(HaveOccurred())
 	} else {
 
@@ -615,6 +676,26 @@ func MatchCapturedLog(pattern string) (matched bool, err error) {
 	return regexp.Match(pattern, logBuffer.Bytes())
 }
 
+func FindAllFromCapturedLog(pattern string) []string {
+	re, err := regexp.Compile(pattern)
+	if err == nil {
+		return re.FindAllString(logBuffer.String(), -1)
+	}
+	return nil
+}
+
 func StopCapturingLog() {
 	logBuffer = nil
+}
+
+func BeforeEachSpec() {
+	specCount++
+
+	//Print running spec
+	fmt.Println("\n\033[32mRunning Spec " +
+		strconv.FormatInt(specCount, 10) + ": " +
+		CurrentSpecReport().FullText() + " " +
+		"\033[33m[" + CurrentSpecShortName() + "]\033[0m\n" +
+		CurrentSpecReport().LeafNodeLocation.FileName + ":" +
+		strconv.Itoa(CurrentSpecReport().LeafNodeLocation.LineNumber))
 }

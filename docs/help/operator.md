@@ -23,12 +23,12 @@ because the CRD gets exposed automatically through Kubernetes.
 
 The following CRD's are available for the Operator and can be found in the Operator Repository under *config/crd/bases/*
 
-| CRD                 | Description                                                    | 
-| :---                |    :----:                                                      |  
-| **Main broker CRD** | Create and configure a broker deployment                       | 
-| **Address CRD**     | Create addresses and queues for a broker deployment            |
-| **Scaledown CRD**   | Creates a Scaledown Controller for message migration           | 
-| **Security CRD**    | Configure the security and authentication method of the Broker |
+| CRD                 | Description                                                    |           Name            | Shortname  |
+| :---                | :----:                                                         | :----:                    | :---:      |
+| **Main broker CRD** | Create and configure a broker deployment                       |     activemqartemises     |     aa     |
+| **Address CRD**     | Create addresses and queues for a broker deployment            | activemqartemisaddresses  |    aaa     |
+| **Scaledown CRD**   | Creates a Scaledown Controller for message migration           | activemqartemisscaledowns |    aad     |
+| **Security CRD**    | Configure the security and authentication method of the Broker | activemqartemissecurities |    aas     |
 
 ### Additional resources
 
@@ -84,6 +84,53 @@ in your Custom Resource), you need to have two PVs available. By default, each b
 If you specify persistenceEnabled=false in your Custom Resource, the deployed brokers uses ephemeral storage. Ephemeral 
 storage means that that every time you restart the broker Pods, any existing data is lost.
 
+## Configuring logging for the Operator
+
+This section describes how to configure logging for the operator.
+
+The operator image is using zap logger for logging. You can set the zap log level editing the container args defined in the operator deployment, i.e.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: activemq-artemis-controller-manager
+  spec:
+      containers:
+      - args:
+        - --zap-log-level=error
+...
+```
+
+You can also edit the operator deployment using the Kubernetes dashboard or the Kubernetes command-line tool, for example
+
+```shell script
+$ sed 's/--zap-log-level=debug/--zap-log-level=error/' deploy/operator.yaml | kubectl apply -f -
+```
+
+However if you install the operator from OperatorHub you don't have control over the resources which are deployed by olm
+framework. In that case if you want to change log options for the operator you need to edit the Subscription yaml
+from the OperatorHub after the operator is installed. The Subscription spec has a config option that allows you to 
+pass environment variables into operator container. To configure the log level add/edit the config option as shown
+in below example:
+
+```yaml
+kind: Subscription
+metadata:
+  name: operator
+spec:
+  config:
+    env:
+    - name: ARGS
+      value: "--zap-log-level=debug"
+```
+
+Note: The env var name must be **ARGS** and the value is **--zap-log-level={level}** where {level} must
+be one of **debug**, **info** and **error**. Any other values will be ignored.
+
+After editing the Subscription yaml as such, save it and the operator will restart with the given log level.
 
 ### Getting the Operator code
 
@@ -273,22 +320,21 @@ Using the Kubernetes command-line interface switch to the namespace you are usin
 $ kubectl config set-context $(kubectl config current-context) --namespace= <project-name>
 ```
 
-Open the sample CR file called broker_activemqartemis_cr.yaml that is included in the deploy/crs directory of the Operator 
+Open the sample CR file called broker_activemqartemis_v1beta1_cr.yaml that is included in the deploy/crs directory of the Operator
 installation archive that you downloaded and extracted. For a basic broker deployment, the configuration might resemble 
 that shown below. This configuration is the default content of the broker_activemqartemis_cr.yaml sample CR.
 
 ```yaml
-apiVersion: broker.amq.io/v2alpha4
+apiVersion: broker.amq.io/v1beta1
 kind: ActiveMQArtemis
 metadata:
   name: ex-aao
   application: ex-aao-app
 spec:
-    version: 7.7.0
-    deploymentPlan:
-        size: 2
-        image: quay.io/artemiscloud/activemq-artemis-broker-kubernetes:
-        ...
+  deploymentPlan:
+    image: placeholder
+    size: 2
+    ...
 ```
 
 Observe that the sample CR uses a naming convention of **ex-aao**. This naming convention denotes that the CR is an example 
@@ -300,17 +346,7 @@ You might use this label in a Pod selector, for example.
 The size value specifies the number of brokers to deploy. The default value of 2 specifies a clustered broker deployment 
 of two brokers. However, to deploy a single broker instance, change the value to 1.
 
-The image value specifies the container image to use to launch the broker. Ensure that this value specifies the latest 
-version of the ActiveMQ Artemis broker container image in the Quay.io repository, as shown below.
-
-
-    image: quay.io/artemiscloud/activemq-artemis-broker-kubernetes:0.2.1
-    
-In the preceding step, the image attribute specifies a floating image tag (that is, ) rather than a full image tag (for example, -5). 
-When you specify this floating tag, your deployment uses the latest image available in the image stream. In addition, 
-when you specify a floating tag such as this, if the imagePullPolicy attribute in your Stateful Set is set to Always, 
-your deployment automatically pulls and uses new micro image versions (for example, -6, -7, and so on) when they become 
-available from quay.io. Deploy the CR instance.
+The image value specifies the container image to use to launch the broker. It uses the **placeholder** key to identify that the operator should choose the latest supported broker image.
 
 Save the CR file.
 
@@ -398,16 +434,14 @@ Open the CR file that you used for your basic broker deployment.
 
 For a clustered deployment, ensure that the value of deploymentPlan.size is 2 or greater. For example:
 ```yaml
-apiVersion: broker.amq.io/v2alpha4
+apiVersion: broker.amq.io/v1beta1
 kind: ActiveMQArtemis
 metadata:
   name: ex-aao
   application: ex-aao-app
 spec:
-    version: 7.7.0
     deploymentPlan:
         size: 4
-        image: quay.io/artemiscloud/activemq-artemis-broker-kubernetes:
         ...
 ```
 
@@ -450,15 +484,15 @@ However, when the scaledown operation is complete, the Operator restores the dep
 
 4. During an active scaling event, any further changes that you apply are queued by the Operator and executed only when scaling is complete. For example, suppose that you scale the size of your deployment down from four brokers to one. Then, while scaledown is taking place, you also change the values of the broker administrator user name and password. In this case, the Operator queues the user name and password changes until the deployment is running with one active broker.
 
-5. ll CR changes – apart from changing the size of your deployment, or changing the value of the expose attribute for acceptors, connectors, or the console – cause existing brokers to be restarted. If you have multiple brokers in your deployment, only one broker restarts at a time.
+5. all CR changes – apart from changing the size of your deployment, or changing the value of the expose attribute for acceptors, connectors, or the console – cause existing brokers to be restarted. If you have multiple brokers in your deployment, only one broker restarts at a time.
 
 
 ## Configuring Scheduling, Preemption and Eviction
 
 
-### Liveness and Readiness Probes
+### Liveness, Readiness and Startup Probes
 
-The Liveness and readiness Probes are used by Kubernetes to detect when the Broker is started and to check it is still alive. 
+The Liveness, Readiness Startup Probes are used by Kubernetes to detect when the Broker is started and to check it is still alive. 
 For full documentation on this topic refer to the [Configure Liveness, Readiness and Startup Probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) 
 chapter in the Kubernetes documentation.
 
@@ -573,6 +607,28 @@ a script that is shipped in the Kubernetes Image, this can be found [here](https
 
 The script will try to establish a tcp connection to each port configured in the broker.xml.  
 
+#### The Startup Probe
+
+The Startup Probe has no default probe if not configured. The Startup Probe is configured in the Artemis CR something like:
+
+```yaml
+spec:
+  deploymentPlan:
+    startupProbe:
+      exec:
+        command:
+            - /bin/bash
+            - '-c'
+            - /opt/amq/bin/artemis
+            - 'check'
+            - 'node'
+            - '--up'
+            - '--url'
+            - 'tcp://$HOSTNAME:61616'
+      initialDelaySeconds: 5
+      periodSeconds: 5
+```
+
 ###  Tolerations
 
 It is possible to configure tolerations on tge deployed broker image . An example of a toleration would be something like:
@@ -666,6 +722,23 @@ spec:
 
 labels Node Selectors are outside the scope of this document, for full documentation see the [Kubernetes Documentation](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)
 
+### Annotations
+
+Annotations can be added to the pods by defining them like so:
+
+
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: broker
+  namespace: activemq-artemis-operator
+spec:
+  deploymentPlan:
+    annotations:
+      sidecar.istio.io/inject: "true"
+      promethes-prop: "somevalue"
+```
 
 ### Setting  Environment Variables
 
@@ -679,7 +752,6 @@ metadata:
   name: broker
   namespace: activemq-artemis-operator
 spec:
-spec:
   deploymentPlan:
     size: 1
     image: placeholder
@@ -690,3 +762,203 @@ spec:
 ```
 
 Note: you are configuring an array of [envVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#envvar-v1-core) which is a very powerfull concept. Proceed with care, taking due respect to any environment the operator may set and depend on. For full documentation see the [Kubernetes Documentation](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
+
+## Configuring brokerProperties
+
+The CRD brokerProperties attribute allows the direct configuration of the Artemis internal configuration Bean of a broker via key value pairs. It is usefull to override or augment elements of the CR, or to configure broker features that are not exposed via CRD attributes. In cases where the init container is used to augment xml configuration, broker properties can provide an in CR alternative. As a general 'bag of configration' it is very powerful but it must be treated with due respect to all other sources of configuration. For details of what can be configured see the [Artemis configuraton documentation](https://activemq.apache.org/components/artemis/documentation/latest/configuration-index.html#broker-properties).
+
+The format is an array of strings of the form `key=value` where the key identifies a (potentially nested) property of the configuration bean.
+Note: the array of strings ends up in a java properties file, where the following list of characters are significant: (space)`' '`, (colon)`':'`, (equals)`'='`. If these need to be present in your keys or values, they need to be escaped with a leading back slash `'\'`.
+
+The CR Status contains a Condition reflecting the application of the brokerProperties volume mount projection.
+For advanced use cases, with a broker version >= 2.27.1, it is possible to use a `broker-N.` prefix to provide configuration to a specific instance(0-N) of your deployment plan.
+
+For example, to provide explicit config for the amount of memory messages will consume in a broker, overriding the defaults from container and JVM heap limits, you could use:
+
+```yaml
+...
+spec:
+  ...
+  brokerProperties:
+    - globalMaxSize=512m
+```
+
+
+## Configuring Logging for Brokers
+
+By default the operator deploys a broker with a default logging configuration that comes with the [Artemis container image]
+(https://github.com/artemiscloud/activemq-artemis-broker-kubernetes-image). Broker logs its messages to console only.
+
+Users can change the broker logging configuration by providing their own in a configmap or secret. The name of the configmap
+or secret must have the suffix **-logging-config**. There must a key **logging.properties** and the value must of the full content of the logging configuration. (The broker is using slf4j with
+log4j2 binding so the content should be log4j2's configuration in Java's properties file format).
+
+Then you need to give the name of the configmap or secret in the broker custom resource via **extraMounts**. For example
+
+`for configmap`
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: broker
+  namespace: activemq-artemis-operator
+spec:
+spec:
+  deploymentPlan:
+    size: 1
+    image: placeholder
+    extraMounts:
+      configMaps:
+      - "my-logging-config"
+```
+`for secret`
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: broker
+  namespace: activemq-artemis-operator
+spec:
+spec:
+  deploymentPlan:
+    size: 1
+    image: placeholder
+    extraMounts:
+      secrets:
+      - "my-logging-config"
+```
+
+## Configuring JAAS for Brokers
+
+An entire JAAS configuration file (login.config) can be supplied via a secret with a `-jaas-config` postfix in the spec.deploymentPlan.extraMounts.secrets field. This file will be referenced from
+the jaas config system property (`java.security.auth.login.config`) and it will override anything configured via artemis create or via the ArtemisSecurityCR. For full details of how to configure JAAS for the broker refer to the [JAAS Security manager documentation](https://activemq.apache.org/components/artemis/documentation/latest/security.html#JAAS_Security_Manager).
+Note: care must be taken to respect the any configured admin user such that the operator can still access the jolokia endpoint of the broker. The simplest way to do that is to reference the existing PropertiesLoginModule configuration files in your login.config.
+For example, here we have two instances of the PropertiesLoginModule, one that references the the default credentials from `/home/jboss/amq-broker/etc` and one that has user suplied values from the secret. `reload=true` will ensure that the properties are reloaded if the secret changes. The `login.config` key in your secret called `<...>-jaas-config`, would have the following as the value:
+
+```
+		// a full login.config with the default activemq realm
+		activemq {
+
+				// ensure the operator can connect to the broker by referencing the existing properties config
+				org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule sufficient
+					org.apache.activemq.jaas.properties.user="artemis-users.properties"
+					org.apache.activemq.jaas.properties.role="artemis-roles.properties"
+					baseDir="/home/jboss/amq-broker/etc";
+
+				// a custom LoginModule that will reload from this secret
+				org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule sufficient
+					reload=true
+					org.apache.activemq.jaas.properties.user="users.properties"
+					org.apache.activemq.jaas.properties.role="roles.properties";
+
+				// add any other supported LoginModule here
+		};
+```
+
+There would be corresponding keys for users.properties and roles.properties, they are picked up from the same mount point as your login.config by default.
+
+With the possiblity of configuring arbritary jaas login modules directly, the ArtemisSecurityCR ActiveMQArtemisSecuritySpec.LoginModules and ActiveMQArtemisSecuritySpec.SecurityDomains fields are deprecated.
+
+## Locking down a broker deployment
+
+Often when verificiation is complete it is desirable to lock down the broker images and prevent auto upgrades, which will result in a roll out of images and a restart of your broker.
+The key enabler here is the **image** and **initImage** fields. When a fully qualified SHA uri is provided, the operator will only deploy that exact version.
+Note: both the image and initImage fields must be set because they have an implicit dependency on each other.
+
+The second enabler is the **version** field. The version field can restrict the matching versions selected by the operator using a ``major<.minor><.patch>`` format. When the Version field is empty, the operator will choose the latest version. When a major version is specified, only minor or patch version of that major will be chosen. An exact match can be configuired as **2.28.0**.
+The operator supports a level of indirection when resolving versions, there are env vars that map version to image uris. If these change, via an operator redeployment, then locking down via a version may not be sufficient. In that case, the image and initImage fields will be necessary.
+
+The operator will validate the a CR specifies both image and initImage or a Version. It will also validate that a speficied version matches the internal list of supported versions.
+The CR Status sub resource will contain feedback via the Valid Condition if validation fails.
+
+
+## Enable broker's metrics plugin
+
+The ActiveMQ Artemis Broker comes with a metrics plugin to expose metrics data. The metrics data can be collected by tools such as Prometheus and visualized by tools such as Grafana.
+By default, the metrics plugin is disabled.
+To instruct the Operator to enable metrics for each broker Pod in a deployment, you must set the value of the `deploymentPlan.enableMetricsPlugin` property to true in the Custom Resource (CR) instance used to create the deployment.
+In addition, you need to expose the console, for example
+
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: ex-aao
+spec:
+  deploymentPlan:
+    size: 1
+    enableMetricsPlugin: true
+    image: placeholder
+  console:
+    expose: true
+```
+
+### Enable JVM metrics
+
+JVM memory metrics are enabled by default. Use the `spec.brokerProperties` field to enable JVM GC and threads metrics, for further details see the following example:
+
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: artemis-jvm
+spec:
+  console:
+    expose: true
+  deploymentPlan:
+    size: 1
+    enableMetricsPlugin: true
+  brokerProperties:
+    - "metricsConfiguration.jvmGc=true"
+    - "metricsConfiguration.jvmMemory=true"
+    - "metricsConfiguration.jvmThread=true"
+```
+
+### Monitor broker metrics by using Prometheus
+
+The operator will expose a containerPort named **wsconj** for the Prometheus to monitor. The following
+is a sample Prometheus ServiceMonitor resource
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: example-app
+  labels:
+    team: prometheus
+spec:
+  selector:
+    matchLabels:
+      application: ex-aao-app
+  endpoints:
+  - port: wconsj
+```
+For a complete example please refer to this [artemiscloud example](https://github.com/artemiscloud/artemiscloud-examples/tree/main/operator/prometheus).
+
+## Configuring PodDisruptionBudget for broker deployment
+
+The ActiveMQArtemis custom resource offers a PodDisruptionBudget option
+for the broker pods deployed by the operator. When it is specified the operator
+will deploy a PodDisruptionBudget for the broker deployment.
+
+For example
+
+```yaml
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: broker
+  namespace: activemq-artemis-operator
+spec:
+spec:
+  deploymentPlan:
+    size: 2
+    image: placeholder
+    podDisruptionBudget:
+      minAvailable: 1
+```
+
+When deploying the above custom resource the operator will create a PodDisruptionBudget
+object with the **minAvailable** set to 1. The operator also sets the proper selector
+so that the PodDisruptionBudget matches the broker statefulset.
+

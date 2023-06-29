@@ -1,0 +1,10 @@
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: artemis-broker-tls
+spec:
+  deploymentPlan:
+    size: 2
+    persistenceEnabled: true
+    # messageMigration requires 2+ brokers
+    messageMigration: true

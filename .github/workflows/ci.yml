@@ -19,10 +19,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: '1.17.3'
+          go-version: '1.19.8'
 
       - name: Checkout the repo
         uses: actions/checkout@v2
+
+      - name: Check generate files
+        run: make generate-deploy && make bundle && git status && git diff-index --quiet HEAD --
 
       - name: Execute the tests
         run: make test
@@ -46,7 +49,7 @@ jobs:
           npm install && npm run build
 
       - name: Build the image
-        run: docker build --label \"quay.expires-after=1w\" --label \"git-sha=$GITHUB_SHA\" --tag $IMAGE_NAME:dev.latest .
+        run: docker build --label quay.expires-after=90d --label git-sha=$GITHUB_SHA --tag $IMAGE_NAME:dev.latest .
 
       - name: Push the image
         if: ${{ github.event_name == 'push' }}

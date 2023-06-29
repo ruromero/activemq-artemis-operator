@@ -7,7 +7,7 @@ LABEL operators.operatorframework.io.bundle.metadata.v1=metadata/
 LABEL operators.operatorframework.io.bundle.package.v1=activemq-artemis-operator
 LABEL operators.operatorframework.io.bundle.channels.v1=upstream
 LABEL operators.operatorframework.io.bundle.channel.default.v1=upstream
-LABEL operators.operatorframework.io.metrics.builder=operator-sdk-v1.14.0
+LABEL operators.operatorframework.io.metrics.builder=operator-sdk-v1.28.0
 LABEL operators.operatorframework.io.metrics.mediatype.v1=metrics+v1
 LABEL operators.operatorframework.io.metrics.project_layout=go.kubebuilder.io/v3
 
@@ -19,3 +19,8 @@ LABEL operators.operatorframework.io.test.config.v1=tests/scorecard/
 COPY bundle/manifests /manifests/
 COPY bundle/metadata /metadata/
 COPY bundle/tests/scorecard /tests/scorecard/
+
+LABEL name="artemiscloud/activemq-artemis-operator-bundle"
+LABEL description="ActiveMQ Artemis Broker Operator Bundle"
+LABEL maintainer="Roddie Kieley <rkieley@redhat.com>"
+LABEL version="1.0.10"

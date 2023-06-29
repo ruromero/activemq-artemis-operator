@@ -127,7 +127,7 @@ func MakeVolume(secretName string) corev1.Volume {
 	return volume
 }
 
-//func makePersistentVolume(cr *brokerv2alpha1.ActiveMQArtemis) []corev1.Volume {
+// func makePersistentVolume(cr *brokerv2alpha1.ActiveMQArtemis) []corev1.Volume {
 func MakePersistentVolume(customResourceName string) []corev1.Volume {
 
 	volume := []corev1.Volume{
@@ -145,7 +145,7 @@ func MakePersistentVolume(customResourceName string) []corev1.Volume {
 	return volume
 }
 
-//func makePersistentVolumeMount(cr *brokerv2alpha1.ActiveMQArtemis) []corev1.VolumeMount {
+// func makePersistentVolumeMount(cr *brokerv2alpha1.ActiveMQArtemis) []corev1.VolumeMount {
 func MakePersistentVolumeMount(customResourceName string, mountPath string) []corev1.VolumeMount {
 
 	volumeMounts := []corev1.VolumeMount{
@@ -199,11 +199,14 @@ func MakeVolumeForConfigMap(cfgmapName string) corev1.Volume {
 }
 
 func MakeVolumeForSecret(secretName string) corev1.Volume {
+	defaultMode := corev1.SecretVolumeSourceDefaultMode
 	volume := corev1.Volume{
 		Name: "secret-" + secretName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName: secretName,
+				SecretName:  secretName,
+				Items:       []corev1.KeyToPath{},
+				DefaultMode: &defaultMode,
 			},
 		},
 	}

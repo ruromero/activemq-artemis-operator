@@ -3,33 +3,34 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: activemq-artemis-operator/activemq-artemis-serving-cert
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.11.2
   name: activemqartemises.broker.amq.io
 spec:
   conversion:
     strategy: Webhook
     webhook:
       clientConfig:
-        caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUdpekNDQkhPZ0F3SUJBZ0lVWXh6UkpyemJuUnFBUDhqQ1pETnA5QlRFMW5Zd0RRWUpLb1pJaHZjTkFRRUwKQlFBd2dhc3hDekFKQmdOVkJBWVRBbFZUTVJNd0VRWURWUVFJREFwRFlXeHBabTl5Ym1saE1SUXdFZ1lEVlFRSApEQXRNYjNNZ1FXNW5aV3hsY3pFVk1CTUdBMVVFQ2d3TVFYSjBaVzFwYzBOc2IzVmtNUkV3RHdZRFZRUUxEQWhQCmNHVnlZWFJ2Y2pGSE1FVUdBMVVFQXd3K1lXTjBhWFpsYlhFdFlYSjBaVzFwY3kxM1pXSm9iMjlyTFhObGNuWnAKWTJVdVlXTjBhWFpsYlhFdFlYSjBaVzFwY3kxdmNHVnlZWFJ2Y2k1emRtTXdIaGNOTWpFeE1qSTBNVE0xTXpBegpXaGNOTXpFeE1qSXlNVE0xTXpBeldqQ0JxekVMTUFrR0ExVUVCaE1DVlZNeEV6QVJCZ05WQkFnTUNrTmhiR2xtCmIzSnVhV0V4RkRBU0JnTlZCQWNNQzB4dmN5QkJibWRsYkdWek1SVXdFd1lEVlFRS0RBeEJjblJsYldselEyeHYKZFdReEVUQVBCZ05WQkFzTUNFOXdaWEpoZEc5eU1VY3dSUVlEVlFRRERENWhZM1JwZG1WdGNTMWhjblJsYldsegpMWGRsWW1odmIyc3RjMlZ5ZG1salpTNWhZM1JwZG1WdGNTMWhjblJsYldsekxXOXdaWEpoZEc5eUxuTjJZekNDCkFpSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnSVBBRENDQWdvQ2dnSUJBS3VRT0Y0aHdLK0xRejJnRGZ3aENQczAKeTJVVXp3SmN5SVhWY1VDeElXNDhMeWw1NXdvZkZhWmk1MHRyRisxUzM0OVAvNHFieDZQQVlmbk53Z0gvZmxKNQpXaFZoTG5DTFVrUjZYS3N0WWZIVjZBcW5BSlNXYWZPR2lGb2JHWVI4L1ZrdytKK3dCZHlGamRRc3NDNHczL0J1Cms2U3dLOFVEOFFFa1BKMGpyWHdPNkxvZnRxcVloWmd6N2poTEQxcXkyTDJmTFV6TVh0bEtReHI1Z2FNMzQwZ0cKaU9oNS96SGE1WmNsNXNMSzlRMlRtSk4vMVZGQjNNK2RzOEEreG1oS0pOSVNYaHMzRkpha2FYM05kQ2R4SVdYRQorOUtVU1BteXFKMmFaVEVlUHY2cXpCcVJOSlB6TjFhWURNZitFS2wwZ09hOG9NUzNVQVc3azRyZ2pNVWJ5dVFMCkExb0poVEdQcThiZWEwYUNGK1VaUCtEWFQ1YVJ3UWI4WCt1dWdqSFV4WGkrVndpUnJ1bXFFNWJlZ1kyK0h2Z1EKQWRNM0tSaTBVYVR2UXA4ajJUUG5pMVRCK0FYdmxlNjZwMFp3NE5HcWpaQTdVZGdTZlNBQzkxT1B5bnE0T0QvdQowYnloZVFFTjUvVmtJVzE4UVV6TkMxMVBFWmhFOXhXQ0JvdnEvSytEMjRNcllEb3MrQm84blFSY3c5UjN4ZW8vCmJpd3o2dXlVamJSUEgreStzVlJXeXhsdUNnRnVMdFVuMFlyZTE3Q1FQZnp3aXRNaStZWjhBb3ZYeHZZSlhFSm0KSE9nbzdqOFpFWVlTWDNCNS9GOVoyei9hSlJtc3dTUHVrT0RtZ0REZEJDWURZNk1ya1BYVTZocS8rYmtQcGZJbQp0N05sSHB3N0RuOEYzRzNDdjRBWEFnTUJBQUdqZ2FRd2dhRXdDd1lEVlIwUEJBUURBZ1F3TUJNR0ExVWRKUVFNCk1Bb0dDQ3NHQVFVRkJ3TUJNSDBHQTFVZEVRUjJNSFNDUG1GamRHbDJaVzF4TFdGeWRHVnRhWE10ZDJWaWFHOXYKYXkxelpYSjJhV05sTG1GamRHbDJaVzF4TFdGeWRHVnRhWE10YjNCbGNtRjBiM0l1YzNaamdqSmhiWEV0WW5KdgphMlZ5TFhkbFltaHZiMnN0YzJWeWRtbGpaUzVoYlhFdFluSnZhMlZ5TFc5d1pYSmhkRzl5TG5OMll6QU5CZ2txCmhraUc5dzBCQVFzRkFBT0NBZ0VBU0ZqT1NyMWVaVzh5dlpXTkx0L0hXaU1TK0E3MlNTODkySnhlTlZCTTNEVWUKMEVrSllnaXk1QzJqaWN6WFdLWXl4ZUo2TDdIVWwzNmZRbFptOC9Ea1NETUlrOTByd1dFWE45RUdIRUpIdEN0WAo0L0l4elJsTVJYK1Ric3FJZFF3SjlpNkFtVjBqaUdlcFpEOStpTi9nL2pYT2NSSFAza3dFVWkxcG9Uc3E5ZkZ0ClRtYU9HYjRZeXN5dWx4S1VtcTlDU1NpbkpNeW01S2o0cUFJSEVDS2RaaTg4b2JUeHl6b1VvY1RNeWw5ZXdTU0UKZDQrakRiWTBQWEc5OXpCZ0FKbjVSSEs3Qm0yL1N0MnNZMy9xUWhsbVZSTWg4eU9sZk9OVDc0WlRJSlFvZDljVwpZOHdqMGY4dmx5VVFreGd6OHZyTVpSV3kvNHhhazViTWw0NkE2SEk4SWJ6eldXaEUwTVdPWkprR1MxMHo1dVdHCkNMYyswdHJVcHprNWFoNXU5QVZZQXhYNUlKeDIxdVBYUnUydmZ6VDBYOE9kNkF1SXd3djFLUUxpSFBNWG9sTysKdjhKejNlZEhVMDBlajFPeGN3OGkzbVNyUDVKNVlONkQrdUFhVWtWNTZzMlk0SlNiME41a0kyT2tRNjMwbGRZUApROGNxQVBRczFwODRuK2xveVVrWnZsSUdkNVVYSTZuWXFNTFQ4dGZoVGFzQVNuOW4zREtGRGJ3VE85eG01bldWCjlrZk1HVWdHNWVoLzFVZmxQWlA4UmhkVTlVbjZob1dla3doMkMzTnZTUFhZL1l0ZHVKK295ZjJ2QTdQMXdHSzMKdjJVRDIwL09YUnZxd2dTUlBVOHVtK3NxU0Rab0NKeWxFZXZ4aHFmZXFzUk5vdDAwNGJPY2ZjQlUydnpnR0wwPQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+        caBundle: ""
         service:
           name: activemq-artemis-webhook-service
           namespace: activemq-artemis-operator
           path: /convert
       conversionReviewVersions:
-      - v2alpha5
-      - v1beta1
+      - v1
   group: broker.amq.io
   names:
     kind: ActiveMQArtemis
     listKind: ActiveMQArtemisList
     plural: activemqartemises
+    shortNames:
+    - aa
     singular: activemqartemis
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ActiveMQArtemis is the Schema for the activemqartemises API
+        description: A stateful deployment of one or more brokers
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -43,7 +44,7 @@ spec:
             description: ActiveMQArtemisSpec defines the desired state of ActiveMQArtemis
             properties:
               acceptors:
-                description: Acceptor configuration
+                description: Specifies the acceptor configuration
                 items:
                   properties:
                     amqpMinLargeMessageSize:
@@ -53,7 +54,7 @@ spec:
                       description: To indicate which kind of routing type to use.
                       type: string
                     bindToAllInterfaces:
-                      description: Whether to let the acceptor to bind to all interfaces (0.0.0.0)
+                      description: Whether to let the acceptor to bind to all interfaces
                       type: boolean
                     connectionsAllowed:
                       description: Max number of connections allowed to make
@@ -67,6 +68,9 @@ spec:
                     expose:
                       description: Whether or not to expose this acceptor
                       type: boolean
+                    ingressHost:
+                      description: 'Host for Ingress and Route resources of the acceptor. It supports the following variables: $(CR_NAME), $(CR_NAMESPACE), $(BROKER_ORDINAL), $(ITEM_NAME), $(RES_NAME) and $(INGRESS_DOMAIN). Default is $(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL)-svc-$(RES_TYPE).$(INGRESS_DOMAIN)'
+                      type: string
                     keyStoreProvider:
                       description: Provider used for the keystore; "SUN", "SunJCE", etc. Default is null
                       type: string
@@ -74,6 +78,7 @@ spec:
                       description: To indicate which kind of routing type to use
                       type: string
                     name:
+                      description: The acceptor name
                       type: string
                     needClientAuth:
                       description: Tells a client connecting to this acceptor that 2-way SSL is required. This property takes precedence over wantClientAuth.
@@ -120,8 +125,10 @@ spec:
                   type: object
                 type: array
               addressSettings:
+                description: Specifies the address configurations
                 properties:
                   addressSetting:
+                    description: Specifies the address settings
                     items:
                       properties:
                         addressFullPolicy:
@@ -176,7 +183,7 @@ spec:
                           description: What to do when an address is no longer in broker.xml.  OFF = will do nothing addresses will remain, FORCE = delete address and its queues even if messages remaining.
                           type: string
                         configDeleteDiverts:
-                          description: What to do when a divert is no longer in broker.xml.  OFF = will do nothing and divert will remain(default), FORCE = delete divert.
+                          description: What to do when a divert is no longer in broker.xml.  OFF = will do nothing and divert will remain(default), FORCE = delete divert
                           type: string
                         configDeleteQueues:
                           description: What to do when a queue is no longer in broker.xml.  OFF = will do nothing queues will remain, FORCE = delete queues even if messages remaining.
@@ -362,6 +369,7 @@ spec:
                   type: string
                 type: array
               connectors:
+                description: Specifies connectors and connector configuration
                 items:
                   properties:
                     enabledCipherSuites:
@@ -375,6 +383,9 @@ spec:
                       type: boolean
                     host:
                       description: Hostname or IP to connect to
+                      type: string
+                    ingressHost:
+                      description: 'Host for Ingress and Route resources of the acceptor. It supports the following variables: $(CR_NAME), $(CR_NAMESPACE), $(BROKER_ORDINAL), $(ITEM_NAME), $(RES_NAME) and $(INGRESS_DOMAIN). Default is $(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL)-svc-$(RES_TYPE).$(INGRESS_DOMAIN)'
                       type: string
                     keyStoreProvider:
                       description: Provider used for the keystore; "SUN", "SunJCE", etc. Default is null
@@ -393,7 +404,7 @@ spec:
                       description: A regular expression used to match the server_name extension on incoming SSL connections. If the name doesn't match then the connection to the acceptor will be rejected.
                       type: string
                     sslEnabled:
-                      description: ' Whether or not to enable SSL on this port'
+                      description: Whether or not to enable SSL on this port
                       type: boolean
                     sslProvider:
                       description: Used to change the SSL Provider between JDK and OPENSSL. The default is JDK.
@@ -423,10 +434,17 @@ spec:
                   type: object
                 type: array
               console:
+                description: Specifies the console configuration
                 properties:
                   expose:
                     description: Whether or not to expose this port
                     type: boolean
+                  ingressHost:
+                    description: 'Host for Ingress and Route resources of the acceptor. It supports the following variables: $(CR_NAME), $(CR_NAMESPACE), $(BROKER_ORDINAL), $(ITEM_NAME), $(RES_NAME) and $(INGRESS_DOMAIN). Default is $(CR_NAME)-$(ITEM_NAME)-$(BROKER_ORDINAL)-svc-$(RES_TYPE).$(INGRESS_DOMAIN)'
+                    type: string
+                  name:
+                    description: The name of the console. Default is wconsj.
+                    type: string
                   sslEnabled:
                     description: Whether or not to enable SSL on this port
                     type: boolean
@@ -438,9 +456,10 @@ spec:
                     type: boolean
                 type: object
               deploymentPlan:
+                description: Specifies the deployment plan
                 properties:
                   affinity:
-                    description: custom Affinity
+                    description: Specifies affinity configuration
                     properties:
                       nodeAffinity:
                         description: Describes node affinity scheduling rules for the pod.
@@ -496,6 +515,7 @@ spec:
                                         type: object
                                       type: array
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 weight:
                                   description: Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
                                   format: int32
@@ -556,10 +576,12 @@ spec:
                                         type: object
                                       type: array
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 type: array
                             required:
                             - nodeSelectorTerms
                             type: object
+                            x-kubernetes-map-type: atomic
                         type: object
                       podAffinity:
                         description: Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
@@ -602,8 +624,9 @@ spec:
                                           description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaceSelector:
-                                      description: A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means "this pod's namespace". An empty selector ({}) matches all namespaces. This field is beta-level and is only honored when PodAffinityNamespaceSelector feature is enabled.
+                                      description: A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means "this pod's namespace". An empty selector ({}) matches all namespaces.
                                       properties:
                                         matchExpressions:
                                           description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
@@ -632,8 +655,9 @@ spec:
                                           description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaces:
-                                      description: namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means "this pod's namespace"
+                                      description: namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means "this pod's namespace".
                                       items:
                                         type: string
                                       type: array
@@ -687,8 +711,9 @@ spec:
                                       description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
-                                  description: A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means "this pod's namespace". An empty selector ({}) matches all namespaces. This field is beta-level and is only honored when PodAffinityNamespaceSelector feature is enabled.
+                                  description: A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means "this pod's namespace". An empty selector ({}) matches all namespaces.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
@@ -717,8 +742,9 @@ spec:
                                       description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
-                                  description: namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means "this pod's namespace"
+                                  description: namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means "this pod's namespace".
                                   items:
                                     type: string
                                   type: array
@@ -771,8 +797,9 @@ spec:
                                           description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaceSelector:
-                                      description: A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means "this pod's namespace". An empty selector ({}) matches all namespaces. This field is beta-level and is only honored when PodAffinityNamespaceSelector feature is enabled.
+                                      description: A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means "this pod's namespace". An empty selector ({}) matches all namespaces.
                                       properties:
                                         matchExpressions:
                                           description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
@@ -801,8 +828,9 @@ spec:
                                           description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
                                           type: object
                                       type: object
+                                      x-kubernetes-map-type: atomic
                                     namespaces:
-                                      description: namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means "this pod's namespace"
+                                      description: namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means "this pod's namespace".
                                       items:
                                         type: string
                                       type: array
@@ -856,8 +884,9 @@ spec:
                                       description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaceSelector:
-                                  description: A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means "this pod's namespace". An empty selector ({}) matches all namespaces. This field is beta-level and is only honored when PodAffinityNamespaceSelector feature is enabled.
+                                  description: A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means "this pod's namespace". An empty selector ({}) matches all namespaces.
                                   properties:
                                     matchExpressions:
                                       description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
@@ -886,8 +915,9 @@ spec:
                                       description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
                                       type: object
                                   type: object
+                                  x-kubernetes-map-type: atomic
                                 namespaces:
-                                  description: namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means "this pod's namespace"
+                                  description: namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means "this pod's namespace".
                                   items:
                                     type: string
                                   type: array
@@ -900,6 +930,11 @@ spec:
                             type: array
                         type: object
                     type: object
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Custom annotations to be added to broker pod
+                    type: object
                   clustered:
                     description: Whether broker is clustered
                     type: boolean
@@ -907,23 +942,35 @@ spec:
                     description: Whether or not to install the artemis metrics plugin
                     type: boolean
                   extraMounts:
+                    description: Specifies extra mounts
                     properties:
                       configMaps:
-                        description: Name of ConfigMap
+                        description: Specifies ConfigMap names
                         items:
                           type: string
                         type: array
                       secrets:
-                        description: Name of Secret
+                        description: Specifies Secret names
                         items:
                           type: string
                         type: array
                     type: object
                   image:
-                    description: The image used for the broker deployment
+                    description: The image used for the broker, all upgrades are disabled. Needs a corresponding initImage
                     type: string
+                  imagePullSecrets:
+                    description: The image pull secrets name used to retrieve secrets for image pulls.
+                    items:
+                      description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                      properties:
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    type: array
                   initImage:
-                    description: The init container image used to configure broker
+                    description: The init container image used to configure broker, all upgrades are disabled. Needs a corresponding image
                     type: string
                   jolokiaAgentEnabled:
                     description: If true enable the Jolokia JVM Agent
@@ -937,7 +984,7 @@ spec:
                     description: Assign labels to a broker pod, the keys `ActiveMQArtemis` and `application` are not allowed
                     type: object
                   livenessProbe:
-                    description: Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.
+                    description: Specifies the liveness probe configuration
                     properties:
                       exec:
                         description: Exec specifies the action to take.
@@ -953,7 +1000,7 @@ spec:
                         format: int32
                         type: integer
                       grpc:
-                        description: GRPC specifies an action involving a GRPC port. This is an alpha field and requires enabling GRPCContainerProbe feature gate.
+                        description: GRPC specifies an action involving a GRPC port. This is a beta field and requires enabling GRPCContainerProbe feature gate.
                         properties:
                           port:
                             description: Port number of the gRPC service. Number must be in the range 1 to 65535.
@@ -1047,12 +1094,63 @@ spec:
                   nodeSelector:
                     additionalProperties:
                       type: string
-                    description: custom node selector
+                    description: Specifies the node selector
                     type: object
                   persistenceEnabled:
                     description: If true use persistent volume via persistent volume claim for journal storage
                     type: boolean
+                  podDisruptionBudget:
+                    description: Specifies the pod disruption budget
+                    properties:
+                      maxUnavailable:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: An eviction is allowed if at most "maxUnavailable" pods selected by "selector" are unavailable after the eviction, i.e. even in absence of the evicted pod. For example, one can prevent all voluntary evictions by specifying 0. This is a mutually exclusive setting with "minAvailable".
+                        x-kubernetes-int-or-string: true
+                      minAvailable:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        description: An eviction is allowed if at least "minAvailable" pods selected by "selector" will still be available after the eviction, i.e. even in the absence of the evicted pod.  So for example you can prevent all voluntary evictions by specifying "100%".
+                        x-kubernetes-int-or-string: true
+                      selector:
+                        description: Label query over pods whose evictions are managed by the disruption budget. A null selector will match no pods, while an empty ({}) selector will select all pods within the namespace.
+                        properties:
+                          matchExpressions:
+                            description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                            items:
+                              description: A label selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                              properties:
+                                key:
+                                  description: key is the label key that the selector applies to.
+                                  type: string
+                                operator:
+                                  description: operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
+                                  type: string
+                                values:
+                                  description: values is an array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - key
+                              - operator
+                              type: object
+                            type: array
+                          matchLabels:
+                            additionalProperties:
+                              type: string
+                            description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+                            type: object
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      unhealthyPodEvictionPolicy:
+                        description: "UnhealthyPodEvictionPolicy defines the criteria for when unhealthy pods should be considered for eviction. Current implementation considers healthy pods, as pods that have status.conditions item with type=\"Ready\",status=\"True\". \n Valid policies are IfHealthyBudget and AlwaysAllow. If no policy is specified, the default behavior will be used, which corresponds to the IfHealthyBudget policy. \n IfHealthyBudget policy means that running pods (status.phase=\"Running\"), but not yet healthy can be evicted only if the guarded application is not disrupted (status.currentHealthy is at least equal to status.desiredHealthy). Healthy pods will be subject to the PDB for eviction. \n AlwaysAllow policy means that all running pods (status.phase=\"Running\"), but not yet healthy are considered disrupted and can be evicted regardless of whether the criteria in a PDB is met. This means perspective running pods of a disrupted application might not get a chance to become healthy. Healthy pods will be subject to the PDB for eviction. \n Additional policies may be added in the future. Clients making eviction decisions should disallow eviction of unhealthy pods if they encounter an unrecognized policy in this field. \n This field is alpha-level. The eviction API uses this field when the feature gate PDBUnhealthyPodEvictionPolicy is enabled (disabled by default)."
+                        type: string
+                    type: object
                   podSecurity:
+                    description: Specifies the pod security configurations
                     properties:
                       runAsUser:
                         description: runAsUser as defined in PodSecurityContext for the pod
@@ -1063,7 +1161,7 @@ spec:
                         type: string
                     type: object
                   podSecurityContext:
-                    description: PodSecurityContext holds pod-level security attributes and common container settings. Some fields are also present in container.securityContext.  Field values of container.securityContext take precedence over field values of PodSecurityContext.
+                    description: Specifies the pod security context
                     properties:
                       fsGroup:
                         description: "A special supplemental group that applies to all containers in a pod. Some volume types allow the Kubelet to change the ownership of that volume to be owned by the pod: \n 1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw---- \n If unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows."
@@ -1112,7 +1210,7 @@ spec:
                         - type
                         type: object
                       supplementalGroups:
-                        description: A list of groups applied to the first process run in each container, in addition to the container's primary GID.  If unspecified, no groups will be added to any container. Note that this field cannot be set when spec.os.name is windows.
+                        description: A list of groups applied to the first process run in each container, in addition to the container's primary GID, the fsGroup (if specified), and group memberships defined in the container image for the uid of the container process. If unspecified, no additional groups are added to any container. Note that group memberships defined in the container image for the uid of the container process are still effective, even if they are not included in this list. Note that this field cannot be set when spec.os.name is windows.
                         items:
                           format: int64
                           type: integer
@@ -1151,7 +1249,7 @@ spec:
                         type: object
                     type: object
                   readinessProbe:
-                    description: Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.
+                    description: Specifies the readiness probe configuration
                     properties:
                       exec:
                         description: Exec specifies the action to take.
@@ -1167,7 +1265,7 @@ spec:
                         format: int32
                         type: integer
                       grpc:
-                        description: GRPC specifies an action involving a GRPC port. This is an alpha field and requires enabling GRPCContainerProbe feature gate.
+                        description: GRPC specifies an action involving a GRPC port. This is a beta field and requires enabling GRPCContainerProbe feature gate.
                         properties:
                           port:
                             description: Port number of the gRPC service. Number must be in the range 1 to 65535.
@@ -1256,8 +1354,23 @@ spec:
                     description: If true require user password login credentials for broker protocol ports
                     type: boolean
                   resources:
-                    description: ResourceRequirements describes the compute resource requirements.
+                    description: Specifies the minimum/maximum amount of compute resources required/allowed
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -1281,15 +1394,120 @@ spec:
                     description: The number of broker pods to deploy
                     format: int32
                     type: integer
+                  startupProbe:
+                    description: Specifies the startup probe configuration
+                    properties:
+                      exec:
+                        description: Exec specifies the action to take.
+                        properties:
+                          command:
+                            description: Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      failureThreshold:
+                        description: Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.
+                        format: int32
+                        type: integer
+                      grpc:
+                        description: GRPC specifies an action involving a GRPC port. This is a beta field and requires enabling GRPCContainerProbe feature gate.
+                        properties:
+                          port:
+                            description: Port number of the gRPC service. Number must be in the range 1 to 65535.
+                            format: int32
+                            type: integer
+                          service:
+                            description: "Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md). \n If this is not specified, the default behavior is defined by gRPC."
+                            type: string
+                        required:
+                        - port
+                        type: object
+                      httpGet:
+                        description: HTTPGet specifies the http request to perform.
+                        properties:
+                          host:
+                            description: Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead.
+                            type: string
+                          httpHeaders:
+                            description: Custom headers to set in the request. HTTP allows repeated headers.
+                            items:
+                              description: HTTPHeader describes a custom header to be used in HTTP probes
+                              properties:
+                                name:
+                                  description: The header field name
+                                  type: string
+                                value:
+                                  description: The header field value
+                                  type: string
+                              required:
+                              - name
+                              - value
+                              type: object
+                            type: array
+                          path:
+                            description: Path to access on the HTTP server.
+                            type: string
+                          port:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
+                            x-kubernetes-int-or-string: true
+                          scheme:
+                            description: Scheme to use for connecting to the host. Defaults to HTTP.
+                            type: string
+                        required:
+                        - port
+                        type: object
+                      initialDelaySeconds:
+                        description: 'Number of seconds after the container has started before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                        format: int32
+                        type: integer
+                      periodSeconds:
+                        description: How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1.
+                        format: int32
+                        type: integer
+                      successThreshold:
+                        description: Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1.
+                        format: int32
+                        type: integer
+                      tcpSocket:
+                        description: TCPSocket specifies an action involving a TCP port.
+                        properties:
+                          host:
+                            description: 'Optional: Host name to connect to, defaults to the pod IP.'
+                            type: string
+                          port:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
+                            x-kubernetes-int-or-string: true
+                        required:
+                        - port
+                        type: object
+                      terminationGracePeriodSeconds:
+                        description: Optional duration in seconds the pod needs to terminate gracefully upon probe failure. The grace period is the duration in seconds after the processes running in the pod are sent a termination signal and the time when the processes are forcibly halted with a kill signal. Set this value longer than the expected cleanup time for your process. If this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this value overrides the value provided by the pod spec. Value must be non-negative integer. The value zero indicates stop immediately via the kill signal (no opportunity to shut down). This is a beta field and requires enabling ProbeTerminationGracePeriod feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds is used if unset.
+                        format: int64
+                        type: integer
+                      timeoutSeconds:
+                        description: 'Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                        format: int32
+                        type: integer
+                    type: object
                   storage:
+                    description: Specifies the storage configurations
                     properties:
                       size:
+                        description: The storage size
                         type: string
                       storageClassName:
                         description: The storageClassName to be used in PVC
                         type: string
                     type: object
                   tolerations:
+                    description: Specifies the tolerations
                     items:
                       description: The pod this Toleration is attached to tolerates any taint that matches the triple <key,value,effect> using the matching operator <operator>.
                       properties:
@@ -1341,6 +1559,7 @@ spec:
                           required:
                           - key
                           type: object
+                          x-kubernetes-map-type: atomic
                         fieldRef:
                           description: 'Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels[''<KEY>'']`, `metadata.annotations[''<KEY>'']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.'
                           properties:
@@ -1353,6 +1572,7 @@ spec:
                           required:
                           - fieldPath
                           type: object
+                          x-kubernetes-map-type: atomic
                         resourceFieldRef:
                           description: 'Selects a resource of the container: only resources limits and requests (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.'
                           properties:
@@ -1372,6 +1592,7 @@ spec:
                           required:
                           - resource
                           type: object
+                          x-kubernetes-map-type: atomic
                         secretKeyRef:
                           description: Selects a key of a secret in the pod's namespace
                           properties:
@@ -1387,26 +1608,30 @@ spec:
                           required:
                           - key
                           type: object
+                          x-kubernetes-map-type: atomic
                       type: object
                   required:
                   - name
                   type: object
                 type: array
+              ingressDomain:
+                description: The ingress domain to expose the application. By default, on Kubernetes it is apps.artemiscloud.io and on OpenShift it is the Ingress Controller domain.
+                type: string
               upgrades:
-                description: ActiveMQArtemis App product upgrade flags, this is deprecated in v1beta1, specifying the Version is sufficient
+                description: Specifies the upgrades (deprecated in favour of Version)
                 properties:
                   enabled:
-                    description: Set to true to enable automatic micro version product upgrades, disabled by default.
+                    description: Set true to enable automatic micro version product upgrades, it is disabled by default.
                     type: boolean
                   minor:
-                    description: Set to true to enable automatic micro version product upgrades, disabled by default. Requires spec.upgrades.enabled true.
+                    description: Set true to enable automatic minor product version upgrades, it is disabled by default. Requires spec.upgrades.enabled to be true.
                     type: boolean
                 required:
                 - enabled
                 - minor
                 type: object
               version:
-                description: The version of the broker deployment.
+                description: The desired version of the broker. Can be x, or x.y or x.y.z to configure upgrades
                 type: string
             type: object
           status:
@@ -1415,7 +1640,7 @@ spec:
               conditions:
                 description: Current state of the resource Conditions represent the latest available observations of an object's state
                 items:
-                  description: "Condition contains details for one aspect of the current state of this API Resource. --- This struct is intended for direct use as an array at the field path .status.conditions.  For example, type FooStatus struct{     // Represents the observations of a foo's current state.     // Known .status.conditions.type are: \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type     // +patchStrategy=merge     // +listType=map     // +listMapKey=type     Conditions []metav1.Condition `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"` \n     // other fields }"
+                  description: "Condition contains details for one aspect of the current state of this API Resource. --- This struct is intended for direct use as an array at the field path .status.conditions.  For example, \n type FooStatus struct{ // Represents the observations of a foo's current state. // Known .status.conditions.type are: \"Available\", \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge // +listType=map // +listMapKey=type Conditions []metav1.Condition `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
@@ -1456,8 +1681,24 @@ spec:
                   - type
                   type: object
                 type: array
+              deploymentPlanSize:
+                format: int32
+                type: integer
+              externalConfigs:
+                description: Current state of external referenced resources
+                items:
+                  properties:
+                    name:
+                      type: string
+                    resourceVersion:
+                      type: string
+                  required:
+                  - name
+                  - resourceVersion
+                  type: object
+                type: array
               podStatus:
-                description: Pod Status
+                description: The current pods
                 properties:
                   ready:
                     description: Deployments are ready to serve requests
@@ -1475,6 +1716,33 @@ spec:
                       type: string
                     type: array
                 type: object
+              scaleLabelSelector:
+                type: string
+              upgrade:
+                properties:
+                  majorUpdates:
+                    type: boolean
+                  minorUpdates:
+                    type: boolean
+                  patchUpdates:
+                    type: boolean
+                  securityUpdates:
+                    type: boolean
+                required:
+                - majorUpdates
+                - minorUpdates
+                - patchUpdates
+                - securityUpdates
+                type: object
+              version:
+                properties:
+                  brokerVersion:
+                    type: string
+                  image:
+                    type: string
+                  initImage:
+                    type: string
+                type: object
             required:
             - podStatus
             type: object
@@ -1482,6 +1750,10 @@ spec:
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.scaleLabelSelector
+        specReplicasPath: .spec.deploymentPlan.size
+        statusReplicasPath: .status.deploymentPlanSize
       status: {}
   - name: v2alpha1
     schema:
@@ -2090,6 +2362,21 @@ spec:
                   resources:
                     description: ResourceRequirements describes the compute resource requirements.
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -2451,6 +2738,21 @@ spec:
                   resources:
                     description: ResourceRequirements describes the compute resource requirements.
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -2857,6 +3159,21 @@ spec:
                   resources:
                     description: ResourceRequirements describes the compute resource requirements.
                     properties:
+                      claims:
+                        description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable."
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
                       limits:
                         additionalProperties:
                           anyOf:
@@ -2929,9 +3246,3 @@ spec:
     storage: false
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

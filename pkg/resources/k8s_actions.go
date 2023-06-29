@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var log = ctrl.Log.WithName("package k8s_actions")
@@ -24,14 +23,9 @@ func Create(owner v1.Object, client client.Client, scheme *runtime.Scheme, clien
 	objectTypeString := reflect.TypeOf(clientObject.(runtime.Object)).String()
 	reqLogger.Info("Creating new " + objectTypeString)
 
-	// Set ActiveMQArtemis instance as the owner and controller
-	var err error = nil
-	if err = controllerutil.SetControllerReference(owner, clientObject.(v1.Object), scheme); err != nil {
-		// Add error detail for use later
-		reqLogger.V(1).Info("Failed to set controller reference for new " + objectTypeString)
-	}
-	reqLogger.V(1).Info("Set controller reference for new " + objectTypeString)
+	SetOwnerAndController(owner, clientObject)
 
+	var err error
 	if err = client.Create(context.TODO(), clientObject); err != nil {
 		// Add error detail for use later
 		reqLogger.Error(err, "Failed to create new "+objectTypeString)
@@ -40,6 +34,22 @@ func Create(owner v1.Object, client client.Client, scheme *runtime.Scheme, clien
 	}
 
 	return err
+}
+
+func SetOwnerAndController(owner v1.Object, clientObject client.Object) {
+	reqLogger := log.WithValues("ActiveMQArtemis Name", clientObject.GetName(), "Namespace", clientObject.GetNamespace())
+
+	gvk := owner.(runtime.Object).GetObjectKind().GroupVersionKind()
+	isController := true
+	ref := v1.OwnerReference{
+		APIVersion: gvk.GroupVersion().String(),
+		Kind:       gvk.Kind,
+		UID:        owner.GetUID(),
+		Name:       owner.GetName(),
+		Controller: &isController, // ControllerManager.Owns watches match on Controller=true
+	}
+	clientObject.SetOwnerReferences([]v1.OwnerReference{ref})
+	reqLogger.V(1).Info("set owner-controller reference", "target", clientObject.GetObjectKind().GroupVersionKind().String(), "owner", ref)
 }
 
 func RetrieveWithRetry(namespacedName types.NamespacedName, theClient client.Client, clientObject client.Object, retry bool) error {
@@ -99,7 +109,8 @@ func Update(client client.Client, clientObject client.Object) error {
 				// "StatefulSet.apps is invalid: spec: Forbidden: updates to statefulset spec for fields other than 'replicas', 'template', 'updateStrategy' and 'minReadySeconds' are forbidden"}
 				reqLogger.V(1).Info("Deleting on failed updating "+objectTypeString, "obj", clientObject, "Forbidden", err)
 				err = Delete(client, clientObject)
-				break
+			} else {
+				reqLogger.Error(err, "Got status error")
 			}
 		default:
 			reqLogger.Error(err, "Failed to update "+objectTypeString)
@@ -116,7 +127,11 @@ func UpdateStatus(client client.Client, clientObject client.Object) error {
 
 	var err error = nil
 	if err = client.Status().Update(context.TODO(), clientObject); err != nil {
-		reqLogger.Error(err, "Failed to update status on "+objectTypeString)
+		if errors.IsConflict(err) {
+			reqLogger.V(1).Info("Failed to update status on "+objectTypeString, "error", err)
+		} else {
+			reqLogger.Error(err, "Failed to update status on "+objectTypeString)
+		}
 	}
 	return err
 }
@@ -133,53 +148,4 @@ func Delete(client client.Client, clientObject client.Object) error {
 	}
 
 	return err
-}
-
-func Enable(owner v1.Object, client client.Client, scheme *runtime.Scheme, namespacedName types.NamespacedName, clientObject client.Object) (bool, error) {
-	causedUpdate, err := configureExposure(owner, client, scheme, namespacedName, clientObject, true)
-	return causedUpdate, err
-}
-
-func Disable(owner v1.Object, client client.Client, scheme *runtime.Scheme, namespacedName types.NamespacedName, clientObject client.Object) (bool, error) {
-	causedUpdate, err := configureExposure(owner, client, scheme, namespacedName, clientObject, false)
-	return causedUpdate, err
-}
-
-func configureExposure(owner v1.Object, client client.Client, scheme *runtime.Scheme, namespacedName types.NamespacedName, clientObject client.Object, enable bool) (bool, error) {
-
-	// Log where we are and what we're doing
-	reqLogger := log.WithValues("ActiveMQArtemis Name ", namespacedName.Name)
-	objectTypeString := reflect.TypeOf(clientObject.(runtime.Object)).String()
-	reqLogger.Info("Configuring " + objectTypeString)
-
-	var err error = nil
-	serviceIsNotFound := false
-	causedUpdate := true
-
-	if err = Retrieve(namespacedName, client, clientObject); err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info(namespacedName.Name + " " + "not found")
-			serviceIsNotFound = true
-		} else {
-			reqLogger.Error(err, "Unexpected error occurred in retrieve", "object def", clientObject)
-		}
-	}
-
-	// We want a service to be exposed and currently it is not found
-	if enable && serviceIsNotFound {
-		reqLogger.Info("Creating " + namespacedName.Name)
-		if err = Create(owner, client, scheme, clientObject); err != nil {
-			causedUpdate = true
-		}
-	}
-
-	// We do NOT want a service to be exposed and the service IS found
-	if !enable && !serviceIsNotFound {
-		reqLogger.Info("Deleting " + namespacedName.Name)
-		if err = Delete(client, clientObject); err != nil {
-			causedUpdate = true
-		}
-	}
-
-	return causedUpdate, err
 }

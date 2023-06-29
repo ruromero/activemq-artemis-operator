@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/artemiscloud/activemq-artemis-operator/version"
+	"github.com/go-logr/logr"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -68,16 +69,16 @@ var (
 
 var (
 	//hard coded because the sdk version pkg is moved in internal package
-	sdkVersion = "1.15.0"
+	sdkVersion = "1.28.0"
 	scheme     = runtime.NewScheme()
-	log        = ctrl.Log.WithName("setup")
+	log        logr.Logger
 )
 
 func printVersion() {
 	log.Info(fmt.Sprintf("Go Version: %s", goruntime.Version()))
 	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", goruntime.GOOS, goruntime.GOARCH))
 	log.Info(fmt.Sprintf("Version of operator-sdk: %v", sdkVersion))
-	log.Info(fmt.Sprintf("Version of the operator: %s %s %s", version.Version, version.CommitHash, version.BuildTimestamp))
+	log.Info(fmt.Sprintf("Version of the operator: %s %s", version.Version, version.BuildTimestamp))
 	log.Info(fmt.Sprintf("Supported ActiveMQArtemis Kubernetes Image Versions: %s", getSupportedBrokerVersions()))
 }
 
@@ -99,6 +100,7 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -108,9 +110,14 @@ func main() {
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
+
+	os.Args = append(os.Args, strings.Split(os.Getenv("ARGS"), " ")...)
+
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	log = ctrl.Log.WithName("setup")
 
 	printVersion()
 
@@ -228,17 +235,8 @@ func main() {
 
 	enableWebhooks := os.Getenv("ENABLE_WEBHOOKS")
 	if enableWebhooks != "false" {
-		log.Info("Setting up webhook functions", "ENABLE_WEBHOOKS", enableWebhooks)
 		if err = (&brokerv1beta1.ActiveMQArtemis{}).SetupWebhookWithManager(mgr); err != nil {
 			log.Error(err, "unable to create webhook", "webhook", "ActiveMQArtemis")
-			os.Exit(1)
-		}
-		if err = (&brokerv1beta1.ActiveMQArtemisSecurity{}).SetupWebhookWithManager(mgr); err != nil {
-			log.Error(err, "unable to create webhook", "webhook", "ActiveMQArtemisSecurity")
-			os.Exit(1)
-		}
-		if err = (&brokerv1beta1.ActiveMQArtemisAddress{}).SetupWebhookWithManager(mgr); err != nil {
-			log.Error(err, "unable to create webhook", "webhook", "ActiveMQArtemisAddress")
 			os.Exit(1)
 		}
 	} else {

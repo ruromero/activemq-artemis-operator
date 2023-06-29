@@ -38,8 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var elog = ctrl.Log.WithName("controller_v1alpha1activemqartemissecurity")
-
 // ActiveMQArtemisSecurityReconciler reconciles a ActiveMQArtemisSecurity object
 type ActiveMQArtemisSecurityReconciler struct {
 	client.Client
@@ -212,7 +210,7 @@ func (r *ActiveMQArtemisSecurityConfigHandler) GetDefaultLabels() map[string]str
 
 }
 
-//retrive value from secret, generate value if not exist.
+// retrive value from secret, generate value if not exist.
 func (r *ActiveMQArtemisSecurityConfigHandler) getPassword(secretName string, key string) *string {
 	//check if the secret exists.
 	namespacedName := types.NamespacedName{
@@ -268,25 +266,25 @@ func (r *ActiveMQArtemisSecurityConfigHandler) Config(initContainers []corev1.Co
 	configCmds = append(configCmds, "/opt/amq-broker/script/cfg/config-security.sh")
 	envVarName := "SECURITY_CFG_YAML"
 	envVar := corev1.EnvVar{
-		envVarName,
-		filePath,
-		nil,
+		Name:      envVarName,
+		Value:     filePath,
+		ValueFrom: nil,
 	}
 	environments.Create(initContainers, &envVar)
 
 	envVarName = "YACFG_PROFILE_VERSION"
 	envVar = corev1.EnvVar{
-		envVarName,
-		yacfgProfileVersion,
-		nil,
+		Name:      envVarName,
+		Value:     yacfgProfileVersion,
+		ValueFrom: nil,
 	}
 	environments.Create(initContainers, &envVar)
 
 	envVarName = "YACFG_PROFILE_NAME"
 	envVar = corev1.EnvVar{
-		envVarName,
-		yacfgProfileName,
-		nil,
+		Name:      envVarName,
+		Value:     yacfgProfileName,
+		ValueFrom: nil,
 	}
 	environments.Create(initContainers, &envVar)
 

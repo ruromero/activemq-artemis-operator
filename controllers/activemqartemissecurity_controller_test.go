@@ -31,8 +31,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -54,12 +52,165 @@ var boolTrue = true
 var _ = Describe("security controller", func() {
 
 	BeforeEach(func() {
+		BeforeEachSpec()
+
 		if verbose {
 			fmt.Println("Time with MicroSeconds: ", time.Now().Format("2006-01-02 15:04:05.000000"), " test:", CurrentSpecReport())
 		}
 	})
 
 	AfterEach(func() {
+	})
+
+	Context("broker with security custom resources", Label("broker-security-res"), func() {
+
+		It("security after recreating broker cr", func() {
+
+			By("deploy a security cr")
+			_, createdSecurityCr := DeploySecurity(NextSpecResourceName(), defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemisSecurity) {
+			})
+
+			By("deploy a broker cr")
+			brokerCr, createdBrokerCr := DeployCustomBroker(defaultNamespace, nil)
+
+			By("checking the security gets applied")
+			requestedSs := &appsv1.StatefulSet{}
+			Eventually(func() bool {
+				key := types.NamespacedName{Name: namer.CrToSS(createdBrokerCr.Name), Namespace: defaultNamespace}
+				err := k8sClient.Get(ctx, key, requestedSs)
+				if err != nil {
+					return false
+				}
+
+				initContainer := requestedSs.Spec.Template.Spec.InitContainers[0]
+				secApplied := false
+				for _, arg := range initContainer.Args {
+					if strings.Contains(arg, "mkdir -p /init_cfg_root/security/security") {
+						secApplied = true
+						break
+					}
+				}
+				return secApplied
+			}, timeout, interval).Should(BeTrue())
+
+			By("delete the broker cr")
+			CleanResource(createdBrokerCr, createdBrokerCr.Name, defaultNamespace)
+
+			By("re-deploy the broker cr")
+			brokerCr, createdBrokerCr = DeployCustomBroker(defaultNamespace, func(candidate *brokerv1beta1.ActiveMQArtemis) {
+				candidate.Name = brokerCr.Name
+			})
+
+			By("verify the security is re-applied")
+			Eventually(func() bool {
+				key := types.NamespacedName{Name: namer.CrToSS(createdBrokerCr.Name), Namespace: defaultNamespace}
+				err := k8sClient.Get(ctx, key, requestedSs)
+				if err != nil {
+					return false
+				}
+
+				initContainer := requestedSs.Spec.Template.Spec.InitContainers[0]
+				secApplied := false
+				for _, arg := range initContainer.Args {
+					if strings.Contains(arg, "mkdir -p /init_cfg_root/security/security") {
+						secApplied = true
+						break
+					}
+				}
+				return secApplied
+			}, timeout, interval).Should(BeTrue())
+
+			CleanResource(createdBrokerCr, createdBrokerCr.Name, defaultNamespace)
+			CleanResource(createdSecurityCr, createdSecurityCr.Name, defaultNamespace)
+		})
+
+		It("security with console domain name specified", Label("sec-console-domain-name"), func() {
+
+			By("deploy a security cr")
+
+			module1Name := "module1"
+			user1Name := "user1"
+			password1 := "password1"
+			user2Name := "user2"
+			password2 := "password2"
+
+			brokerDomainName := "activemq"
+			consoleDomainName := "consoleDomain"
+			requiredFlag := "required"
+			_, createdSecCrd := DeploySecurity("ex-security", defaultNamespace, func(secCrdToDeploy *brokerv1beta1.ActiveMQArtemisSecurity) {
+
+				secCrdToDeploy.Spec.LoginModules = brokerv1beta1.LoginModulesType{
+					PropertiesLoginModules: []brokerv1beta1.PropertiesLoginModuleType{
+						{
+							Name: module1Name,
+							Users: []brokerv1beta1.UserType{
+								{
+									Name:     user1Name,
+									Password: &password1,
+									Roles: []string{
+										"admin",
+									},
+								},
+								{
+									Name:     user2Name,
+									Password: &password2,
+									Roles: []string{
+										"guest",
+									},
+								},
+							},
+						},
+					},
+				}
+
+				secCrdToDeploy.Spec.SecurityDomains = brokerv1beta1.SecurityDomainsType{
+					BrokerDomain: brokerv1beta1.BrokerDomainType{
+						Name: &brokerDomainName,
+						LoginModules: []brokerv1beta1.LoginModuleReferenceType{
+							{
+								Name: &module1Name,
+								Flag: &requiredFlag,
+							},
+						},
+					},
+					ConsoleDomain: brokerv1beta1.BrokerDomainType{
+						Name: &consoleDomainName,
+						LoginModules: []brokerv1beta1.LoginModuleReferenceType{
+							{
+								Name: &module1Name,
+								Flag: &requiredFlag,
+							},
+						},
+					},
+				}
+			})
+
+			By("deploy a broker cr")
+			brokerCr, createdBrokerCr := DeployCustomBroker(defaultNamespace, nil)
+
+			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
+				By("make sure the broker is up and running")
+				Eventually(func(g Gomega) {
+					key := types.NamespacedName{Name: namer.CrToSS(brokerCr.Name), Namespace: defaultNamespace}
+					sfsFound := &appsv1.StatefulSet{}
+
+					g.Expect(k8sClient.Get(ctx, key, sfsFound)).Should(Succeed())
+					g.Expect(sfsFound.Status.ReadyReplicas).Should(BeEquivalentTo(1))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+
+				By("Checking console domain name is applied in artemis.profile " + createdBrokerCr.Name)
+				podWithOrdinal := namer.CrToSS(brokerCr.Name) + "-0"
+				command := []string{"cat", "amq-broker/etc/artemis.profile"}
+
+				Eventually(func(g Gomega) {
+					stdOutContent := ExecOnPod(podWithOrdinal, brokerCr.Name, defaultNamespace, command, g)
+					g.Expect(stdOutContent).Should(ContainSubstring("-Dhawtio.realm=" + consoleDomainName))
+				}, existingClusterTimeout, existingClusterInterval).Should(Succeed())
+			}
+
+			CleanClusterResource(createdBrokerCr, createdBrokerCr.Name, defaultNamespace)
+			CleanClusterResource(createdSecCrd, createdSecCrd.Name, defaultNamespace)
+		})
 	})
 
 	Context("Reconcile Test", func() {
@@ -84,7 +235,7 @@ var _ = Describe("security controller", func() {
 				brokerCrdToDeploy.Spec.DeploymentPlan.MessageMigration = &boolTrue
 				brokerCrdToDeploy.Spec.DeploymentPlan.PersistenceEnabled = true
 				brokerCrdToDeploy.Spec.DeploymentPlan.RequireLogin = true
-				brokerCrdToDeploy.Spec.DeploymentPlan.Size = 1
+				brokerCrdToDeploy.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			})
 
 			if os.Getenv("USE_EXISTING_CLUSTER") == "true" {
@@ -108,7 +259,7 @@ var _ = Describe("security controller", func() {
 			}
 
 			By("deploying the security cr")
-			secCrd, createdSecCrd := DeploySecurity("ex-keycloak", defaultNamespace, func(secCrdToDeploy *brokerv1beta1.ActiveMQArtemisSecurity) {
+			_, createdSecCrd := DeploySecurity("ex-keycloak", defaultNamespace, func(secCrdToDeploy *brokerv1beta1.ActiveMQArtemisSecurity) {
 
 				brokerModuleName := "keycloak-broker"
 				consoleModuleName := "keycloak-console"
@@ -342,16 +493,8 @@ var _ = Describe("security controller", func() {
 			}
 
 			By("checking resources get removed")
-			Expect(k8sClient.Delete(ctx, crd)).Should(Succeed())
-			Eventually(func() bool {
-				return checkCrdDeleted(crd.Name, defaultNamespace, createdCrd)
-			}, timeout, interval).Should(BeTrue())
-
-			Expect(k8sClient.Delete(ctx, createdSecCrd)).Should(Succeed())
-			Eventually(func() bool {
-				return checkCrdDeleted(secCrd.ObjectMeta.Name, defaultNamespace, createdSecCrd)
-			}, timeout, interval).Should(BeTrue())
-
+			CleanResource(crd, crd.Name, defaultNamespace)
+			CleanResource(createdSecCrd, createdSecCrd.Name, defaultNamespace)
 		})
 
 		It("reconcile twice with nothing changed", func() {
@@ -439,11 +582,7 @@ var _ = Describe("security controller", func() {
 			Expect(equal).To(BeTrue())
 
 			By("check it has gone")
-			Expect(k8sClient.Delete(ctx, createdCrd))
-			Eventually(func() bool {
-				return checkCrdDeleted(crd.ObjectMeta.Name, defaultNamespace, createdCrd)
-			}, timeout, interval).Should(BeTrue())
-
+			CleanResource(createdCrd, createdCrd.Name, defaultNamespace)
 		})
 
 		It("Testing applyToCrNames working properly", func() {
@@ -580,7 +719,7 @@ var _ = Describe("security controller", func() {
 			broker2Cr, createdBroker2Cr := DeployBroker("ex-aao1", defaultNamespace)
 			broker3Cr, createdBroker3Cr := DeployBroker("ex-aao2", defaultNamespace)
 
-			secCrd, createdSecCrd := DeploySecurity("", defaultNamespace, func(secCrdToDeploy *brokerv1beta1.ActiveMQArtemisSecurity) {
+			_, createdSecCrd := DeploySecurity("", defaultNamespace, func(secCrdToDeploy *brokerv1beta1.ActiveMQArtemisSecurity) {
 				applyToCrs := make([]string, 0)
 				applyToCrs = append(applyToCrs, "ex-aao")
 				applyToCrs = append(applyToCrs, "ex-aao2")
@@ -647,36 +786,20 @@ var _ = Describe("security controller", func() {
 
 			}, timeout, interval).Should(BeTrue())
 
-			By("check it has gone")
-			Expect(k8sClient.Delete(ctx, createdBroker1Cr)).Should(Succeed())
-			Eventually(func() bool {
-				return checkCrdDeleted(broker1Cr.ObjectMeta.Name, defaultNamespace, createdBroker1Cr)
-			}, timeout, interval).Should(BeTrue())
-
-			Expect(k8sClient.Delete(ctx, createdBroker2Cr)).Should(Succeed())
-			Eventually(func() bool {
-				return checkCrdDeleted(broker2Cr.ObjectMeta.Name, defaultNamespace, createdBroker2Cr)
-			}, timeout, interval).Should(BeTrue())
-
-			Expect(k8sClient.Delete(ctx, createdBroker3Cr)).Should(Succeed())
-			Eventually(func() bool {
-				return checkCrdDeleted(broker3Cr.ObjectMeta.Name, defaultNamespace, createdBroker3Cr)
-			}, timeout, interval).Should(BeTrue())
-
-			Expect(k8sClient.Delete(ctx, createdSecCrd)).Should(Succeed())
-			Eventually(func() bool {
-				return checkCrdDeleted(secCrd.ObjectMeta.Name, defaultNamespace, createdSecCrd)
-			}, timeout, interval).Should(BeTrue())
-
+			By("cleaning up")
+			CleanResource(createdBroker1Cr, createdBroker1Cr.Name, defaultNamespace)
+			CleanResource(createdBroker2Cr, createdBroker2Cr.Name, defaultNamespace)
+			CleanResource(createdBroker3Cr, createdBroker3Cr.Name, defaultNamespace)
+			CleanResource(createdSecCrd, createdSecCrd.Name, defaultNamespace)
 		})
 
 		It("Reconcile security on broker with non shell safe annotations", func() {
 
 			By("Deploying broker")
 			brokerCrd := generateArtemisSpec(defaultNamespace)
-			brokerCrd.Spec.DeploymentPlan.Size = 1
+			brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			// make is speedy for real cluster checks
-			brokerCrd.Spec.DeploymentPlan.ReadinessProbe = &v1.Probe{
+			brokerCrd.Spec.DeploymentPlan.ReadinessProbe = &corev1.Probe{
 				InitialDelaySeconds: 1,
 				PeriodSeconds:       1,
 				TimeoutSeconds:      5,
@@ -750,7 +873,7 @@ var _ = Describe("security controller", func() {
 
 			By("Deploying broker")
 			brokerCrd := generateArtemisSpec(defaultNamespace)
-			brokerCrd.Spec.DeploymentPlan.Size = 1
+			brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(1)
 			Expect(k8sClient.Create(ctx, &brokerCrd)).Should(Succeed())
 
 			createdCrd := &brokerv1beta1.ActiveMQArtemis{}
@@ -849,7 +972,7 @@ var _ = Describe("security controller", func() {
 				Expect(err).To(BeNil())
 				var capturedOut bytes.Buffer
 
-				err = exec.Stream(remotecommand.StreamOptions{
+				err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 					Stdin:  os.Stdin,
 					Stdout: &capturedOut,
 					Stderr: os.Stderr,
@@ -883,6 +1006,7 @@ var _ = Describe("security controller", func() {
 		By("Creating Broker CR")
 		ctx := context.Background()
 		brokerCrd := generateArtemisSpec(defaultNamespace)
+		brokerCrd.Spec.DeploymentPlan.Size = common.Int32ToPtr(0)
 
 		Expect(k8sClient.Create(ctx, &brokerCrd)).Should(Succeed())
 
@@ -964,86 +1088,9 @@ var _ = Describe("security controller", func() {
 
 		}, timeout, interval).Should(Succeed())
 
-		By("check it has gone")
-		Expect(k8sClient.Delete(ctx, createdBrokerCrd))
-		Expect(k8sClient.Delete(ctx, createdCrd))
-		Eventually(func() bool {
-			return checkCrdDeleted(crd.ObjectMeta.Name, defaultNamespace, createdCrd)
-		}, timeout, interval).Should(BeTrue())
-
+		By("cleaning up")
+		CleanResource(createdBrokerCrd, createdBrokerCrd.Name, defaultNamespace)
+		CleanResource(createdCrd, createdCrd.Name, defaultNamespace)
 	})
 
 })
-
-func DeploySecurity(secName string, targetNamespace string, customFunc func(candidate *brokerv1beta1.ActiveMQArtemisSecurity)) (*brokerv1beta1.ActiveMQArtemisSecurity, *brokerv1beta1.ActiveMQArtemisSecurity) {
-	ctx := context.Background()
-	secCrd := generateSecuritySpec(secName, targetNamespace)
-
-	brokerDomainName := "activemq"
-	loginModuleName := "module1"
-	loginModuleFlag := "sufficient"
-	okDefaultPwd := "ok"
-
-	loginModuleList := make([]brokerv1beta1.PropertiesLoginModuleType, 1)
-	propLoginModule := brokerv1beta1.PropertiesLoginModuleType{
-		Name: loginModuleName,
-		Users: []brokerv1beta1.UserType{
-			{
-				Name:     "user1",
-				Password: &okDefaultPwd,
-				Roles: []string{
-					"admin", "amq",
-				},
-			},
-		},
-	}
-	loginModuleList = append(loginModuleList, propLoginModule)
-	secCrd.Spec.LoginModules.PropertiesLoginModules = loginModuleList
-
-	secCrd.Spec.SecurityDomains.BrokerDomain = brokerv1beta1.BrokerDomainType{
-		Name: &brokerDomainName,
-		LoginModules: []brokerv1beta1.LoginModuleReferenceType{
-			{
-				Name: &loginModuleName,
-				Flag: &loginModuleFlag,
-			},
-		},
-	}
-
-	customFunc(secCrd)
-
-	Expect(k8sClient.Create(ctx, secCrd)).Should(Succeed())
-
-	createdSecCrd := &brokerv1beta1.ActiveMQArtemisSecurity{}
-
-	Eventually(func() bool {
-		return getPersistedVersionedCrd(secCrd.ObjectMeta.Name, targetNamespace, createdSecCrd)
-	}, timeout, interval).Should(BeTrue())
-	Expect(createdSecCrd.Name).Should(Equal(secCrd.ObjectMeta.Name))
-
-	return secCrd, createdSecCrd
-}
-
-func generateSecuritySpec(secName string, targetNamespace string) *brokerv1beta1.ActiveMQArtemisSecurity {
-
-	spec := brokerv1beta1.ActiveMQArtemisSecuritySpec{}
-
-	theName := secName
-	if secName == "" {
-		theName = randString()
-	}
-
-	toCreate := brokerv1beta1.ActiveMQArtemisSecurity{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ActiveMQArtemisSecurity",
-			APIVersion: brokerv1beta1.GroupVersion.Identifier(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      theName,
-			Namespace: targetNamespace,
-		},
-		Spec: spec,
-	}
-
-	return &toCreate
-}

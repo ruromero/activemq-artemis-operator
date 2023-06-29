@@ -1,0 +1,16 @@
+apiVersion: broker.amq.io/v1beta1
+kind: ActiveMQArtemis
+metadata:
+  name: artemis-broker
+spec:
+  addressSettings:
+    applyRule: merge_all # merge_replace| replace_all | See documentation for details
+    addressSetting:
+    - match: '#'
+      deadLetterAddress: DLQ
+    - match: 'abc#'
+      deadLetterAddress: DLQABC
+      defaultConsumerWindowSize: 2048000
+      maxSizeBytes: '10m'
+    - match: 'jms'
+      deadLetterAddress: jmsdlq

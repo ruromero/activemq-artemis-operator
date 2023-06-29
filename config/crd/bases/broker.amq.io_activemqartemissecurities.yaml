@@ -1,10 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.7.0
+    controller-gen.kubebuilder.io/version: v0.11.2
   name: activemqartemissecurities.broker.amq.io
 spec:
   group: broker.amq.io
@@ -12,6 +11,8 @@ spec:
     kind: ActiveMQArtemisSecurity
     listKind: ActiveMQArtemisSecurityList
     plural: activemqartemissecurities
+    shortNames:
+    - aas
     singular: activemqartemissecurity
   scope: Namespaced
   versions:
@@ -350,8 +351,7 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: ActiveMQArtemisSecurity is the Schema for the activemqartemissecurities
-          API
+        description: Security configuration for the broker
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -377,8 +377,11 @@ spec:
                   type: string
                 type: array
               loginModules:
+                description: Specifies the login modules (deprecated in favour of
+                  ActiveMQArtemisSpec.DeploymentPlan.ExtraMounts.Secrets -jaas-config)
                 properties:
                   guestLoginModules:
+                    description: Specifies the guest login modules
                     items:
                       properties:
                         guestRole:
@@ -393,9 +396,11 @@ spec:
                       type: object
                     type: array
                   keycloakLoginModules:
+                    description: Specifies the Keycloak login modules
                     items:
                       properties:
                         configuration:
+                          description: Specifies the Keycloak module configuration
                           properties:
                             allowAnyHostName:
                               description: If to allow any host name
@@ -444,13 +449,15 @@ spec:
                               format: int64
                               type: integer
                             credentials:
+                              description: Specify the credentials
                               items:
                                 properties:
                                   key:
-                                    description: The credentials key
+                                    description: The regular expression to match the
+                                      Redirect URI
                                     type: string
                                   value:
-                                    description: The credentials value
+                                    description: The replacement value
                                     type: string
                                 type: object
                               type: array
@@ -497,15 +504,15 @@ spec:
                               description: Public key for the realm
                               type: string
                             redirectRewriteRules:
-                              description: The regular expression to which the Redirect
-                                URI is to be matched value is the replacement String
+                              description: Specify the redirect rewrite rules
                               items:
                                 properties:
                                   key:
-                                    description: The credentials key
+                                    description: The regular expression to match the
+                                      Redirect URI
                                     type: string
                                   value:
-                                    description: The credentials value
+                                    description: The replacement value
                                     type: string
                                 type: object
                               type: array
@@ -564,12 +571,14 @@ spec:
                       type: object
                     type: array
                   propertiesLoginModules:
+                    description: Specifies the properties login modules
                     items:
                       properties:
                         name:
                           description: Name for PropertiesLoginModule
                           type: string
                         users:
+                          description: Specifies the users
                           items:
                             properties:
                               name:
@@ -592,27 +601,27 @@ spec:
                     type: array
                 type: object
               securityDomains:
+                description: Specifies the security domains (deprecated in favour
+                  of ActiveMQArtemisSpec.DeploymentPlan.ExtraMounts.Secrets -jaas-config)
                 properties:
                   brokerDomain:
+                    description: Specify the broker domain
                     properties:
                       loginModules:
+                        description: Specify the login modules
                         items:
                           properties:
                             debug:
-                              description: Debug option of login modules for broker/console
-                                domain
+                              description: Debug option of the login module
                               type: boolean
                             flag:
-                              description: Flag of login modules for broker/console
-                                domain
+                              description: Flag of the login module
                               type: string
                             name:
-                              description: Name for login modules for broker/console
-                                domain
+                              description: Name of the login module
                               type: string
                             reload:
-                              description: Reload option of login modules for broker/console
-                                domain
+                              description: Reload option of the login module
                               type: boolean
                           type: object
                         type: array
@@ -621,25 +630,23 @@ spec:
                         type: string
                     type: object
                   consoleDomain:
+                    description: Specify the console domain
                     properties:
                       loginModules:
+                        description: Specify the login modules
                         items:
                           properties:
                             debug:
-                              description: Debug option of login modules for broker/console
-                                domain
+                              description: Debug option of the login module
                               type: boolean
                             flag:
-                              description: Flag of login modules for broker/console
-                                domain
+                              description: Flag of the login module
                               type: string
                             name:
-                              description: Name for login modules for broker/console
-                                domain
+                              description: Name of the login module
                               type: string
                             reload:
-                              description: Reload option of login modules for broker/console
-                                domain
+                              description: Reload option of the login module
                               type: boolean
                           type: object
                         type: array
@@ -649,14 +656,17 @@ spec:
                     type: object
                 type: object
               securitySettings:
+                description: Specifies the security settings
                 properties:
                   broker:
+                    description: Specify the broker security settings
                     items:
                       properties:
                         match:
                           description: The address match pattern of a security setting
                           type: string
                         permissions:
+                          description: Specify the permissions
                           items:
                             properties:
                               operationType:
@@ -674,10 +684,13 @@ spec:
                       type: object
                     type: array
                   management:
+                    description: Specify the management security settings
                     properties:
                       authorisation:
+                        description: Specify the authorisation configurations
                         properties:
                           allowedList:
+                            description: Specify the allowed entries
                             items:
                               properties:
                                 domain:
@@ -689,48 +702,48 @@ spec:
                               type: object
                             type: array
                           defaultAccess:
+                            description: Specify the default accesses
                             items:
                               properties:
                                 method:
-                                  description: The method of defaultAccess/roleAccess
-                                    List
+                                  description: Specifies the access entry method
                                   type: string
                                 roles:
-                                  description: The roles of defaultAccess/roleAccess
-                                    List
+                                  description: Specifies the access entry roles
                                   items:
                                     type: string
                                   type: array
                               type: object
                             type: array
                           roleAccess:
+                            description: Specify the role accesses
                             items:
                               properties:
                                 accessList:
+                                  description: Specify the default accesses
                                   items:
                                     properties:
                                       method:
-                                        description: The method of defaultAccess/roleAccess
-                                          List
+                                        description: Specifies the access entry method
                                         type: string
                                       roles:
-                                        description: The roles of defaultAccess/roleAccess
-                                          List
+                                        description: Specifies the access entry roles
                                         items:
                                           type: string
                                         type: array
                                     type: object
                                   type: array
                                 domain:
-                                  description: The domain of roleAccess List
+                                  description: The domain of the role access
                                   type: string
                                 key:
-                                  description: The key of roleAccess List
+                                  description: The key of the role access
                                   type: string
                               type: object
                             type: array
                         type: object
                       connector:
+                        description: Specify connector configurations
                         properties:
                           authenticatorType:
                             description: The management authentication type
@@ -794,9 +807,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

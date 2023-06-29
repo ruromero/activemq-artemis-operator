@@ -15,7 +15,6 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -33,6 +32,10 @@ import (
 )
 
 var _ = Describe("tests regarding controller manager", func() {
+
+	BeforeEach(func() {
+		BeforeEachSpec()
+	})
 
 	Context("operator namespaces test", func() {
 
@@ -100,8 +103,8 @@ var _ = Describe("tests regarding controller manager", func() {
 					g.Expect(err).NotTo(Succeed(), "no ss should be created for cr "+cr1.Name+" in namespace "+defaultNamespace)
 				}, timeout, interval).Should(Succeed())
 
-				DeleteCr(createdCr, cr.Name, defaultNamespace, g)
-				DeleteCr(createdCr1, cr1.Name, namespace1, g)
+				CleanResource(createdCr, cr.Name, defaultNamespace)
+				CleanResource(createdCr1, cr1.Name, namespace1)
 			})
 		})
 
@@ -143,7 +146,7 @@ var _ = Describe("tests regarding controller manager", func() {
 
 				By("clean up")
 				for _, createdCr := range createdCrs {
-					DeleteCr(createdCr, createdCr.Name, createdCr.Namespace, g)
+					CleanResource(createdCr, createdCr.Name, createdCr.Namespace)
 				}
 			})
 		})
@@ -193,23 +196,12 @@ var _ = Describe("tests regarding controller manager", func() {
 
 				By("clean up")
 				for _, createdCr := range createdCrs {
-					DeleteCr(createdCr, createdCr.Name, createdCr.Namespace, g)
+					CleanResource(createdCr, createdCr.Name, createdCr.Namespace)
 				}
 			})
 		})
 	})
 })
-
-func DeleteCr(cr client.Object, name string, targetNs string, g Gomega) {
-	ctx := context.Background()
-	g.Expect(k8sClient.Delete(ctx, cr)).Should(Succeed())
-
-	g.Eventually(func() bool {
-		By("deleting: " + name + ", ns: " + targetNs)
-		return checkCrdDeleted(name, targetNs, cr)
-	}, timeout, interval).Should(BeTrue())
-
-}
 
 func createNamespace(namespace string) error {
 	ns := corev1.Namespace{

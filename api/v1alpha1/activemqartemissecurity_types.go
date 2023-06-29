@@ -197,6 +197,7 @@ type ActiveMQArtemisSecurityStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:path=activemqartemissecurities,shortName=aas
 
 // ActiveMQArtemisSecurity is the Schema for the activemqartemissecurities API
 type ActiveMQArtemisSecurity struct {

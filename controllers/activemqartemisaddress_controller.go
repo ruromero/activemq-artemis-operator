@@ -19,13 +19,12 @@ package controllers
 import (
 	"context"
 
-	mgmt "github.com/artemiscloud/activemq-artemis-management"
 	brokerv1beta1 "github.com/artemiscloud/activemq-artemis-operator/api/v1beta1"
-	"github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
 	ss "github.com/artemiscloud/activemq-artemis-operator/pkg/resources/statefulsets"
+	mgmt "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/artemis"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/channels"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/common"
-	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia"
+	jc "github.com/artemiscloud/activemq-artemis-operator/pkg/utils/jolokia_client"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/lsrcrs"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/namer"
 	"github.com/artemiscloud/activemq-artemis-operator/pkg/utils/selectors"
@@ -98,21 +97,24 @@ func (r *ActiveMQArtemisAddressReconciler) Reconcile(ctx context.Context, reques
 		return ctrl.Result{}, err
 	}
 
+	addressDeployment := AddressDeployment{
+		AddressResource:      *instance,
+		SsTargetNameBuilders: createNameBuilders(instance),
+	}
+
 	if !lookupSucceeded {
 		//check stored cr
 		if existingCr := lsrcrs.RetrieveLastSuccessfulReconciledCR(request.NamespacedName, "address", r.Client, getAddressLabels(instance)); existingCr != nil {
 			//compare resource version
 			if existingCr.Checksum == instance.ResourceVersion {
 				reqLogger.V(1).Info("The incoming address CR is identical to stored CR, don't do reconcile")
+				//the namespacedNameToAddressName is empty after a restart
+				namespacedNameToAddressName[request.NamespacedName] = addressDeployment
 				return ctrl.Result{RequeueAfter: common.GetReconcileResyncPeriod()}, nil
 			}
 		}
 	}
 
-	addressDeployment := AddressDeployment{
-		AddressResource:      *instance,
-		SsTargetNameBuilders: createNameBuilders(instance),
-	}
 	err = createQueue(&addressDeployment, request, r.Client, r.Scheme)
 	if nil == err {
 		namespacedNameToAddressName[request.NamespacedName] = addressDeployment
@@ -232,49 +234,43 @@ func createAddressResource(a *jc.JkInfo, addressRes *brokerv1beta1.ActiveMQArtem
 			return err
 		}
 
+		defaultConfigurationManaged := true
 		if addressRes.Spec.QueueConfiguration == nil {
 			routingType := "MULTICAST"
 			if addressRes.Spec.RoutingType != nil {
 				routingType = *addressRes.Spec.RoutingType
 			}
-			response, err := a.Artemis.CreateQueue(addressRes.Spec.AddressName, *addressRes.Spec.QueueName, routingType)
-			if nil != err {
-				if mgmt.GetCreationError(response) == mgmt.QUEUE_ALREADY_EXISTS {
-					//TODO: we may add an update API to management module like the queueConfig case
-					glog.V(1).Error(err, "some error occurred", "response", response, "broker", a.IP)
-					glog.V(1).Info("Queue already exists, ignore and return success", "broker", a.IP)
-					err = nil
-				} else {
-					glog.Error(err, "Creating ActiveMQArtemisAddress error for "+*addressRes.Spec.QueueName, "broker", a.IP)
-					return err
-				}
-			} else {
-				glog.Info("Created ActiveMQArtemisAddress for "+*addressRes.Spec.QueueName, "on broker", a.IP)
+
+			addressRes.Spec.QueueConfiguration = &brokerv1beta1.QueueConfigurationType{
+				RoutingType:          &routingType,
+				ConfigurationManaged: &defaultConfigurationManaged,
 			}
-		} else {
-			//create queue using queueconfig
-			queueCfg, ignoreIfExists, err := GetQueueConfig(addressRes)
-			if err != nil {
-				glog.Error(err, "Failed to get queue config json string")
-				//here we return nil as no point to requeue reconcile again
-				return nil
-			}
-			respData, err := a.Artemis.CreateQueueFromConfig(queueCfg, ignoreIfExists)
-			if nil != err {
-				if mgmt.GetCreationError(respData) == mgmt.QUEUE_ALREADY_EXISTS {
-					glog.Info("The queue already exists, updating", "queue", queueCfg)
-					respData, err := a.Artemis.UpdateQueue(queueCfg)
-					if err != nil {
-						glog.Error(err, "Failed to update queue", "details", respData)
-					}
-					return err
-				}
-				glog.Error(err, "Creating ActiveMQArtemisAddress error for "+*addressRes.Spec.QueueName)
-				return err
-			} else {
-				glog.Info("Created ActiveMQArtemisAddress for " + *addressRes.Spec.QueueName)
-			}
+		} else if addressRes.Spec.QueueConfiguration.ConfigurationManaged == nil {
+			addressRes.Spec.QueueConfiguration.ConfigurationManaged = &defaultConfigurationManaged
 		}
+		//create queue using queueconfig
+		queueCfg, ignoreIfExists, err := GetQueueConfig(addressRes)
+		if err != nil {
+			glog.Error(err, "Failed to get queue config json string")
+			//here we return nil as no point to requeue reconcile again
+			return nil
+		}
+		respData, err := a.Artemis.CreateQueueFromConfig(queueCfg, ignoreIfExists)
+		if nil != err {
+			if mgmt.GetCreationError(respData) == mgmt.QUEUE_ALREADY_EXISTS {
+				glog.Info("The queue already exists, updating", "queue", queueCfg)
+				respData, err := a.Artemis.UpdateQueue(queueCfg)
+				if err != nil {
+					glog.Error(err, "Failed to update queue", "details", respData)
+				}
+				return err
+			}
+			glog.Error(err, "Creating ActiveMQArtemisAddress error for "+*addressRes.Spec.QueueName)
+			return err
+		} else {
+			glog.Info("Created ActiveMQArtemisAddress for " + *addressRes.Spec.QueueName)
+		}
+
 	}
 	return nil
 }
@@ -390,7 +386,7 @@ func GetStatefulSetNameForPod(client client.Client, pod *types.NamespacedName) (
 		if len(addressDeployment.SsTargetNameBuilders) == 0 {
 			glog.Info("this cr doesn't have target specified, it will be applied to all")
 			//deploy to all sts, need get from broker controller
-			ssInfos := statefulsets.GetDeployedStatefulSetNames(client, nil)
+			ssInfos := ss.GetDeployedStatefulSetNames(client, nil)
 			if len(ssInfos) == 0 {
 				glog.Info("No statefulset found")
 				continue

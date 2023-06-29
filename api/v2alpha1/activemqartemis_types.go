@@ -100,6 +100,7 @@ type ActiveMQArtemisStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:resource:path=activemqartemises
+//+kubebuilder:resource:path=activemqartemises,shortName=aa
 
 // ActiveMQArtemis is the Schema for the activemqartemises API
 type ActiveMQArtemis struct {
